@@ -1,0 +1,15 @@
+{
+  "name": "@farmverse/shared",
+  "version": "0.0.0",
+  "private": true,
+  "description": "FARMVERSE shared contracts (types, protocol, error codes) used by client and server",
+  "type": "module",
+  "exports": {
+    "./protocol": "./src/protocol.ts",
+    "./api": "./src/api.ts",
+    "./errors": "./src/errors.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}
