@@ -1,0 +1,21 @@
+{
+  "name": "farmverse",
+  "version": "0.0.0",
+  "private": true,
+  "description": "FARMVERSE - mobile-first multiplayer social farming game",
+  "type": "module",
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
+  },
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
+  }
+}
