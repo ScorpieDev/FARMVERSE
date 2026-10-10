@@ -107,8 +107,10 @@ describe("computeFarmLayout", () => {
     }
   });
 
-  it("keeps touch targets at least 44 CSS px on common phones", () => {
+  it("keeps touch targets at least 44 CSS px on common phones, including small ones", () => {
     for (const [width, height] of [
+      [320, 568],
+      [568, 320],
       [360, 640],
       [390, 844],
       [844, 390],

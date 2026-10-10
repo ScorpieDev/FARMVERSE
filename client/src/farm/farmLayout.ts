@@ -79,7 +79,7 @@ interface Metrics {
 
 const METRICS: Readonly<Record<Orientation, Metrics>> = {
   portrait: { margin: 12, gap: 10, titleSize: 26, textSize: 15, lineHeight: 22, buttonHeight: 52, maxCellWidth: 170 },
-  landscape: { margin: 10, gap: 8, titleSize: 22, textSize: 14, lineHeight: 20, buttonHeight: 44, maxCellWidth: 160 },
+  landscape: { margin: 10, gap: 8, titleSize: 22, textSize: 14, lineHeight: 20, buttonHeight: 50, maxCellWidth: 160 },
 };
 
 export function orientationOf(width: number, height: number): Orientation {

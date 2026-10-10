@@ -66,4 +66,4 @@ New tests (`farmLayout.test.ts`): identical design layout at zoom 50–200%; sam
 
 - Phaser 3 RESIZE renders one canvas pixel per CSS pixel. On high-DPI phones and at browser zoom above 100% the image is upscaled and slightly soft. Layout and proportions are correct; sharp high-DPI rendering would need a different scale setup (possible follow-up).
 - Browser zoom no longer makes the game larger or smaller: the farm always fits the window. This is intended for a full-screen game.
-- On small phones (320×568) seed buttons are 46 CSS px tall in portrait but about 39 CSS px in landscape, below the 44 px touch target.
+- On small phones in landscape (568×320) seed buttons were about 39 CSS px tall. Resolved in the follow-up polish commit: landscape buttons are now 50 design units (44.4 CSS px at 568×320), covered by a test.

@@ -13,6 +13,7 @@
 
 ### Fixed
 
+- Client: empty plots say `No <crop> seeds` instead of `Tap to plant` when the selected seed is used up; landscape seed buttons stay ≥ 44 CSS px on small phones (568×320)
 - Client: the farm looked huge at 200% browser zoom and shrank to a small cluster at the top when zoomed out or on large screens. Cause: the scene laid out in CSS pixels with fixed size caps while Chrome zoom changes the CSS viewport (Phaser RESIZE follows it correctly). The farm now lays out in fixed design units (360×640 portrait, 640×360 landscape) and the camera zooms uniformly to fit and centre it; text is rasterised at the camera zoom. Planting, growth, harvest, rewards and the server protocol are unchanged (`client/src/farm/farmLayout.ts`)
 - Client: plot labels overflowed their plots in landscape; plots now widen when height is the limit and the label font fits the plot width — `fc3ff87`
 

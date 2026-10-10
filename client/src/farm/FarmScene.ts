@@ -25,6 +25,7 @@ import { REQUEST_ID_UNSUPPORTED_MESSAGE, createRequestIdFactory } from "../netwo
 import { resolveServerUrls } from "../network/serverUrl.js";
 import {
   clockFromState,
+  emptyPlotHint,
   errorText,
   formatDuration,
   inventoryLine,
@@ -315,7 +316,7 @@ export class FarmScene extends Scene {
 
     this.plots.forEach(({ box, bar, label }, index) => {
       const plot = state?.plots[index];
-      if (plot === undefined) {
+      if (state === null || plot === undefined) {
         label.setText("");
         bar.setVisible(false);
         return;
@@ -324,7 +325,7 @@ export class FarmScene extends Scene {
       bar.setVisible(view.kind === "growing");
       if (view.kind === "empty") {
         box.setFillStyle(COLORS.soil);
-        label.setText("Empty\nTap to plant");
+        label.setText(`Empty\n${emptyPlotHint(state, this.selectedCrop)}`);
       } else if (view.kind === "growing") {
         box.setFillStyle(COLORS.growing);
         label.setText(`${getCrop(view.cropId).name}\n${formatDuration(view.remainingMs)}`);

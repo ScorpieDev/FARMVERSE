@@ -66,6 +66,11 @@ export function inventoryLine(state: FarmState, itemIds: readonly ItemId[]): str
   return itemIds.map((itemId) => `${getItem(itemId).name} ${quantityOf(state, itemId)}`).join(" · ");
 }
 
+/** Second line of an empty plot's label: what a tap will do with the selected seed. */
+export function emptyPlotHint(state: FarmState, cropId: CropId): string {
+  return seedCount(state, cropId) > 0 ? "Tap to plant" : `No ${getCrop(cropId).name} seeds`;
+}
+
 /** Label for the seed refill button, or null when it should be hidden. */
 export function refillLabel(refill: SeedRefillState, now: number): string | null {
   if (!refill.eligible || refill.availableAt === null) return null;

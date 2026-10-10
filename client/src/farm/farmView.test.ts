@@ -3,6 +3,7 @@ import type { FarmState } from "@farmverse/shared/api";
 import { createRequestIdFactory } from "../network/requestId.js";
 import {
   clockFromState,
+  emptyPlotHint,
   errorText,
   formatDuration,
   inventoryLine,
@@ -75,6 +76,11 @@ describe("formatting", () => {
     expect(inventoryLine(STATE, ["wheat_produce", "carrot_produce", "tomato_produce"])).toBe(
       "Wheat 0 · Carrot 0 · Tomato 2",
     );
+  });
+
+  it("hints at the selected seed on empty plots", () => {
+    expect(emptyPlotHint(STATE, "wheat")).toBe("Tap to plant");
+    expect(emptyPlotHint(STATE, "carrot")).toBe("No Carrot seeds");
   });
 
   it("labels the refill button only when eligible", () => {

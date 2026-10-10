@@ -110,7 +110,7 @@ Scope note: the Game Director execution directive of 2026-10-10 requires basic c
 
 Responsive layout fix (2026-10-10): farm laid out in design units with uniform camera zoom; consistent at browser zoom 50–200% and window sizes 320×568 to 2560×1440 (headless Chromium). See `docs/reports/phase1/PHASE1_ZOOM_LAYOUT_FIX_REPORT.md`.
 
-Tests after the layout fix: shared 226, server 336, client 94 — 656 passing.
+Tests after the layout fix and polish: shared 226, server 336, client 95 — 657 passing.
 
 Tests after Step 1.7: shared 226, server 336, client 75 — 637 passing; `npm run typecheck` clean; `npm audit` 0 vulnerabilities.
 
