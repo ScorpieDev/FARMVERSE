@@ -8,6 +8,7 @@
  *
  * No player state, gameplay or authentication in Phase 0.
  */
+import { isErrorCode } from "./errors.js";
 import type { ErrorCode, ErrorPayload } from "./errors.js";
 
 /** Bump when the message contract changes in an incompatible way. */
@@ -108,7 +109,7 @@ export function isServerMessage(value: unknown): value is ServerMessage {
       const error = value["error"];
       return (
         isObject(error) &&
-        typeof error["code"] === "string" &&
+        isErrorCode(error["code"]) &&
         typeof error["message"] === "string"
       );
     }
