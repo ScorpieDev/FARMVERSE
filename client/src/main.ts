@@ -2,7 +2,9 @@
  * Client entry point: boots Phaser into the #game element.
  *
  * Scale.RESIZE makes the canvas follow the window size, so the game works in
- * both portrait and landscape; the design resolution is chosen in Phase 1.
+ * both portrait and landscape. Scenes lay out in fixed design units and zoom
+ * their camera to fit (see farm/farmLayout.ts), so window size and browser
+ * zoom never change the proportions.
  */
 import { AUTO, Game, Scale } from "phaser";
 import { FarmScene } from "./farm/FarmScene.js";

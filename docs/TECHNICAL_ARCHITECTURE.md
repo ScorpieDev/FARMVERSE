@@ -577,7 +577,7 @@ Stack đã chốt trong Phase 0:
   - Duplication protection (§12): request ID (UUID v4) + `action_log` trong cùng transaction — gửi lại trả kết quả cũ, không áp dụng lần hai; dùng lại cho hành động khác → `REQUEST_ID_REUSED`
   - Logging (§19): mỗi hành động farm ghi Player ID, Action, Request ID, Result (không ghi token)
   - Phần thưởng: coin và XP mỗi lần thu hoạch (giá trị tạm thời)
-  - Client (§4): `FarmScene` (Phaser) — 6 ô đất (2×3 dọc, 3×2 ngang), nút hạt giống, nút nhận hạt miễn phí, coin/XP, sản phẩm đã thu; token lưu trong `localStorage`, token không hợp lệ → hiện "Start a new farm" (không tự tạo farm mới); request ID bằng `crypto.randomUUID` (không có fallback `Math.random`), thử lại tối đa 3 lần với cùng request ID khi lỗi mạng/502–504; thời gian lớn lên hiển thị theo đồng hồ server ước lượng, server quyết định mọi hành động
+  - Client (§4): `FarmScene` (Phaser) — bố cục theo đơn vị thiết kế cố định (360×640 dọc, 640×360 ngang), camera zoom đồng đều để vừa và căn giữa canvas, nên kích thước cửa sổ và zoom trình duyệt không làm méo tỷ lệ (`farmLayout.ts`); 6 ô đất (2×3 dọc, 3×2 ngang), nút hạt giống, nút nhận hạt miễn phí, coin/XP, sản phẩm đã thu; token lưu trong `localStorage`, token không hợp lệ → hiện "Start a new farm" (không tự tạo farm mới); request ID bằng `crypto.randomUUID` (không có fallback `Math.random`), thử lại tối đa 3 lần với cùng request ID khi lỗi mạng/502–504; thời gian lớn lên hiển thị theo đồng hồ server ước lượng, server quyết định mọi hành động
 
 Chưa triển khai:
 

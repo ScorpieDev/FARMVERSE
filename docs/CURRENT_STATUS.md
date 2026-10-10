@@ -108,6 +108,10 @@ Browser verification (closeout, 2026-10-10):
 
 Scope note: the Game Director execution directive of 2026-10-10 requires basic coin and XP rewards in Phase 1. This replaces the earlier Phase 1 decision Q4 ("no Coin/XP in Phase 1"). Implemented as per-harvest rewards with provisional values (wheat 2 coins / 1 XP, carrot 6 / 3, tomato 12 / 6), to be tuned later; no levels, shop or spending in Phase 1.
 
+Responsive layout fix (2026-10-10): farm laid out in design units with uniform camera zoom; consistent at browser zoom 50–200% and window sizes 320×568 to 2560×1440 (headless Chromium). See `docs/reports/phase1/PHASE1_ZOOM_LAYOUT_FIX_REPORT.md`.
+
+Tests after the layout fix: shared 226, server 336, client 94 — 656 passing.
+
 Tests after Step 1.7: shared 226, server 336, client 75 — 637 passing; `npm run typecheck` clean; `npm audit` 0 vulnerabilities.
 
 Tests at Phase 0 closeout: shared 218, server 245, client 44 — 507 passing; `npm run typecheck` clean; `npm audit` 0 vulnerabilities (audit run).
@@ -142,6 +146,8 @@ Phase 0 — Foundation: COMPLETED.
 
 - `vite preview` and HMR through the Codespaces URL — not verified (needs an authenticated browser session).
 - Android device testing — deferred by the Game Director.
+- Real Chrome page zoom was emulated (CSS viewport + devicePixelRatio) in headless Chromium, not tested with the zoom menu in a real browser window.
+- The canvas renders one pixel per CSS pixel (Phaser RESIZE mode), so on high-DPI screens and at browser zoom above 100% the farm is slightly soft. Proportions and layout are correct.
 - On Codespaces the server runs with `CLIENT_ORIGIN=https://localhost:5173` (observed Origin through port forwarding; not verified for every Codespaces configuration).
 - Security work scheduled before multiplayer or public deployment: authentication, connection and rate limits, server-side WebSocket heartbeat, request IDs and action log (see `docs/reports/phase0/PHASE0_CLOSEOUT_AUDIT.md` §6).
 

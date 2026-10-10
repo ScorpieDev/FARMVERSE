@@ -34,6 +34,7 @@ import {
   serverNow,
   type ServerClock,
 } from "./farmView.js";
+import { computeFarmLayout, designToScreen, textResolution, type FarmLayout, type Rect } from "./farmLayout.js";
 
 const FONT = "system-ui, sans-serif";
 const COLORS = {
@@ -51,8 +52,6 @@ const COLORS = {
 };
 const TONE_COLORS: Record<StatusTone, string> = { ok: "#bbf7d0", pending: "#fde68a", error: "#fecaca" };
 const PRODUCE_IDS: readonly ItemId[] = CROP_IDS.map((id) => getCrop(id).produceItemId);
-/** Minimum touch target (px). */
-const MIN_TOUCH = 44;
 
 interface Button {
   box: GameObjects.Rectangle;
@@ -97,6 +96,7 @@ export class FarmScene extends Scene {
   private refillButton!: Button;
   private overlay!: { shade: GameObjects.Rectangle; text: GameObjects.Text; button: Button };
   private ticker: Time.TimerEvent | undefined;
+  private currentLayout: FarmLayout | null = null;
 
   constructor() {
     super("FarmScene");
@@ -361,64 +361,52 @@ export class FarmScene extends Scene {
     this.layout(gameSize.width, gameSize.height);
   }
 
-  /** Portrait: 2×3 plots; landscape: 3×2. Everything scales with the short side. */
+  /**
+   * Places everything in design units (see farmLayout.ts) and zooms the camera
+   * so the design frame fits the canvas. Browser zoom and window size only
+   * change the camera zoom, never the proportions.
+   */
   private layout(width: number, height: number): void {
-    const unit = Math.min(width, height);
-    const margin = Math.round(unit * 0.03);
-    const gap = Math.round(unit * 0.025);
-    const textSize = Math.round(Math.min(20, Math.max(13, unit * 0.038)));
-    const lineHeight = Math.round(textSize * 1.45);
-    const centerX = width / 2;
+    const layout = computeFarmLayout(width, height);
+    this.currentLayout = layout;
+    const { fontSize, design } = layout;
 
-    this.title.setFontSize(Math.round(Math.min(36, Math.max(20, unit * 0.065)))).setPosition(centerX, margin);
-    let y = margin + this.title.height + 2;
-    for (const line of [this.status, this.stats]) {
-      line.setFontSize(textSize).setPosition(centerX, y);
-      y += lineHeight;
+    const camera = this.cameras.main;
+    camera.setSize(width, height);
+    camera.setZoom(layout.zoom);
+    camera.centerOn(design.width / 2, design.height / 2);
+
+    const resolution = textResolution(layout);
+    for (const text of this.children.list) {
+      if (text instanceof GameObjects.Text) text.setResolution(resolution);
     }
 
-    const buttonHeight = Math.max(MIN_TOUCH, Math.round(unit * 0.11));
-    const footerHeight = gap + buttonHeight + gap + lineHeight * 3;
-    const columns = width > height ? 3 : 2;
-    const rows = 6 / columns;
-    const areaHeight = height - y - footerHeight - margin;
-    // Plots are square when the width allows; when height is the limit
-    // (landscape) they grow wider so labels like "Tap to plant" still fit.
-    const plotHeight = Math.max(
-      MIN_TOUCH,
-      Math.min(170, (width - 2 * margin - (columns - 1) * gap) / columns, (areaHeight - (rows - 1) * gap) / rows),
-    );
-    const plotWidth = Math.max(plotHeight, Math.min(170, (width - 2 * margin - (columns - 1) * gap) / columns));
-    const plotTextSize = Math.round(Math.max(11, Math.min(textSize, plotWidth / 7.5)));
-    const gridWidth = columns * plotWidth + (columns - 1) * gap;
-    const left = centerX - gridWidth / 2;
+    this.title.setFontSize(fontSize.title).setPosition(layout.title.x, layout.title.y);
+    this.status.setFontSize(fontSize.text).setPosition(layout.status.x, layout.status.y);
+    this.stats.setFontSize(fontSize.text).setPosition(layout.stats.x, layout.stats.y);
 
     this.plots.forEach(({ box, bar, label }, index) => {
-      const x = left + (index % columns) * (plotWidth + gap) + plotWidth / 2;
-      const top = y + Math.floor(index / columns) * (plotHeight + gap);
-      box.setSize(plotWidth, plotHeight).setPosition(x, top + plotHeight / 2);
-      box.input?.hitArea.setTo(0, 0, plotWidth, plotHeight);
-      label.setFontSize(plotTextSize).setPosition(x, top + plotHeight / 2 - plotTextSize * 0.2);
-      bar.setPosition(x - plotWidth / 2 + 8, top + plotHeight - 12);
+      const rect = layout.plots[index]!;
+      this.placeRect(box, rect);
+      label.setFontSize(fontSize.plot).setPosition(rect.x + rect.width / 2, rect.y + rect.height / 2 - fontSize.plot * 0.2);
+      bar.setPosition(rect.x + 8, rect.y + rect.height - 10);
     });
-    y += rows * plotHeight + (rows - 1) * gap + gap;
 
-    const buttonWidth = Math.min(180, (width - 2 * margin - 2 * gap) / 3);
     CROP_IDS.forEach((cropId, index) => {
       const button = this.seedButtons.get(cropId);
-      if (button === undefined) return;
-      this.placeButton(button, centerX + (index - 1) * (buttonWidth + gap), y + buttonHeight / 2, buttonWidth, buttonHeight, textSize);
+      if (button !== undefined) this.placeButton(button, layout.seedButtons[index]!, fontSize.text);
     });
-    this.placeButton(this.refillButton, centerX, y + buttonHeight / 2, Math.min(width - 2 * margin, 3 * buttonWidth + 2 * gap), buttonHeight, textSize);
-    y += buttonHeight + gap;
+    this.placeButton(this.refillButton, layout.refillButton, fontSize.text);
 
-    this.produce.setFontSize(textSize).setPosition(centerX, y);
-    this.message.setFontSize(textSize).setWordWrapWidth(width - 2 * margin).setPosition(centerX, y + lineHeight);
+    this.produce.setFontSize(fontSize.text).setPosition(layout.produce.x, layout.produce.y);
+    this.message.setFontSize(fontSize.text).setWordWrapWidth(layout.wrapWidth).setPosition(layout.message.x, layout.message.y);
 
-    this.overlay.shade.setSize(width, height).setPosition(centerX, height / 2);
-    this.overlay.shade.input?.hitArea.setTo(0, 0, width, height);
-    this.overlay.text.setFontSize(textSize + 2).setWordWrapWidth(width - 4 * margin).setPosition(centerX, height / 2 - buttonHeight);
-    this.placeButton(this.overlay.button, centerX, height / 2 + buttonHeight / 2, Math.min(260, width - 4 * margin), buttonHeight, textSize);
+    this.placeRect(this.overlay.shade, layout.view);
+    this.overlay.text
+      .setFontSize(fontSize.text + 2)
+      .setWordWrapWidth(layout.wrapWidth)
+      .setPosition(layout.overlayText.x, layout.overlayText.y);
+    this.placeButton(this.overlay.button, layout.overlayButton, fontSize.text);
 
     this.render();
   }
@@ -436,16 +424,23 @@ export class FarmScene extends Scene {
     return { box, label };
   }
 
-  private placeButton(button: Button, x: number, y: number, width: number, height: number, textSize: number): void {
-    button.box.setSize(width, height).setPosition(x, y);
-    button.box.input?.hitArea.setTo(0, 0, width, height);
-    button.label.setFontSize(textSize).setPosition(x, y);
+  /** Sizes and positions a centre-origin rectangle (and its hit area) to a top-left rect. */
+  private placeRect(box: GameObjects.Rectangle, rect: Rect): void {
+    box.setSize(rect.width, rect.height).setPosition(rect.x + rect.width / 2, rect.y + rect.height / 2);
+    box.input?.hitArea.setTo(0, 0, rect.width, rect.height);
+  }
+
+  private placeButton(button: Button, rect: Rect, textSize: number): void {
+    this.placeRect(button.box, rect);
+    button.label.setFontSize(textSize).setPosition(rect.x + rect.width / 2, rect.y + rect.height / 2);
   }
 
   /** Development-only hooks for automated browser checks (stripped from production builds). */
   private exposeDebugHooks(): void {
     if (!import.meta.env.DEV) return;
-    const center = (object: GameObjects.Rectangle) => ({ x: object.x, y: object.y });
+    // Canvas CSS-pixel coordinates of an object's centre, ready for pointer events.
+    const center = (object: GameObjects.Rectangle) =>
+      this.currentLayout === null ? { x: object.x, y: object.y } : designToScreen(this.currentLayout, object.x, object.y);
     (window as unknown as { __farmverse: unknown }).__farmverse = {
       state: () => this.state,
       message: () => this.message.text,
@@ -454,6 +449,7 @@ export class FarmScene extends Scene {
       refillButton: () => center(this.refillButton.box),
       overlayVisible: () => this.overlay.shade.visible,
       newFarmButton: () => center(this.overlay.button.box),
+      layout: () => this.currentLayout,
     };
   }
 
