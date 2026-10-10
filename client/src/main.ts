@@ -7,7 +7,7 @@
 import { AUTO, Game, Scale } from "phaser";
 import { BootScene } from "./core/BootScene.js";
 
-new Game({
+const game = new Game({
   type: AUTO,
   parent: "game",
   backgroundColor: "#14532d",
@@ -18,3 +18,17 @@ new Game({
   },
   scene: [BootScene],
 });
+
+// Phaser 3.90 handles an orientation change by refreshing before it reads the
+// new parent size, so the canvas can stay in the old orientation (seen in
+// mobile Chrome when rotating portrait <-> landscape). Re-read the parent size
+// and refresh once more on the next frame.
+function resyncScaleAfterRotation(): void {
+  requestAnimationFrame(() => {
+    game.scale.getParentBounds();
+    game.scale.refresh();
+  });
+}
+
+screen.orientation?.addEventListener("change", resyncScaleAfterRotation);
+window.addEventListener("orientationchange", resyncScaleAfterRotation);
