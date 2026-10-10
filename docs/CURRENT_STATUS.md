@@ -46,7 +46,7 @@ Completed:
 
 ## Phase 0 — Foundation
 
-Completed 2026-10-10. Commits on `main` (`5faeaff` and `1bbb65d` are already on `origin/main`; the other 6 are not pushed yet):
+Completed 2026-10-10. Commits on `main`, all pushed to `origin/main` (last Phase 0 commit: `69d4b18`):
 
 - `5faeaff` chore: initialize monorepo workspace
 - `1bbb65d` feat: add shared protocol types
@@ -105,7 +105,6 @@ Next phase: Phase 1 — Farming (NOT STARTED, waits for Game Director approval).
 
 # OPEN ITEMS FROM PHASE 0
 
-- Push the 6 unpushed Phase 0 commits (`3ea25bc` … `5924c4f`) to GitHub (Game Director decision).
 - Overall review of Phase 0 and its documentation — pending Game Director approval (development workflow: ChatGPT Review).
 - Android test — postponed by the Game Director.
 - Browser check of resize / portrait ↔ landscape after Step 8 — no result yet.

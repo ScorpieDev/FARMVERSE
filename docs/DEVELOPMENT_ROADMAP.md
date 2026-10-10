@@ -40,7 +40,7 @@ Kết quả:
 - Server chạy được: Fastify + `ws`.
 - Client kết nối được server: `/api/health` + WebSocket `/ws`, Game Director xác nhận trên trình duyệt qua URL Codespaces.
 - 150 test tự động pass.
-- Việc còn lại: push 6 commit chưa push lên GitHub, review tổng thể Phase 0 và tài liệu (đang chờ Game Director duyệt), kiểm tra Android (hoãn theo quyết định của Game Director).
+- Việc còn lại: review tổng thể Phase 0 và tài liệu (đang chờ Game Director duyệt), kiểm tra Android (hoãn theo quyết định của Game Director).
 
 ---
 

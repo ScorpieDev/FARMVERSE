@@ -2,7 +2,7 @@
 
 ## Phase 0 — Foundation (2026-10-10)
 
-Commits on `main`. `5faeaff` and `1bbb65d` are already on `origin/main`; the other 6 commits are not pushed yet.
+Commits on `main`, pushed to `origin/main` (up to `69d4b18`).
 
 ### Added
 
