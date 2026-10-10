@@ -33,10 +33,19 @@ import type {
   HarvestReward,
   InventoryEntry,
   PlotState,
+  QuestView,
   SeedRefillState,
 } from "@farmverse/shared/api";
 import type { ErrorCode } from "@farmverse/shared/errors";
-import { cropUnlockLevel, levelFromXp, plotUnlockLevel, unlocksBetween } from "@farmverse/shared/progression";
+import {
+  cropUnlockLevel,
+  levelFromXp,
+  levelProgress,
+  plotCountForLevel,
+  plotUnlockLevel,
+  unlocksBetween,
+} from "@farmverse/shared/progression";
+import { activeQuest, assertQuestState, type QuestState } from "./quests.js";
 
 /** A plot with a crop. Readiness is derived from plantedAt; it is never stored. */
 export interface FarmPlot {
@@ -341,9 +350,13 @@ export function refillSeeds(farm: FarmData, now: number): RuleResult {
 
 // ---------- contract ----------
 
-/** Builds the shared FarmState sent to clients, as of server time `now`. */
-export function toFarmState(farm: FarmData, now: number): FarmState {
+/**
+ * Builds the shared FarmState sent to clients, as of server time `now`. Level
+ * and quest progress are derived here from the stored XP and quest state.
+ */
+export function toFarmState(farm: FarmData, quests: QuestState, now: number): FarmState {
   assertFarmData(farm);
+  assertQuestState(quests);
   assertTime(now);
 
   const plots: PlotState[] = farm.plots.map((plot, index) => ({
@@ -362,5 +375,28 @@ export function toFarmState(farm: FarmData, now: number): FarmState {
     ? { eligible: true, availableAt: farm.seedRefillAvailableAt ?? now }
     : { eligible: false, availableAt: null };
 
-  return { serverTime: now, plots, inventory, seedRefill, coins: farm.coins, xp: farm.xp };
+  const level = levelProgress(farm.xp);
+  const active = activeQuest(quests, farm.xp);
+  const quest: QuestView | null =
+    active === null
+      ? null
+      : {
+          id: active.quest.id,
+          title: active.quest.title,
+          progress: active.progress,
+          target: active.target,
+          complete: active.complete,
+          reward: { ...active.quest.reward },
+        };
+
+  return {
+    serverTime: now,
+    plots,
+    inventory,
+    seedRefill,
+    coins: farm.coins,
+    xp: farm.xp,
+    progression: { ...level, unlockedPlotCount: plotCountForLevel(level.level) },
+    quest,
+  };
 }

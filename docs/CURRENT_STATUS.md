@@ -8,7 +8,7 @@
 
 ## Project Status
 
-Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: IN PROGRESS (Steps 2.1–2.3 done).
+Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: IN PROGRESS (Steps 2.1–2.4 done).
 
 ---
 
@@ -123,8 +123,9 @@ Design approved by the Game Director on 2026-10-10 (P2-1…P2-7 as recommended i
 | 2.1 Shared progression data (`shared/src/progression.ts`: XP → level, unlock table, quest chain; error codes `LEVEL_TOO_LOW`, `QUEST_NOT_COMPLETE`) | Done | `docs/reports/phase2/PHASE2_STEP2_1_REPORT.md` |
 | 2.2 Pure server rules (`server/src/farming/progression.ts`, `rules.ts`): `LEVEL_TOO_LOW` on planting, level-change detection, quest progress and claim | Done | `docs/reports/phase2/PHASE2_STEP2_2_REPORT.md` |
 | 2.3 Corn / Strawberry and plots 7–9 in shared data; seeds only for unlocked crops (+5 on unlock); storage schema v2 migration (plots, items, `quest_state`) | Done | `docs/reports/phase2/PHASE2_STEP2_3_REPORT.md` |
-| 2.4 API: level / quest in `FarmState`, quest events in the action transactions, `POST /api/quests/claim` | Next | |
-| 2.5 Client · 2.6 E2E | Not started | |
+| 2.4 API: `progression` and `quest` in `FarmState`, quest progress saved in the plant / harvest transactions, `POST /api/quests/claim` (request IDs, `QUEST_NOT_COMPLETE`) | Done | `docs/reports/phase2/PHASE2_STEP2_4_REPORT.md` |
+| 2.5 Client: level / XP bar, locked plots, Corn / Strawberry buttons, quest line with Claim | Awaiting Game Director approval | |
+| 2.6 E2E | Not started | |
 
 Tests after Step 1.7: shared 226, server 336, client 75 — 637 passing; `npm run typecheck` clean; `npm audit` 0 vulnerabilities.
 
@@ -150,7 +151,7 @@ Phase 2 — Progression
 
 Status:
 
-IN PROGRESS — Steps 2.1–2.3 done. The server now has 9 plots (7–9 locked by level), Corn / Strawberry (levels 3 / 5) and database schema v2. The client still shows the 6 Phase 1 plots and 3 seeds until Step 2.5.
+IN PROGRESS — Steps 2.1–2.4 done. The server has 9 plots (7–9 locked by level), Corn / Strawberry (levels 3 / 5), database schema v2, and an API that reports level and quest progress and lets players claim quest rewards. The client still shows the Phase 1 view until Step 2.5.
 
 Phase 1 — Farming: COMPLETED.
 
@@ -170,7 +171,7 @@ Phase 0 — Foundation: COMPLETED.
 
 # NEXT OBJECTIVE
 
-Phase 2 Step 2.4: API — add level, XP progress, locked plots and the active quest to `FarmState`; record quest progress inside the plant / harvest transactions; `POST /api/quests/claim` with request IDs; tests.
+Game Director review of Step 2.4, then Phase 2 Step 2.5: client progression UI — level and XP bar, locked plots ("Level N"), Corn / Strawberry seed buttons, quest line with a Claim button, level-up message.
 
 ---
 

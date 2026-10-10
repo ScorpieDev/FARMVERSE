@@ -22,6 +22,15 @@ const FARM: FarmState = {
   seedRefill: { eligible: false, availableAt: null },
   coins: 0,
   xp: 0,
+  progression: { level: 1, xpIntoLevel: 0, xpForNextLevel: 50, unlockedPlotCount: 6 },
+  quest: {
+    id: "harvest_wheat_3",
+    title: "Harvest 3 Wheat",
+    progress: 0,
+    target: 3,
+    complete: false,
+    reward: { coins: 10, xp: 5 },
+  },
 };
 
 function json(status: number, body: unknown): Response {

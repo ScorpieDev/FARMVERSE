@@ -1,18 +1,22 @@
 /**
- * Farming HTTP API (Phase 1):
+ * Farming HTTP API (Phase 1, Phase 2 quests):
  *
  *   POST /api/session              create a guest player (no auth)
- *   GET  /api/farm                 current farm state
+ *   GET  /api/farm                 current farm state (with level and active quest)
  *   POST /api/farm/plant           { requestId, plotIndex, cropId }
  *   POST /api/farm/harvest         { requestId, plotIndex }
  *   POST /api/farm/refill-seeds    { requestId }
+ *   POST /api/quests/claim         { requestId }  claims the active quest
  *
  * The server is authoritative: the player comes from the Bearer token, time
- * from the server clock, and every rule from ./rules.ts. Each state-changing
- * action runs in one transaction: check the action log, load the farm, apply
- * the rule, save, record the result. Only successful actions are recorded, so
- * replaying the same request ID returns the stored result without applying
- * the action twice; reusing it for a different action or body is rejected.
+ * from the server clock, and every rule from ./rules.ts and ./progression.ts.
+ * Each state-changing action runs in one transaction: check the action log,
+ * load the farm and quest state, apply the rule, save both, record the
+ * result. Quest progress from a plant or harvest is saved in that same
+ * transaction. Only successful actions are recorded, so replaying the same
+ * request ID returns the stored result without applying the action twice;
+ * reusing it for a different action or body is rejected. Any error inside
+ * the transaction rolls everything back.
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
@@ -20,15 +24,20 @@ import {
   FARM_PATH,
   FARM_PLANT_PATH,
   FARM_REFILL_SEEDS_PATH,
+  QUEST_CLAIM_PATH,
   SESSION_PATH,
   isHarvestRequest,
   isPlantRequest,
+  isQuestClaimRequest,
   isRefillSeedsRequest,
+  type QuestClaimResponse,
 } from "@farmverse/shared/api";
 import type { ErrorCode, ErrorPayload } from "@farmverse/shared/errors";
 import { authenticate, createSession } from "../players/session.js";
 import { transaction, type Database } from "../storage/database.js";
-import { findAction, insertAction, loadFarm, saveFarm } from "../storage/farmStore.js";
+import { findAction, insertAction, loadFarm, loadQuestState, saveFarm, saveQuestState } from "../storage/farmStore.js";
+import { claimQuest, type QuestError } from "./progression.js";
+import { recordQuestEvent, type QuestState } from "./quests.js";
 import {
   harvest,
   isSeedRefillEligible,
@@ -49,22 +58,28 @@ const HTTP_STATUS: Partial<Record<ErrorCode, number>> = {
   ITEM_NOT_OWNED: 409,
   REFILL_NOT_ALLOWED: 409,
   LEVEL_TOO_LOW: 409,
+  QUEST_NOT_COMPLETE: 409,
   REQUEST_ID_REUSED: 409,
 };
 
-const ERROR_MESSAGES: Record<RuleError, string> = {
+const ERROR_MESSAGES: Record<RuleError | QuestError, string> = {
   PLOT_NOT_EMPTY: "This plot already has a crop",
   PLOT_EMPTY: "This plot has no crop",
   CROP_NOT_READY: "This crop is not ready yet",
   ITEM_NOT_OWNED: "No seeds left for this crop",
   REFILL_NOT_ALLOWED: "Seeds cannot be refilled yet",
   LEVEL_TOO_LOW: "Your level is too low for this",
+  QUEST_NOT_COMPLETE: "There is no completed quest to claim",
 };
 
 /** Small JSON bodies only: the largest valid request is well under 200 bytes. */
 const BODY_LIMIT = 1024;
 
-type ActionName = "plant" | "harvest" | "refill-seeds";
+type ActionName = "plant" | "harvest" | "refill-seeds" | "quest-claim";
+
+type ActionResult =
+  | { ok: true; farm: FarmData; quests: QuestState; body: unknown }
+  | { ok: false; error: RuleError | QuestError };
 
 interface ActionOutcome {
   ok: boolean;
@@ -100,6 +115,13 @@ export function registerFarmRoutes(app: FastifyInstance, { db, now }: FarmRoutes
     return farm;
   }
 
+  /** Loads the authenticated player's quest state; a missing row is a server fault. */
+  function requireQuests(playerId: string): QuestState {
+    const quests = loadQuestState(db, playerId);
+    if (quests === null) throw new Error(`No quest state for authenticated player ${playerId}`);
+    return quests;
+  }
+
   /**
    * Runs a state-changing action with request-ID idempotency in one transaction.
    * `apply` returns the rule result and, on success, the response body.
@@ -110,7 +132,7 @@ export function registerFarmRoutes(app: FastifyInstance, { db, now }: FarmRoutes
     action: ActionName,
     requestId: string,
     requestJson: string,
-    apply: (farm: FarmData, time: number) => { ok: true; farm: FarmData; body: unknown } | { ok: false; error: RuleError },
+    apply: (farm: FarmData, quests: QuestState, time: number) => ActionResult,
   ): ActionOutcome {
     const time = now();
     const outcome = transaction(db, (): ActionOutcome => {
@@ -126,12 +148,13 @@ export function registerFarmRoutes(app: FastifyInstance, { db, now }: FarmRoutes
         };
       }
 
-      const result = apply(requireFarm(playerId), time);
+      const result = apply(requireFarm(playerId), requireQuests(playerId), time);
       if (!result.ok) {
         return { ok: false, status: 409, body: { code: result.error, message: ERROR_MESSAGES[result.error] } };
       }
 
       saveFarm(db, playerId, result.farm);
+      saveQuestState(db, playerId, result.quests);
       insertAction(
         db,
         playerId,
@@ -157,7 +180,7 @@ export function registerFarmRoutes(app: FastifyInstance, { db, now }: FarmRoutes
   app.get(FARM_PATH, (request, reply) => {
     const playerId = requirePlayer(request, reply);
     if (playerId === null) return reply;
-    return reply.send(toFarmState(requireFarm(playerId), now()));
+    return reply.send(toFarmState(requireFarm(playerId), requireQuests(playerId), now()));
   });
 
   app.post(FARM_PLANT_PATH, { bodyLimit: BODY_LIMIT }, (request, reply) => {
@@ -172,11 +195,11 @@ export function registerFarmRoutes(app: FastifyInstance, { db, now }: FarmRoutes
       "plant",
       requestId,
       JSON.stringify({ requestId, plotIndex, cropId }),
-      (farm, time) => {
+      (farm, quests, time) => {
         const result = plant(farm, plotIndex, cropId, time);
-        return result.ok
-          ? { ok: true, farm: result.farm, body: toFarmState(result.farm, time) }
-          : result;
+        if (!result.ok) return result;
+        const nextQuests = recordQuestEvent(quests, { kind: "plant", cropId });
+        return { ok: true, farm: result.farm, quests: nextQuests, body: toFarmState(result.farm, nextQuests, time) };
       },
     );
     return reply.code(outcome.status).send(outcome.body);
@@ -194,15 +217,18 @@ export function registerFarmRoutes(app: FastifyInstance, { db, now }: FarmRoutes
       "harvest",
       requestId,
       JSON.stringify({ requestId, plotIndex }),
-      (farm, time) => {
+      (farm, quests, time) => {
+        const cropId = farm.plots[plotIndex]?.cropId;
         const result = harvest(farm, plotIndex, time);
-        return result.ok
-          ? {
-              ok: true,
-              farm: result.farm,
-              body: { ...toFarmState(result.farm, time), harvested: result.harvested, reward: result.reward },
-            }
-          : result;
+        if (!result.ok) return result;
+        // A successful harvest always had a crop on the plot.
+        const nextQuests = recordQuestEvent(quests, { kind: "harvest", cropId: cropId! });
+        return {
+          ok: true,
+          farm: result.farm,
+          quests: nextQuests,
+          body: { ...toFarmState(result.farm, nextQuests, time), harvested: result.harvested, reward: result.reward },
+        };
       },
     );
     return reply.code(outcome.status).send(outcome.body);
@@ -222,15 +248,40 @@ export function registerFarmRoutes(app: FastifyInstance, { db, now }: FarmRoutes
       "refill-seeds",
       requestId,
       JSON.stringify({ requestId }),
-      (farm, time) => {
+      (farm, quests, time) => {
         if (isSeedRefillEligible(farm) && farm.seedRefillAvailableAt === null) {
           // Unexpected data (P2-5): the refill is allowed immediately.
           request.log.warn({ playerId }, "Seed refill eligible without a recorded cooldown");
         }
         const result = refillSeeds(farm, time);
         return result.ok
-          ? { ok: true, farm: result.farm, body: toFarmState(result.farm, time) }
+          ? { ok: true, farm: result.farm, quests, body: toFarmState(result.farm, quests, time) }
           : result;
+      },
+    );
+    return reply.code(outcome.status).send(outcome.body);
+  });
+
+  app.post(QUEST_CLAIM_PATH, { bodyLimit: BODY_LIMIT }, (request, reply) => {
+    const playerId = requirePlayer(request, reply);
+    if (playerId === null) return reply;
+    if (!isQuestClaimRequest(request.body)) return sendError(reply, "INVALID_REQUEST", "Invalid quest claim request");
+
+    const { requestId } = request.body;
+    const outcome = runAction(
+      request,
+      playerId,
+      "quest-claim",
+      requestId,
+      JSON.stringify({ requestId }),
+      (farm, quests, time) => {
+        const result = claimQuest(farm, quests);
+        if (!result.ok) return result;
+        const body: QuestClaimResponse = {
+          ...toFarmState(result.farm, result.quests, time),
+          claimed: { questId: result.quest.id, reward: { ...result.quest.reward } },
+        };
+        return { ok: true, farm: result.farm, quests: result.quests, body };
       },
     );
     return reply.code(outcome.status).send(outcome.body);

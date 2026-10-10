@@ -5,6 +5,9 @@ import {
   isHarvestResponse,
   isHealthResponse,
   isPlantRequest,
+  isQuestClaimRequest,
+  isQuestClaimResponse,
+  isQuestView,
   isRefillSeedsRequest,
   isRequestId,
   isSeedRefillState,
@@ -67,6 +70,15 @@ function farm(overrides: Record<string, unknown> = {}): Record<string, unknown> 
     seedRefill: { eligible: false, availableAt: null },
     coins: 0,
     xp: 0,
+    progression: { level: 1, xpIntoLevel: 0, xpForNextLevel: 50, unlockedPlotCount: 6 },
+    quest: {
+      id: "harvest_wheat_3",
+      title: "Harvest 3 Wheat",
+      progress: 1,
+      target: 3,
+      complete: false,
+      reward: { coins: 10, xp: 5 },
+    },
     ...overrides,
   };
 }
@@ -299,5 +311,71 @@ describe("seedRefill uses server time only", () => {
   it("ignores time fields sent by the client: only requestId is read", () => {
     expect(isRefillSeedsRequest({ requestId: REQUEST_ID, availableAt: 0, now: 0 })).toBe(true);
     expect(isRefillSeedsRequest({ availableAt: 0 })).toBe(false);
+  });
+});
+
+describe("progression and quest in FarmState (Phase 2)", () => {
+  const QUEST = farm()["quest"] as Record<string, unknown>;
+
+  it("accepts consistent level progress, a finished quest chain and the maximum level", () => {
+    expect(isFarmState(farm())).toBe(true);
+    expect(isFarmState(farm({ quest: null }))).toBe(true);
+    expect(
+      isFarmState(
+        farm({ xp: 190, progression: { level: 3, xpIntoLevel: 40, xpForNextLevel: 150, unlockedPlotCount: 7 } }),
+      ),
+    ).toBe(true);
+    expect(
+      isFarmState(
+        farm({ xp: 2300, progression: { level: 10, xpIntoLevel: 50, xpForNextLevel: null, unlockedPlotCount: 9 } }),
+      ),
+    ).toBe(true);
+  });
+
+  it.each<[string, Record<string, unknown>]>([
+    ["missing progression", { progression: undefined }],
+    ["missing quest", { quest: undefined }],
+    ["level that does not match XP", { xp: 60 }],
+    ["wrong XP into level", { progression: { level: 1, xpIntoLevel: 3, xpForNextLevel: 50, unlockedPlotCount: 6 } }],
+    ["null next-level XP below the maximum", { progression: { level: 1, xpIntoLevel: 0, xpForNextLevel: null, unlockedPlotCount: 6 } }],
+    ["unlocked plots beyond the level", { progression: { level: 1, xpIntoLevel: 0, xpForNextLevel: 50, unlockedPlotCount: 9 } }],
+    ["unknown quest id", { quest: { ...QUEST, id: "harvest_gold_1" } }],
+    ["progress above target", { quest: { ...QUEST, progress: 4 } }],
+    ["complete flag that disagrees with progress", { quest: { ...QUEST, complete: true } }],
+    ["negative reward", { quest: { ...QUEST, reward: { coins: -1, xp: 5 } } }],
+    ["zero target", { quest: { ...QUEST, progress: 0, target: 0, complete: true } }],
+  ])("rejects %s", (_label, overrides) => {
+    expect(isFarmState(farm(overrides))).toBe(false);
+  });
+
+  it("validates a quest view on its own", () => {
+    expect(isQuestView(QUEST)).toBe(true);
+    expect(isQuestView({ ...QUEST, progress: 3, complete: true })).toBe(true);
+    expect(isQuestView({ ...QUEST, title: 3 })).toBe(false);
+    expect(isQuestView(null)).toBe(false);
+  });
+});
+
+describe("quest claim", () => {
+  it("accepts a claim request with only a request ID", () => {
+    expect(isQuestClaimRequest({ requestId: REQUEST_ID })).toBe(true);
+  });
+
+  it.each([
+    ["missing request ID", {}],
+    ["non-UUID request ID", { requestId: "claim-1" }],
+    ["array body", [REQUEST_ID]],
+    ["null", null],
+  ])("rejects a claim request with %s", (_label, value) => {
+    expect(isQuestClaimRequest(value)).toBe(false);
+  });
+
+  it("validates the claim response: a farm state plus the claimed quest and reward", () => {
+    const claimed = { questId: "harvest_wheat_3", reward: { coins: 10, xp: 5 } };
+    expect(isQuestClaimResponse({ ...farm(), claimed })).toBe(true);
+    expect(isQuestClaimResponse(farm())).toBe(false);
+    expect(isQuestClaimResponse({ ...farm(), claimed: { ...claimed, questId: "nope" } })).toBe(false);
+    expect(isQuestClaimResponse({ ...farm(), claimed: { ...claimed, reward: { coins: 1 } } })).toBe(false);
+    expect(isQuestClaimResponse({ ...farm({ xp: 60 }), claimed })).toBe(false);
   });
 });

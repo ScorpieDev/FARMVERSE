@@ -1,15 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { SEED_REFILL_COOLDOWN_MS, type CropId } from "@farmverse/shared/farming";
 import { QUESTS } from "@farmverse/shared/progression";
-import {
-  activeQuest,
-  assertQuestState,
-  claimQuest,
-  levelChange,
-  recordQuestEvent,
-  startingQuestState,
-  type QuestState,
-} from "./progression.js";
+import { claimQuest, levelChange } from "./progression.js";
+import { activeQuest, assertQuestState, recordQuestEvent, startingQuestState, type QuestState } from "./quests.js";
 import { createStarterFarm, gainXp, harvest, plant, refillSeeds, unlockError, type FarmData } from "./rules.js";
 
 const T = 1_700_000_000_000;

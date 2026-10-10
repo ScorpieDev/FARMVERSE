@@ -26,6 +26,15 @@ const STATE: FarmState = {
   seedRefill: { eligible: false, availableAt: null },
   coins: 12,
   xp: 6,
+  progression: { level: 1, xpIntoLevel: 6, xpForNextLevel: 50, unlockedPlotCount: 6 },
+  quest: {
+    id: "harvest_wheat_3",
+    title: "Harvest 3 Wheat",
+    progress: 0,
+    target: 3,
+    complete: false,
+    reward: { coins: 10, xp: 5 },
+  },
 };
 
 describe("server clock", () => {

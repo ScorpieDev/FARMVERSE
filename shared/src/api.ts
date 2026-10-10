@@ -2,6 +2,7 @@
  * HTTP API contract shared by client and server.
  *
  * Phase 0: health check. Phase 1: guest session and farming endpoints.
+ * Phase 2: level progress and the active quest in FarmState; quest claim.
  *
  * Validators here only check structure and types. The server still enforces
  * ownership, gameplay rules and stored data; clients never send time,
@@ -17,6 +18,7 @@ import {
   type ItemId,
   type ProduceItemId,
 } from "./farming.js";
+import { MAX_LEVEL, QUESTS, levelProgress, plotCountForLevel } from "./progression.js";
 
 export const HEALTH_PATH = "/api/health";
 export const SESSION_PATH = "/api/session";
@@ -24,6 +26,7 @@ export const FARM_PATH = "/api/farm";
 export const FARM_PLANT_PATH = "/api/farm/plant";
 export const FARM_HARVEST_PATH = "/api/farm/harvest";
 export const FARM_REFILL_SEEDS_PATH = "/api/farm/refill-seeds";
+export const QUEST_CLAIM_PATH = "/api/quests/claim";
 
 /** Response body of GET /api/health. */
 export interface HealthResponse {
@@ -73,6 +76,34 @@ export interface SeedRefillState {
   availableAt: number | null;
 }
 
+/** Level progress, derived by the server from total XP (progression.ts). */
+export interface ProgressionState {
+  level: number;
+  /** XP earned since the current level started. */
+  xpIntoLevel: number;
+  /** XP needed for the next level; null at the maximum level. */
+  xpForNextLevel: number | null;
+  /** Plots usable at this level: indices 0 … unlockedPlotCount − 1. */
+  unlockedPlotCount: number;
+}
+
+export interface QuestReward {
+  coins: number;
+  xp: number;
+}
+
+/** The active quest as computed by the server. */
+export interface QuestView {
+  /** Id from progression.ts QUESTS. */
+  id: string;
+  title: string;
+  progress: number;
+  target: number;
+  /** True when the reward can be claimed. */
+  complete: boolean;
+  reward: QuestReward;
+}
+
 /**
  * GET /api/farm (200); also the success body of plant and refill-seeds.
  * A replayed request returns the state saved when it first succeeded.
@@ -87,8 +118,12 @@ export interface FarmState {
   seedRefill: SeedRefillState;
   /** Coin balance (server-authoritative). */
   coins: number;
-  /** Total XP (server-authoritative; levels arrive in Phase 2). */
+  /** Total XP (server-authoritative). */
   xp: number;
+  /** Level progress for `xp`. */
+  progression: ProgressionState;
+  /** The active quest; null once every quest is claimed. */
+  quest: QuestView | null;
 }
 
 /** Coins and XP granted by one harvest. */
@@ -109,6 +144,11 @@ export interface HarvestResponse extends FarmState {
   reward: HarvestReward;
 }
 
+/** POST /api/quests/claim (200): the new state and what was claimed. */
+export interface QuestClaimResponse extends FarmState {
+  claimed: { questId: string; reward: QuestReward };
+}
+
 /** POST /api/farm/plant body. */
 export interface PlantRequest {
   requestId: string;
@@ -124,6 +164,11 @@ export interface HarvestRequest {
 
 /** POST /api/farm/refill-seeds body. */
 export interface RefillSeedsRequest {
+  requestId: string;
+}
+
+/** POST /api/quests/claim body: claims the active quest. The client never sends the quest or reward. */
+export interface QuestClaimRequest {
   requestId: string;
 }
 
@@ -207,6 +252,37 @@ export function isSeedRefillState(value: unknown): value is SeedRefillState {
     : value["availableAt"] === null;
 }
 
+function isQuestReward(value: unknown): value is QuestReward {
+  return isObject(value) && isNonNegativeInteger(value["coins"]) && isNonNegativeInteger(value["xp"]);
+}
+
+/** Checks the shape and that level, XP into level and plot count agree with `xp`. */
+function isProgressionStateFor(value: unknown, xp: number): value is ProgressionState {
+  if (!isObject(value)) return false;
+  const expected = levelProgress(xp);
+  return (
+    value["level"] === expected.level &&
+    value["xpIntoLevel"] === expected.xpIntoLevel &&
+    value["xpForNextLevel"] === expected.xpForNextLevel &&
+    value["unlockedPlotCount"] === plotCountForLevel(expected.level) &&
+    (expected.level === MAX_LEVEL) === (expected.xpForNextLevel === null)
+  );
+}
+
+export function isQuestView(value: unknown): value is QuestView {
+  if (!isObject(value)) return false;
+  const { id, title, progress, target, complete, reward } = value;
+  return (
+    QUESTS.some((quest) => quest.id === id) &&
+    typeof title === "string" &&
+    isPositiveInteger(target) &&
+    isNonNegativeInteger(progress) &&
+    progress <= target &&
+    complete === (progress >= target) &&
+    isQuestReward(reward)
+  );
+}
+
 export function isFarmState(value: unknown): value is FarmState {
   if (!isObject(value) || !isNonNegativeInteger(value["serverTime"])) {
     return false;
@@ -232,7 +308,19 @@ export function isFarmState(value: unknown): value is FarmState {
   return (
     isSeedRefillState(value["seedRefill"]) &&
     isNonNegativeInteger(value["coins"]) &&
-    isNonNegativeInteger(value["xp"])
+    isNonNegativeInteger(value["xp"]) &&
+    isProgressionStateFor(value["progression"], value["xp"]) &&
+    (value["quest"] === null || isQuestView(value["quest"]))
+  );
+}
+
+export function isQuestClaimResponse(value: unknown): value is QuestClaimResponse {
+  if (!isObject(value) || !isFarmState(value)) return false;
+  const claimed = value["claimed"];
+  return (
+    isObject(claimed) &&
+    QUESTS.some((quest) => quest.id === claimed["questId"]) &&
+    isQuestReward(claimed["reward"])
   );
 }
 
@@ -265,5 +353,9 @@ export function isHarvestRequest(value: unknown): value is HarvestRequest {
 }
 
 export function isRefillSeedsRequest(value: unknown): value is RefillSeedsRequest {
+  return isObject(value) && isRequestId(value["requestId"]);
+}
+
+export function isQuestClaimRequest(value: unknown): value is QuestClaimRequest {
   return isObject(value) && isRequestId(value["requestId"]);
 }

@@ -10,7 +10,7 @@
  * Writes are expected to run inside `transaction()` from database.ts.
  */
 import { FARM_PLOT_COUNT, ITEM_IDS, type CropId, type ItemId } from "@farmverse/shared/farming";
-import { assertQuestState, startingQuestState, type QuestState } from "../farming/progression.js";
+import { assertQuestState, startingQuestState, type QuestState } from "../farming/quests.js";
 import { assertFarmData, type FarmData, type FarmPlot } from "../farming/rules.js";
 import type { Database } from "./database.js";
 
