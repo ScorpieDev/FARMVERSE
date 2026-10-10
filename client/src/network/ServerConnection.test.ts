@@ -15,7 +15,7 @@ import type { ServerUrlResult } from "./serverUrl.js";
 
 const URLS: ServerUrlResult = {
   ok: true,
-  urls: { healthUrl: "/api/health", wsUrl: "ws://localhost:5173/ws" },
+  urls: { apiOrigin: "", healthUrl: "/api/health", wsUrl: "ws://localhost:5173/ws" },
 };
 const HEALTH = { status: "ok", version: "0.0.0", serverTime: 1 };
 const WELCOME = { type: "welcome", protocolVersion: PROTOCOL_VERSION, serverTime: 1 };

@@ -570,17 +570,17 @@ Stack đã chốt trong Phase 0:
 - Client (§4): Phaser scene hiển thị trạng thái kết nối; health check, handshake `hello`/`welcome`, ping 15 s đo RTT, reconnect có giới hạn
 - Communication (§2): HTTP(S) cho API, WebSocket cho realtime (local dev dùng `http`/`ws`; qua URL Codespaces là `https`/`wss`; HTTPS khi deploy chưa triển khai); khi dev, Vite proxy `/api` và `/ws` (client chỉ dùng một origin); `VITE_SERVER_URL` dành cho deploy khác origin
 - Testing (§20): 507 test tự động khi đóng Phase 0 (gồm test Phase 1)
-- Phase 1 — Farming (đang làm, phía server đã xong):
+- Phase 1 — Farming (đang làm; server và client đã xong, còn Bước 1.8):
   - Database (§6): SQLite qua `node:sqlite` (built-in Node.js 24), schema có migration (`players`, `plots`, `inventory`, `action_log`), ràng buộc CHECK/foreign key, transaction `BEGIN IMMEDIATE`; dữ liệu đọc ra được kiểm tra (`assertFarmData`)
   - Guest session: server tạo player UUID và token 32 byte, chỉ lưu SHA-256; xác thực `Authorization: Bearer`
   - Farm API (§17): `POST /api/session`, `GET /api/farm`, `POST /api/farm/plant`, `/harvest`, `/refill-seeds`; quy tắc thuần trong `server/src/farming/rules.ts`; thời gian chỉ lấy từ server
   - Duplication protection (§12): request ID (UUID v4) + `action_log` trong cùng transaction — gửi lại trả kết quả cũ, không áp dụng lần hai; dùng lại cho hành động khác → `REQUEST_ID_REUSED`
   - Logging (§19): mỗi hành động farm ghi Player ID, Action, Request ID, Result (không ghi token)
   - Phần thưởng: coin và XP mỗi lần thu hoạch (giá trị tạm thời)
+  - Client (§4): `FarmScene` (Phaser) — 6 ô đất (2×3 dọc, 3×2 ngang), nút hạt giống, nút nhận hạt miễn phí, coin/XP, sản phẩm đã thu; token lưu trong `localStorage`, token không hợp lệ → hiện "Start a new farm" (không tự tạo farm mới); request ID bằng `crypto.randomUUID` (không có fallback `Math.random`), thử lại tối đa 3 lần với cùng request ID khi lỗi mạng/502–504; thời gian lớn lên hiển thị theo đồng hồ server ước lượng, server quyết định mọi hành động
 
 Chưa triển khai:
 
-- Client farm scene (Phase 1 Bước 1.6–1.7)
 - Authentication thật (đăng nhập, khôi phục tài khoản); hiện chỉ có guest token
 - Rate limit / giới hạn kết nối, heartbeat WebSocket phía server
 - Multiplayer gameplay, economy (shop, marketplace), level

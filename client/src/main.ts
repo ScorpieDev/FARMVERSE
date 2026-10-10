@@ -5,7 +5,7 @@
  * both portrait and landscape; the design resolution is chosen in Phase 1.
  */
 import { AUTO, Game, Scale } from "phaser";
-import { BootScene } from "./core/BootScene.js";
+import { FarmScene } from "./farm/FarmScene.js";
 
 const game = new Game({
   type: AUTO,
@@ -16,7 +16,7 @@ const game = new Game({
     width: window.innerWidth,
     height: window.innerHeight,
   },
-  scene: [BootScene],
+  scene: [FarmScene],
 });
 
 // Phaser 3.90 handles an orientation change by refreshing before it reads the

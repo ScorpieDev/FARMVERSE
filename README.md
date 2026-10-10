@@ -120,6 +120,15 @@ The server owns all game state; the client only sends intentions. Every farm req
 - Errors: `400 INVALID_REQUEST`, `401 UNAUTHORIZED`, `409` gameplay errors (`PLOT_NOT_EMPTY`, `PLOT_EMPTY`, `CROP_NOT_READY`, `ITEM_NOT_OWNED`, `REFILL_NOT_ALLOWED`).
 - Crops (growth time, reward per harvest): wheat 30 s / 2 coins / 1 XP, carrot 2 min / 6 / 3, tomato 5 min / 12 / 6 — provisional values.
 
+## Playing the farm (Phase 1)
+
+- The first visit creates a guest farm; the token is kept in the browser's `localStorage` (`farmverse.token`). Reloading keeps the same farm.
+- Pick a seed button (Wheat / Carrot / Tomato, with the seed count), then tap an empty plot to plant. A growing plot shows the time left and a progress bar; tap a ready plot to harvest. The bottom lines show harvested produce and the last result (for example `+1 Wheat · +2 coins · +1 XP`).
+- When all seeds are used up and no crops remain, a `Free seeds in …` button replaces the seed buttons; after 60 s it becomes `Get free seeds` (5 of each).
+- If the stored token is no longer valid, the game shows `Your farm could not be found on this device.` and never creates a new farm silently; `Start a new farm` does that on request.
+- Actions are disabled while the connection is not `Connected`. A failed network request is retried up to 3 times with the same `requestId`, so it is never applied twice.
+- The game needs `crypto.randomUUID`, available on `https://` and `localhost`. Over plain `http://` on another host it shows a message and does not send actions.
+
 ## Connection status
 
 | Text on screen | Meaning |

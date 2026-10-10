@@ -10,6 +10,8 @@ import { HEALTH_PATH } from "@farmverse/shared/api";
 import { WS_PATH } from "@farmverse/shared/protocol";
 
 export interface ServerUrls {
+  /** Prefix for HTTP API paths: "" for the page's own origin, else the server origin. */
+  apiOrigin: string;
   healthUrl: string;
   wsUrl: string;
 }
@@ -34,7 +36,11 @@ export function resolveServerUrls(
     const wsProtocol = page.protocol === "https:" ? "wss:" : "ws:";
     return {
       ok: true,
-      urls: { healthUrl: HEALTH_PATH, wsUrl: `${wsProtocol}//${page.host}${WS_PATH}` },
+      urls: {
+        apiOrigin: "",
+        healthUrl: HEALTH_PATH,
+        wsUrl: `${wsProtocol}//${page.host}${WS_PATH}`,
+      },
     };
   }
 
@@ -59,6 +65,7 @@ export function resolveServerUrls(
   return {
     ok: true,
     urls: {
+      apiOrigin: url.origin,
       healthUrl: `${url.origin}${HEALTH_PATH}`,
       wsUrl: `${wsProtocol}//${url.host}${WS_PATH}`,
     },

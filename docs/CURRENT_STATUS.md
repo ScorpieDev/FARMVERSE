@@ -103,7 +103,7 @@ Browser verification (closeout, 2026-10-10):
 | 1.3 Storage (SQLite via `node:sqlite`: schema, migrations, transactions, farm load/save, action log) | Done | see CHANGELOG |
 | 1.4 Guest session and token auth | Done | see CHANGELOG |
 | 1.5 Farm HTTP API with request IDs and transactions (+ coin/XP rewards) | Done | see CHANGELOG |
-| 1.6–1.7 Client farm scene, actions, offline handling | Planned | — |
+| 1.6–1.7 Client farm scene, actions, offline handling | Done | see CHANGELOG |
 | 1.8 End-to-end verification and docs | Planned | — |
 
 Scope note: the Game Director execution directive of 2026-10-10 requires basic coin and XP rewards in Phase 1. This replaces the earlier Phase 1 decision Q4 ("no Coin/XP in Phase 1"). Implemented as per-harvest rewards with provisional values (wheat 2 coins / 1 XP, carrot 6 / 3, tomato 12 / 6), to be tuned later; no levels, shop or spending in Phase 1.
@@ -116,8 +116,7 @@ Tests at closeout: shared 218, server 245, client 44 — 507 passing; `npm run t
 
 ## Development
 
-- Database (Phase 1 Step 1.3)
-- Authentication (guest session: Phase 1 Step 1.4)
+- Account authentication (login, recovery); Phase 1 has guest sessions only
 - Multiplayer gameplay
 - Economy beyond basic rewards
 - Social
@@ -131,7 +130,7 @@ Phase 1 — Farming
 
 Status:
 
-IN PROGRESS — Steps 1.1–1.5 done (server side complete); next: Steps 1.6–1.7 (client farm scene).
+IN PROGRESS — Steps 1.1–1.7 done (server and client farm loop); next: Step 1.8 (end-to-end verification report and Phase 1 closeout).
 
 Phase 0 — Foundation: COMPLETED.
 
@@ -148,7 +147,7 @@ Phase 0 — Foundation: COMPLETED.
 
 # NEXT OBJECTIVE
 
-Phase 1 Steps 1.6–1.7 — client farm scene: guest session handling (no silent new farm), 6 plots, seed buttons, inventory, coins/XP, plant/harvest/refill with request IDs and safe retries.
+Phase 1 Step 1.8 — end-to-end verification report and Phase 1 closeout review.
 
 ---
 

@@ -8,14 +8,14 @@ describe("resolveServerUrls", () => {
   it.each([undefined, "", "   "])("uses the page origin when unset (%j)", (value) => {
     expect(resolveServerUrls(value, httpPage)).toEqual({
       ok: true,
-      urls: { healthUrl: "/api/health", wsUrl: "ws://localhost:5173/ws" },
+      urls: { apiOrigin: "", healthUrl: "/api/health", wsUrl: "ws://localhost:5173/ws" },
     });
   });
 
   it("uses wss on an https page", () => {
     expect(resolveServerUrls("", httpsPage)).toEqual({
       ok: true,
-      urls: { healthUrl: "/api/health", wsUrl: "wss://farm-5173.app.github.dev/ws" },
+      urls: { apiOrigin: "", healthUrl: "/api/health", wsUrl: "wss://farm-5173.app.github.dev/ws" },
     });
   });
 
@@ -25,6 +25,7 @@ describe("resolveServerUrls", () => {
       expect(resolveServerUrls(value, httpsPage)).toEqual({
         ok: true,
         urls: {
+          apiOrigin: "https://api.example.com",
           healthUrl: "https://api.example.com/api/health",
           wsUrl: "wss://api.example.com/ws",
         },
@@ -36,6 +37,7 @@ describe("resolveServerUrls", () => {
     expect(resolveServerUrls("http://localhost:3000", httpPage)).toEqual({
       ok: true,
       urls: {
+        apiOrigin: "http://localhost:3000",
         healthUrl: "http://localhost:3000/api/health",
         wsUrl: "ws://localhost:3000/ws",
       },
