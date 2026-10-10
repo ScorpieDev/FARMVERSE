@@ -1,7 +1,7 @@
 # FARMVERSE TECHNICAL ARCHITECTURE
 
 ## Version
-1.0
+1.1
 
 ## 1. OVERVIEW
 
@@ -553,15 +553,34 @@ Game Director quyết định.
 
 Architecture:
 
-FOUNDATION
+FOUNDATION — Phase 0 completed (2026-10-10)
+
+Stack đã chốt trong Phase 0:
+
+- npm workspaces: `shared/`, `server/`, `client/`
+- TypeScript ~5.9.3 (strict)
+- Server: Node.js ≥ 22.12, Fastify 5, `ws` 8; chạy bằng `tsx` (chưa build production)
+- Client: Phaser 3.90, Vite 8
+- Test: Vitest; test đặt cạnh code trong từng workspace; `tests/` ở root dành cho integration test sau này (chưa tạo)
+
+Đã triển khai:
+
+- Shared contract (§16): protocol WebSocket v1, kiểu `GET /api/health`, error codes (§18), validator
+- Server (§5): `GET /api/health`; WebSocket `/ws` kiểm tra Origin = `CLIENT_ORIGIN`, giới hạn message 4096 byte; validate config; log cơ bản bằng logger của Fastify (request, kết nối/ngắt WebSocket, từ chối Origin) — chưa đáp ứng đủ §19 (Player ID, Action, Request ID, Result); tắt êm khi nhận SIGINT/SIGTERM
+- Client (§4): Phaser scene hiển thị trạng thái kết nối; health check, handshake `hello`/`welcome`, ping 15 s đo RTT, reconnect có giới hạn
+- Communication (§2): HTTP(S) cho API, WebSocket cho realtime (local dev dùng `http`/`ws`; qua URL Codespaces là `https`/`wss`; HTTPS khi deploy chưa triển khai); khi dev, Vite proxy `/api` và `/ws` (client chỉ dùng một origin); `VITE_SERVER_URL` dành cho deploy khác origin
+- Testing (§20): 150 test tự động
 
 Chưa triển khai:
 
-- Client
-- Server
-- Database
-- Multiplayer
-- Deployment
+- Database (chưa chọn)
+- Authentication
+- Gameplay, economy, multiplayer gameplay (Phase 0 chỉ có kết nối)
+- Duplication protection / request ID (§12)
+- Deployment, CI/CD (§23)
+- Production build cho server
+
+Ghi chú môi trường dev (Codespaces): Origin mà server nhận khi mở client qua URL Codespaces được quan sát là `https://localhost:5173`, nên server chạy với `CLIENT_ORIGIN=https://localhost:5173`. Chưa xác minh với mọi cấu hình Codespaces. Xem README.
 
 ---
 

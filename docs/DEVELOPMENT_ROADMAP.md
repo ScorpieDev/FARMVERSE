@@ -1,7 +1,7 @@
 # FARMVERSE DEVELOPMENT ROADMAP
 
 ## Version
-1.0
+1.1
 
 ---
 
@@ -29,6 +29,18 @@ Client chạy được.
 Server chạy được.
 
 Client có thể kết nối server.
+
+Status:
+
+COMPLETED (2026-10-10)
+
+Kết quả:
+
+- Client chạy được: Phaser 3 + Vite.
+- Server chạy được: Fastify + `ws`.
+- Client kết nối được server: `/api/health` + WebSocket `/ws`, Game Director xác nhận trên trình duyệt qua URL Codespaces.
+- 150 test tự động pass.
+- Việc còn lại: push 6 commit chưa push lên GitHub, review tổng thể Phase 0 và tài liệu (đang chờ Game Director duyệt), kiểm tra Android (hoãn theo quyết định của Game Director).
 
 ---
 
@@ -230,7 +242,9 @@ Phase 0 — Foundation
 
 Status:
 
-NOT STARTED
+COMPLETED (review tổng thể Phase 0 và tài liệu vẫn đang chờ Game Director duyệt)
+
+Phase tiếp theo: Phase 1 — Farming (NOT STARTED, chờ Game Director duyệt).
 
 ---
 
