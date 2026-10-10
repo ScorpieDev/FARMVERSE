@@ -8,6 +8,7 @@ import { HEALTH_PATH, type HealthResponse } from "@farmverse/shared/api";
 import type { ErrorPayload } from "@farmverse/shared/errors";
 import packageJson from "../package.json" with { type: "json" };
 import type { ServerConfig } from "./config.js";
+import { registerWebSocket } from "./multiplayer/websocket.js";
 
 export const SERVER_VERSION = packageJson.version;
 
@@ -51,6 +52,8 @@ export function buildApp(config: ServerConfig): FastifyInstance {
     };
     return reply.code(500).send(body);
   });
+
+  registerWebSocket(app, config);
 
   return app;
 }
