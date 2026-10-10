@@ -569,8 +569,8 @@ Stack đã chốt trong Phase 0:
 - Server (§5): `GET /api/health`; WebSocket `/ws` kiểm tra Origin = `CLIENT_ORIGIN`, giới hạn message 4096 byte; validate config; log cơ bản bằng logger của Fastify (request, kết nối/ngắt WebSocket, từ chối Origin) — chưa đáp ứng đủ §19 (Player ID, Action, Request ID, Result); tắt êm khi nhận SIGINT/SIGTERM
 - Client (§4): Phaser scene hiển thị trạng thái kết nối; health check, handshake `hello`/`welcome`, ping 15 s đo RTT, reconnect có giới hạn
 - Communication (§2): HTTP(S) cho API, WebSocket cho realtime (local dev dùng `http`/`ws`; qua URL Codespaces là `https`/`wss`; HTTPS khi deploy chưa triển khai); khi dev, Vite proxy `/api` và `/ws` (client chỉ dùng một origin); `VITE_SERVER_URL` dành cho deploy khác origin
-- Testing (§20): 507 test tự động khi đóng Phase 0 (gồm test Phase 1)
-- Phase 1 — Farming (đang làm; server và client đã xong, còn Bước 1.8):
+- Testing (§20): 637 test tự động sau Phase 1 Bước 1.7 (507 khi đóng Phase 0)
+- Phase 1 — Farming (Bước 1.1–1.8 xong; chờ duyệt đóng phase):
   - Database (§6): SQLite qua `node:sqlite` (built-in Node.js 24), schema có migration (`players`, `plots`, `inventory`, `action_log`), ràng buộc CHECK/foreign key, transaction `BEGIN IMMEDIATE`; dữ liệu đọc ra được kiểm tra (`assertFarmData`)
   - Guest session: server tạo player UUID và token 32 byte, chỉ lưu SHA-256; xác thực `Authorization: Bearer`
   - Farm API (§17): `POST /api/session`, `GET /api/farm`, `POST /api/farm/plant`, `/harvest`, `/refill-seeds`; quy tắc thuần trong `server/src/farming/rules.ts`; thời gian chỉ lấy từ server

@@ -9,7 +9,16 @@
 - Server storage (Step 1.3): SQLite via the built-in `node:sqlite` (no new dependency) — schema with migrations (`players` incl. coins/XP columns, `plots`, `inventory`, `action_log`), transactions, farm load/save with corruption checks; `DATABASE_PATH` setting; Node.js floor raised to 24.15 — `c5367d5`
 - Coin and XP harvest rewards (Game Director directive 2026-10-10, replaces earlier decision Q4): each harvest grants the crop's coins and XP — provisional values wheat 2 coins / 1 XP, carrot 6 / 3, tomato 12 / 6; `FarmState` exposes `coins` and `xp`, the harvest response includes `reward`; totals stored on the player. No levels, shop or spending yet — `e2e8084`
 - Guest session and farm HTTP API (Steps 1.4–1.5): `POST /api/session` (UUID player, 32-byte token, SHA-256 hash stored), Bearer authentication, `GET /api/farm`, `POST /api/farm/plant`, `/harvest`, `/refill-seeds`; shared validators → `400 INVALID_REQUEST`; gameplay errors → `409`; each action in one transaction with request-ID idempotency (only successful actions recorded; `REQUEST_ID_REUSED` for a different action/body); 1 KB body limit; action log entries (player, action, request ID, result — never the token) — `811aa94`
-- Client farm scene (Steps 1.6–1.7): `FarmScene` replaces the Phase 0 `BootScene` — 6 plots with growth progress, seed selection, harvest with reward text, free-seed refill button, coins/XP and produce lines, portrait 2×3 / landscape 3×2 layout; guest token in `localStorage`, invalid token → `Start a new farm` overlay (never a silent new farm); request IDs from `crypto.randomUUID` only; up to 3 retries with the same request ID on network errors and 502/503/504; actions disabled while not connected; farm reloaded after reconnect and after rejected actions
+- Client farm scene (Steps 1.6–1.7): `FarmScene` replaces the Phase 0 `BootScene` — 6 plots with growth progress, seed selection, harvest with reward text, free-seed refill button, coins/XP and produce lines, portrait 2×3 / landscape 3×2 layout; guest token in `localStorage`, invalid token → `Start a new farm` overlay (never a silent new farm); request IDs from `crypto.randomUUID` only; up to 3 retries with the same request ID on network errors and 502/503/504; actions disabled while not connected; farm reloaded after reconnect and after rejected actions — `fc3ff87`
+
+### Fixed
+
+- Client: plot labels overflowed their plots in landscape; plots now widen when height is the limit and the label font fits the plot width — `fc3ff87`
+
+### Verified (headless Chromium, local, temporary database)
+
+- Plant, growth, harvest with reward, landscape layout, reload persistence, invalid token → `Start a new farm`, seed refill with cooldown; server log contains no token. See `docs/reports/phase1/PHASE1_STEP1_8_E2E_REPORT.md`.
+- Not verified: farm scene through the Codespaces URL, Android device.
 
 ## Phase 0 closeout (2026-10-10)
 
