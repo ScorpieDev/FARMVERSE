@@ -15,3 +15,18 @@ export interface HealthResponse {
   /** Server time in milliseconds since the Unix epoch. */
   serverTime: number;
 }
+
+/** Checks that a value is a well-formed health response. Extra fields are ignored. */
+export function isHealthResponse(value: unknown): value is HealthResponse {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const body = value as Record<string, unknown>;
+  return (
+    body["status"] === "ok" &&
+    typeof body["version"] === "string" &&
+    typeof body["serverTime"] === "number" &&
+    Number.isFinite(body["serverTime"]) &&
+    body["serverTime"] >= 0
+  );
+}
