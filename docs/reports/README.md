@@ -31,3 +31,9 @@ Steps 1–3 predate the report convention; see their commit messages (`5faeaff`,
 | `PHASE1_STEP1_2_PLAN_REPORT.md`, `PHASE1_STEP1_2_REPORT.md` | Step 1.2 — pure server farming rules |
 | `PHASE1_ZOOM_LAYOUT_FIX_REPORT.md` | Fix: layout distorted by browser zoom and window resize (root cause, tests, zoom/size results) |
 | `PHASE1_STEP1_8_E2E_REPORT.md` | Step 1.8 — end-to-end verification of Steps 1.3–1.7 (storage, rewards, session, farm API, client farm scene) |
+
+## Phase 2 — Progression (`phase2/`)
+
+| File | Content |
+|---|---|
+| `PHASE2_PROGRESSION_PLAN_REPORT.md` | Phase 2 draft design (level curve, unlocks, quests, UI) and decisions awaiting the Game Director |

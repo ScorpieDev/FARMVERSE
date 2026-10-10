@@ -155,7 +155,7 @@ Phase 0 — Foundation: COMPLETED.
 
 # NEXT OBJECTIVE
 
-Game Director review of the Phase 1 Farming MVP (play through the Codespaces URL), then Phase 1 closeout. See `docs/reports/phase1/PHASE1_STEP1_8_E2E_REPORT.md`.
+Game Director decisions P2-1…P2-7: Phase 1 closeout and the Phase 2 Progression design (level curve, unlocks, quests). See `docs/reports/phase2/PHASE2_PROGRESSION_PLAN_REPORT.md`. No Phase 2 code until approved.
 
 ---
 
