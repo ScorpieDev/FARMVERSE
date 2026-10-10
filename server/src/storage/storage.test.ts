@@ -130,6 +130,14 @@ describe("players and farms", () => {
     expect(loadFarm(db, PLAYER.id)).toEqual(farm);
   });
 
+  it("persists coins and XP", () => {
+    transaction(db, () => insertPlayer(db, PLAYER, { ...createStarterFarm(), coins: 7, xp: 3 }));
+    expect(loadFarm(db, PLAYER.id)).toMatchObject({ coins: 7, xp: 3 });
+
+    transaction(db, () => saveFarm(db, PLAYER.id, { ...createStarterFarm(), coins: 100, xp: 50 }));
+    expect(loadFarm(db, PLAYER.id)).toMatchObject({ coins: 100, xp: 50 });
+  });
+
   it("keeps players separate", () => {
     transaction(db, () => {
       insertPlayer(db, PLAYER, createStarterFarm());
@@ -193,6 +201,12 @@ describe("corrupted rows are reported, not repaired", () => {
     expect(() =>
       db.prepare("UPDATE inventory SET quantity = -1 WHERE player_id = ?").run(PLAYER.id),
     ).toThrow(/CHECK constraint/);
+  });
+
+  it("rejects negative coins at the database level", () => {
+    expect(() => db.prepare("UPDATE players SET coins = -1 WHERE id = ?").run(PLAYER.id)).toThrow(
+      /CHECK constraint/,
+    );
   });
 
   it("rejects a crop without a planting time at the database level", () => {

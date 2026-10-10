@@ -62,6 +62,8 @@ function farm(overrides: Record<string, unknown> = {}): Record<string, unknown> 
       { itemId: "carrot_seed", quantity: 5 },
     ],
     seedRefill: { eligible: false, availableAt: null },
+    coins: 0,
+    xp: 0,
     ...overrides,
   };
 }
@@ -236,32 +238,41 @@ describe("isFarmState", () => {
     ["fractional serverTime", farm({ serverTime: 1.5 })],
     ["plots not an array", farm({ plots: {} })],
     ["inventory not an array", farm({ inventory: {} })],
+    ["missing coins", farm({ coins: undefined })],
+    ["negative coins", farm({ coins: -1 })],
+    ["fractional xp", farm({ xp: 0.5 })],
+    ["string xp", farm({ xp: "3" })],
     ["null", null],
   ])("rejects %s", (_label, value) => {
     expect(isFarmState(value)).toBe(false);
   });
 });
 
+const REWARD = { coins: 2, xp: 1 };
+
 describe("isHarvestResponse", () => {
   it.each(["wheat_produce", "carrot_produce", "tomato_produce"])(
     "accepts a farm state with harvested %s",
     (itemId) => {
-      expect(isHarvestResponse({ ...farm(), harvested: { itemId, quantity: 1 } })).toBe(true);
+      expect(isHarvestResponse({ ...farm(), reward: REWARD, harvested: { itemId, quantity: 1 } })).toBe(true);
     },
   );
 
   it.each([
-    ["missing harvested", farm()],
-    ["null harvested", { ...farm(), harvested: null }],
-    ["wheat_seed instead of produce", { ...farm(), harvested: { itemId: "wheat_seed", quantity: 1 } }],
-    ["carrot_seed instead of produce", { ...farm(), harvested: { itemId: "carrot_seed", quantity: 1 } }],
-    ["tomato_seed instead of produce", { ...farm(), harvested: { itemId: "tomato_seed", quantity: 1 } }],
-    ["crop id instead of item id", { ...farm(), harvested: { itemId: "wheat", quantity: 1 } }],
-    ["unknown item", { ...farm(), harvested: { itemId: "corn_produce", quantity: 1 } }],
-    ["zero quantity", { ...farm(), harvested: { itemId: "wheat_produce", quantity: 0 } }],
-    ["fractional quantity", { ...farm(), harvested: { itemId: "wheat_produce", quantity: 1.5 } }],
-    ["missing quantity", { ...farm(), harvested: { itemId: "wheat_produce" } }],
-    ["invalid farm state", { ...farm({ plots: [] }), harvested: { itemId: "wheat_produce", quantity: 1 } }],
+    ["missing harvested", { ...farm(), reward: REWARD }],
+    ["null harvested", { ...farm(), reward: REWARD, harvested: null }],
+    ["wheat_seed instead of produce", { ...farm(), reward: REWARD, harvested: { itemId: "wheat_seed", quantity: 1 } }],
+    ["carrot_seed instead of produce", { ...farm(), reward: REWARD, harvested: { itemId: "carrot_seed", quantity: 1 } }],
+    ["tomato_seed instead of produce", { ...farm(), reward: REWARD, harvested: { itemId: "tomato_seed", quantity: 1 } }],
+    ["crop id instead of item id", { ...farm(), reward: REWARD, harvested: { itemId: "wheat", quantity: 1 } }],
+    ["unknown item", { ...farm(), reward: REWARD, harvested: { itemId: "corn_produce", quantity: 1 } }],
+    ["zero quantity", { ...farm(), reward: REWARD, harvested: { itemId: "wheat_produce", quantity: 0 } }],
+    ["fractional quantity", { ...farm(), reward: REWARD, harvested: { itemId: "wheat_produce", quantity: 1.5 } }],
+    ["missing quantity", { ...farm(), reward: REWARD, harvested: { itemId: "wheat_produce" } }],
+    ["missing reward", { ...farm(), harvested: { itemId: "wheat_produce", quantity: 1 } }],
+    ["negative reward coins", { ...farm(), reward: { coins: -1, xp: 1 }, harvested: { itemId: "wheat_produce", quantity: 1 } }],
+    ["fractional reward xp", { ...farm(), reward: { coins: 2, xp: 0.5 }, harvested: { itemId: "wheat_produce", quantity: 1 } }],
+    ["invalid farm state", { ...farm({ plots: [] }), reward: REWARD, harvested: { itemId: "wheat_produce", quantity: 1 } }],
   ])("rejects %s", (_label, value) => {
     expect(isHarvestResponse(value)).toBe(false);
   });

@@ -106,7 +106,7 @@ Browser verification (closeout, 2026-10-10):
 | 1.6–1.7 Client farm scene, actions, offline handling | Planned | — |
 | 1.8 End-to-end verification and docs | Planned | — |
 
-Scope note: the Game Director execution directive of 2026-10-10 requires basic coin and XP rewards in Phase 1. This replaces the earlier Phase 1 decision Q4 ("no Coin/XP in Phase 1"); the reward values will be documented when implemented.
+Scope note: the Game Director execution directive of 2026-10-10 requires basic coin and XP rewards in Phase 1. This replaces the earlier Phase 1 decision Q4 ("no Coin/XP in Phase 1"). Implemented as per-harvest rewards with provisional values (wheat 2 coins / 1 XP, carrot 6 / 3, tomato 12 / 6), to be tuned later; no levels, shop or spending in Phase 1.
 
 Tests at closeout: shared 218, server 245, client 44 — 507 passing; `npm run typecheck` clean; `npm audit` 0 vulnerabilities (audit run).
 

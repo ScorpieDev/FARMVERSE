@@ -54,6 +54,10 @@ export interface CropDefinition {
   growthMs: number;
   /** Produce items added to the inventory per harvest. */
   harvestYield: number;
+  /** Coins granted per harvest (provisional MVP value, server-decided). */
+  coinReward: number;
+  /** XP granted per harvest (provisional MVP value, server-decided). */
+  xpReward: number;
 }
 
 export const ITEMS: readonly ItemDefinition[] = [
@@ -73,6 +77,8 @@ export const CROPS: readonly CropDefinition[] = [
     produceItemId: "wheat_produce",
     growthMs: 30_000,
     harvestYield: 1,
+    coinReward: 2,
+    xpReward: 1,
   },
   {
     id: "carrot",
@@ -81,6 +87,8 @@ export const CROPS: readonly CropDefinition[] = [
     produceItemId: "carrot_produce",
     growthMs: 120_000,
     harvestYield: 1,
+    coinReward: 6,
+    xpReward: 3,
   },
   {
     id: "tomato",
@@ -89,6 +97,8 @@ export const CROPS: readonly CropDefinition[] = [
     produceItemId: "tomato_produce",
     growthMs: 300_000,
     harvestYield: 1,
+    coinReward: 12,
+    xpReward: 6,
   },
 ];
 

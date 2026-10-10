@@ -85,6 +85,16 @@ export interface FarmState {
   /** Items with quantity > 0, each item at most once. */
   inventory: InventoryEntry[];
   seedRefill: SeedRefillState;
+  /** Coin balance (server-authoritative). */
+  coins: number;
+  /** Total XP (server-authoritative; levels arrive in Phase 2). */
+  xp: number;
+}
+
+/** Coins and XP granted by one harvest. */
+export interface HarvestReward {
+  coins: number;
+  xp: number;
 }
 
 /** Produce added to the inventory by a harvest. Never a seed item. */
@@ -96,6 +106,7 @@ export interface HarvestedProduce {
 /** POST /api/farm/harvest (200). */
 export interface HarvestResponse extends FarmState {
   harvested: HarvestedProduce;
+  reward: HarvestReward;
 }
 
 /** POST /api/farm/plant body. */
@@ -218,14 +229,21 @@ export function isFarmState(value: unknown): value is FarmState {
   const itemIds = inventory.map((entry: InventoryEntry) => entry.itemId);
   if (new Set(itemIds).size !== itemIds.length) return false;
 
-  return isSeedRefillState(value["seedRefill"]);
+  return (
+    isSeedRefillState(value["seedRefill"]) &&
+    isNonNegativeInteger(value["coins"]) &&
+    isNonNegativeInteger(value["xp"])
+  );
 }
 
 export function isHarvestResponse(value: unknown): value is HarvestResponse {
   return (
     isObject(value) &&
     isFarmState(value) &&
-    isHarvestedProduce(value["harvested"])
+    isHarvestedProduce(value["harvested"]) &&
+    isObject(value["reward"]) &&
+    isNonNegativeInteger(value["reward"]["coins"]) &&
+    isNonNegativeInteger(value["reward"]["xp"])
   );
 }
 

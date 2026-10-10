@@ -61,6 +61,16 @@ describe("static definitions", () => {
     }
   });
 
+  it("grant the provisional coin and XP rewards per harvest", () => {
+    expect([getCrop("wheat").coinReward, getCrop("wheat").xpReward]).toEqual([2, 1]);
+    expect([getCrop("carrot").coinReward, getCrop("carrot").xpReward]).toEqual([6, 3]);
+    expect([getCrop("tomato").coinReward, getCrop("tomato").xpReward]).toEqual([12, 6]);
+    for (const crop of CROPS) {
+      expect(Number.isSafeInteger(crop.coinReward) && crop.coinReward > 0).toBe(true);
+      expect(Number.isSafeInteger(crop.xpReward) && crop.xpReward > 0).toBe(true);
+    }
+  });
+
   it("have non-empty display names", () => {
     for (const definition of [...CROPS, ...ITEMS]) {
       expect(definition.name.trim()).not.toBe("");

@@ -29,6 +29,7 @@ import {
 import type {
   FarmState,
   HarvestedProduce,
+  HarvestReward,
   InventoryEntry,
   PlotState,
   SeedRefillState,
@@ -52,6 +53,10 @@ export interface FarmData {
   readonly inventory: Inventory;
   /** Server time (ms) from which a seed refill is allowed; null if not started. */
   readonly seedRefillAvailableAt: number | null;
+  /** Coin balance; only changed by server rules. */
+  readonly coins: number;
+  /** Total XP; only changed by server rules. */
+  readonly xp: number;
 }
 
 export type RuleError = Extract<
@@ -94,7 +99,8 @@ function isNonNegativeSafeInteger(value: unknown): value is number {
 /**
  * Checks the FarmData invariants: exactly FARM_PLOT_COUNT plots, each empty or
  * holding a known crop with a valid plantedAt; every item present with a
- * non-negative safe-integer quantity; a valid or null refill time.
+ * non-negative safe-integer quantity; a valid or null refill time; coins and
+ * XP as non-negative safe integers.
  * Exported so storage can reject corrupted data as soon as it is loaded.
  */
 export function assertFarmData(farm: FarmData): void {
@@ -102,7 +108,7 @@ export function assertFarmData(farm: FarmData): void {
     throw new RangeError("Invalid farm data");
   }
 
-  const { plots, inventory, seedRefillAvailableAt } = farm;
+  const { plots, inventory, seedRefillAvailableAt, coins, xp } = farm;
   if (!Array.isArray(plots) || plots.length !== FARM_PLOT_COUNT) {
     throw new RangeError(`Invalid farm data: expected ${FARM_PLOT_COUNT} plots`);
   }
@@ -130,6 +136,8 @@ export function assertFarmData(farm: FarmData): void {
   if (seedRefillAvailableAt !== null && !isNonNegativeSafeInteger(seedRefillAvailableAt)) {
     throw new RangeError("Invalid farm data: seedRefillAvailableAt");
   }
+  if (!isNonNegativeSafeInteger(coins)) throw new RangeError("Invalid farm data: coins");
+  if (!isNonNegativeSafeInteger(xp)) throw new RangeError("Invalid farm data: xp");
 }
 
 function fail(error: RuleError): { ok: false; error: RuleError } {
@@ -158,6 +166,8 @@ export function createStarterFarm(): FarmData {
     plots: Array.from({ length: FARM_PLOT_COUNT }, () => null),
     inventory,
     seedRefillAvailableAt: null,
+    coins: 0,
+    xp: 0,
   };
 }
 
@@ -212,19 +222,22 @@ export function plant(
       plots: withPlot(farm.plots, plotIndex, { cropId, plantedAt: now }),
       inventory: { ...farm.inventory, [seedItemId]: seeds - 1 },
       seedRefillAvailableAt: farm.seedRefillAvailableAt,
+      coins: farm.coins,
+      xp: farm.xp,
     },
   };
 }
 
 /**
- * Harvests a ready crop. When this harvest leaves the farm with no seeds and
- * no crops, the seed refill cooldown starts at `now`.
+ * Harvests a ready crop: adds the produce, the crop's coin and XP reward, and
+ * empties the plot. When this harvest leaves the farm with no seeds and no
+ * crops, the seed refill cooldown starts at `now`.
  */
 export function harvest(
   farm: FarmData,
   plotIndex: number,
   now: number,
-): RuleResult<{ harvested: HarvestedProduce }> {
+): RuleResult<{ harvested: HarvestedProduce; reward: HarvestReward }> {
   assertFarmData(farm);
   assertPlotIndex(plotIndex);
   assertTime(now);
@@ -235,6 +248,7 @@ export function harvest(
 
   const crop = getCrop(plot.cropId);
   const harvested = { itemId: crop.produceItemId, quantity: crop.harvestYield };
+  const reward: HarvestReward = { coins: crop.coinReward, xp: crop.xpReward };
   const next: FarmData = {
     plots: withPlot(farm.plots, plotIndex, null),
     inventory: {
@@ -242,6 +256,8 @@ export function harvest(
       [crop.produceItemId]: farm.inventory[crop.produceItemId] + crop.harvestYield,
     },
     seedRefillAvailableAt: farm.seedRefillAvailableAt,
+    coins: farm.coins + reward.coins,
+    xp: farm.xp + reward.xp,
   };
 
   return {
@@ -251,6 +267,7 @@ export function harvest(
       : next,
     // Static data guarantees produceItemId is a produce item (shared tests).
     harvested: harvested as HarvestedProduce,
+    reward,
   };
 }
 
@@ -273,7 +290,7 @@ export function refillSeeds(farm: FarmData, now: number): RuleResult {
   }
   return {
     ok: true,
-    farm: { plots: farm.plots, inventory, seedRefillAvailableAt: null },
+    farm: { ...farm, inventory, seedRefillAvailableAt: null },
   };
 }
 
@@ -300,5 +317,5 @@ export function toFarmState(farm: FarmData, now: number): FarmState {
     ? { eligible: true, availableAt: farm.seedRefillAvailableAt ?? now }
     : { eligible: false, availableAt: null };
 
-  return { serverTime: now, plots, inventory, seedRefill };
+  return { serverTime: now, plots, inventory, seedRefill, coins: farm.coins, xp: farm.xp };
 }

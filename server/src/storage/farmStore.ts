@@ -32,8 +32,8 @@ export interface ActionRecord {
 export function insertPlayer(db: Database, player: NewPlayer, farm: FarmData): void {
   assertFarmData(farm);
   db.prepare(
-    "INSERT INTO players (id, token_hash, created_at, seed_refill_available_at) VALUES (?, ?, ?, ?)",
-  ).run(player.id, player.tokenHash, player.createdAt, farm.seedRefillAvailableAt);
+    "INSERT INTO players (id, token_hash, created_at, seed_refill_available_at, coins, xp) VALUES (?, ?, ?, ?, ?, ?)",
+  ).run(player.id, player.tokenHash, player.createdAt, farm.seedRefillAvailableAt, farm.coins, farm.xp);
 
   const insertPlot = db.prepare(
     "INSERT INTO plots (player_id, plot_index, crop_id, planted_at) VALUES (?, ?, ?, ?)",
@@ -58,7 +58,7 @@ export function findPlayerIdByTokenHash(db: Database, tokenHash: string): string
 /** Loads a player's farm, or null if the player does not exist. Throws RangeError on corrupted data. */
 export function loadFarm(db: Database, playerId: string): FarmData | null {
   const player = db
-    .prepare("SELECT seed_refill_available_at FROM players WHERE id = ?")
+    .prepare("SELECT seed_refill_available_at, coins, xp FROM players WHERE id = ?")
     .get(playerId);
   if (player === undefined) return null;
 
@@ -90,6 +90,8 @@ export function loadFarm(db: Database, playerId: string): FarmData | null {
     plots,
     inventory: inventory as Record<ItemId, number>,
     seedRefillAvailableAt: refill === null ? null : Number(refill),
+    coins: Number(player["coins"]),
+    xp: Number(player["xp"]),
   };
   assertFarmData(farm);
   return farm;
@@ -100,8 +102,8 @@ export function saveFarm(db: Database, playerId: string, farm: FarmData): void {
   assertFarmData(farm);
 
   const player = db
-    .prepare("UPDATE players SET seed_refill_available_at = ? WHERE id = ?")
-    .run(farm.seedRefillAvailableAt, playerId);
+    .prepare("UPDATE players SET seed_refill_available_at = ?, coins = ?, xp = ? WHERE id = ?")
+    .run(farm.seedRefillAvailableAt, farm.coins, farm.xp, playerId);
   if (player.changes !== 1) throw new Error(`Unknown player: ${playerId}`);
 
   const updatePlot = db.prepare(

@@ -36,11 +36,15 @@ function farmWith(options: {
   plots?: Array<FarmPlot | null>;
   inventory?: Partial<Record<ItemId, number>>;
   seedRefillAvailableAt?: number | null;
+  coins?: number;
+  xp?: number;
 }): FarmData {
   return {
     plots: options.plots ?? Array.from({ length: FARM_PLOT_COUNT }, () => null),
     inventory: inventory(options.inventory),
     seedRefillAvailableAt: options.seedRefillAvailableAt ?? null,
+    coins: options.coins ?? 0,
+    xp: options.xp ?? 0,
   };
 }
 
@@ -82,6 +86,7 @@ describe("createStarterFarm", () => {
       inventory({ wheat_seed: 5, carrot_seed: 5, tomato_seed: 5 }),
     );
     expect(farm.seedRefillAvailableAt).toBeNull();
+    expect([farm.coins, farm.xp]).toEqual([0, 0]);
     expectInvariants(farm, T);
   });
 
@@ -100,6 +105,8 @@ describe("createStarterFarm", () => {
         { itemId: "tomato_seed", quantity: 5 },
       ],
       seedRefill: { eligible: false, availableAt: null },
+      coins: 0,
+      xp: 0,
     });
   });
 });
@@ -225,9 +232,40 @@ describe("harvest", () => {
     const result = harvest(planted, 1, now);
     if (!result.ok) throw new Error(result.error);
 
-    expect(isHarvestResponse({ ...toFarmState(result.farm, now), harvested: result.harvested })).toBe(
-      true,
-    );
+    expect(
+      isHarvestResponse({
+        ...toFarmState(result.farm, now),
+        harvested: result.harvested,
+        reward: result.reward,
+      }),
+    ).toBe(true);
+  });
+
+  it.each<[CropId, number, number, number]>([
+    ["wheat", WHEAT_MS, 2, 1],
+    ["carrot", CARROT_MS, 6, 3],
+    ["tomato", TOMATO_MS, 12, 6],
+  ])("grants the %s coin and XP reward on top of existing totals", (cropId, growthMs, coins, xp) => {
+    const farm = expectOk(plant(farmWith({ inventory: { [`${cropId}_seed`]: 1 }, coins: 10, xp: 4 }), 0, cropId, T));
+    const result = harvest(farm, 0, T + growthMs);
+    if (!result.ok) throw new Error(result.error);
+
+    expect(result.reward).toEqual({ coins, xp });
+    expect([result.farm.coins, result.farm.xp]).toEqual([10 + coins, 4 + xp]);
+    expect(toFarmState(result.farm, T + growthMs)).toMatchObject({ coins: 10 + coins, xp: 4 + xp });
+  });
+
+  it("grants no reward when the harvest fails", () => {
+    expect(harvest(planted, 1, T + WHEAT_MS - 1)).toEqual({ ok: false, error: "CROP_NOT_READY" });
+    expect(harvest(planted, 0, T + WHEAT_MS)).toEqual({ ok: false, error: "PLOT_EMPTY" });
+    expect([planted.coins, planted.xp]).toEqual([0, 0]);
+  });
+
+  it("rewards each crop only once", () => {
+    const farm = expectOk(harvest(planted, 1, T + WHEAT_MS));
+
+    expect(harvest(farm, 1, T + WHEAT_MS + 1)).toEqual({ ok: false, error: "PLOT_EMPTY" });
+    expect([farm.coins, farm.xp]).toEqual([2, 1]);
   });
 
   it("does not harvest the same plot twice", () => {
@@ -345,6 +383,7 @@ describe("seed refill cooldown", () => {
     expect(farm.inventory).toEqual(
       inventory({ wheat_seed: 5, carrot_seed: 5, tomato_seed: 5, wheat_produce: 1 }),
     );
+    expect([farm.coins, farm.xp]).toEqual([2, 1]);
     expect(farm.seedRefillAvailableAt).toBeNull();
     expect(toFarmState(farm, now).seedRefill).toEqual({ eligible: false, availableAt: null });
     expectInvariants(farm, now);
@@ -402,6 +441,7 @@ describe("full loop from a new farm", () => {
     expect(farm.inventory).toEqual(
       inventory({ wheat_produce: 5, carrot_produce: 5, tomato_produce: 5 }),
     );
+    expect([farm.coins, farm.xp]).toEqual([5 * 2 + 5 * 6 + 5 * 12, 5 * 1 + 5 * 3 + 5 * 6]);
     expect(farm.seedRefillAvailableAt).toBe(now + SEED_REFILL_COOLDOWN_MS);
 
     expect(refillSeeds(farm, now + SEED_REFILL_COOLDOWN_MS - 1).ok).toBe(false);
@@ -502,6 +542,11 @@ describe("malformed FarmData (RangeError, never a gameplay error)", () => {
     ["NaN refill time", farmWith({ seedRefillAvailableAt: NaN })],
     ["string refill time", farmWith({ seedRefillAvailableAt: "0" as unknown as number })],
     ["undefined refill time", { ...createStarterFarm(), seedRefillAvailableAt: undefined }],
+    ["missing coins", { ...createStarterFarm(), coins: undefined }],
+    ["negative coins", farmWith({ coins: -1 })],
+    ["fractional xp", farmWith({ xp: 1.5 })],
+    ["string xp", farmWith({ xp: "3" as unknown as number })],
+    ["unsafe coins", farmWith({ coins: Number.MAX_SAFE_INTEGER + 1 })],
   ];
 
   for (const [caller, call] of callers) {
