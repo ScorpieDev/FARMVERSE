@@ -188,6 +188,19 @@ describe("POST /api/farm/plant", () => {
     expect(quantity(await getFarm(session), "tomato_seed")).toBe(5);
   });
 
+  it("rejects a locked plot or crop with 409 LEVEL_TOO_LOW and changes nothing", async () => {
+    const session = await newSession();
+
+    for (const body of [plantBody(6, "wheat"), plantBody(0, "corn"), plantBody(0, "strawberry")]) {
+      const response = await post(session, FARM_PLANT_PATH, body);
+      expect(response.statusCode).toBe(409);
+      expect(response.json()).toMatchObject({ code: "LEVEL_TOO_LOW" });
+    }
+    const farm = await getFarm(session);
+    expect(farm.plots.every((plot) => plot.crop === null)).toBe(true);
+    expect(quantity(farm, "wheat_seed")).toBe(5);
+  });
+
   it("rejects a crop without seeds with 409 ITEM_NOT_OWNED", async () => {
     const session = await newSession();
     for (let plot = 0; plot < 5; plot++) {
@@ -202,8 +215,8 @@ describe("POST /api/farm/plant", () => {
 
   it.each<[string, unknown]>([
     ["missing cropId", { requestId: randomUUID(), plotIndex: 0 }],
-    ["unknown crop", plantBody(0, "corn")],
-    ["plot index 6", plantBody(6, "wheat")],
+    ["unknown crop", plantBody(0, "rice")],
+    ["plot index 9", plantBody(9, "wheat")],
     ["fractional plot index", plantBody(1.5, "wheat")],
     ["uppercase request ID", plantBody(0, "wheat", randomUUID().toUpperCase())],
     ["non-UUID request ID", plantBody(0, "wheat", "request-1")],

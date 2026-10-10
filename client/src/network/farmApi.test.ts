@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { FarmState } from "@farmverse/shared/api";
+import { FARM_PLOT_COUNT } from "@farmverse/shared/farming";
 import {
   ACTION_RETRY_DELAYS_MS,
   FarmApi,
@@ -16,7 +17,7 @@ const REQUEST_ID = "00000000-0000-4000-8000-000000000001";
 
 const FARM: FarmState = {
   serverTime: 1_700_000_000_000,
-  plots: [0, 1, 2, 3, 4, 5].map((index) => ({ index, crop: null })),
+  plots: Array.from({ length: FARM_PLOT_COUNT }, (_, index) => ({ index, crop: null })),
   inventory: [{ itemId: "wheat_seed", quantity: 5 }],
   seedRefill: { eligible: false, availableAt: null },
   coins: 0,

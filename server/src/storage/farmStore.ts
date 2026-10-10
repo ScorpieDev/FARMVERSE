@@ -1,14 +1,16 @@
 /**
  * Persistence of players, farms and the action log.
  *
- * Every player always has exactly FARM_PLOT_COUNT plot rows and one inventory
- * row per item (quantity 0 included). Missing rows are never filled in: a farm
- * loaded from the database is checked with assertFarmData, so corrupted data
- * fails loudly instead of being repaired silently.
+ * Every player always has exactly FARM_PLOT_COUNT plot rows, one inventory
+ * row per item (quantity 0 included) and one quest_state row (schema v2
+ * added the Phase 2 rows for existing players). Missing rows are never filled
+ * in: loaded data is checked with assertFarmData / assertQuestState, so
+ * corrupted data fails loudly instead of being repaired silently.
  *
  * Writes are expected to run inside `transaction()` from database.ts.
  */
 import { FARM_PLOT_COUNT, ITEM_IDS, type CropId, type ItemId } from "@farmverse/shared/farming";
+import { assertQuestState, startingQuestState, type QuestState } from "../farming/progression.js";
 import { assertFarmData, type FarmData, type FarmPlot } from "../farming/rules.js";
 import type { Database } from "./database.js";
 
@@ -48,6 +50,13 @@ export function insertPlayer(db: Database, player: NewPlayer, farm: FarmData): v
   for (const itemId of ITEM_IDS) {
     insertItem.run(player.id, itemId, farm.inventory[itemId]);
   }
+
+  const quests = startingQuestState();
+  db.prepare("INSERT INTO quest_state (player_id, quest_index, progress) VALUES (?, ?, ?)").run(
+    player.id,
+    quests.index,
+    quests.progress,
+  );
 }
 
 export function findPlayerIdByTokenHash(db: Database, tokenHash: string): string | null {
@@ -121,6 +130,28 @@ export function saveFarm(db: Database, playerId: string, farm: FarmData): void {
     const result = updateItem.run(farm.inventory[itemId], playerId, itemId);
     if (result.changes !== 1) throw new RangeError(`Invalid farm data: missing item ${itemId}`);
   }
+}
+
+/** Loads a player's quest state, or null if the player does not exist. Throws RangeError on corrupted data. */
+export function loadQuestState(db: Database, playerId: string): QuestState | null {
+  const row = db.prepare("SELECT quest_index, progress FROM quest_state WHERE player_id = ?").get(playerId);
+  if (row === undefined) {
+    const player = db.prepare("SELECT 1 FROM players WHERE id = ?").get(playerId);
+    if (player === undefined) return null;
+    throw new RangeError("Invalid farm data: missing quest state");
+  }
+  const state = { index: Number(row["quest_index"]), progress: Number(row["progress"]) };
+  assertQuestState(state);
+  return state;
+}
+
+/** Overwrites a player's quest state. The row must already exist. */
+export function saveQuestState(db: Database, playerId: string, state: QuestState): void {
+  assertQuestState(state);
+  const result = db
+    .prepare("UPDATE quest_state SET quest_index = ?, progress = ? WHERE player_id = ?")
+    .run(state.index, state.progress, playerId);
+  if (result.changes !== 1) throw new RangeError(`Invalid farm data: missing quest state for ${playerId}`);
 }
 
 export function findAction(db: Database, playerId: string, requestId: string): ActionRecord | null {

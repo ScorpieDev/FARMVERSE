@@ -11,6 +11,7 @@
 import { GameObjects, Input, Scale, Scene, type Time } from "phaser";
 import type { FarmState } from "@farmverse/shared/api";
 import { CROP_IDS, getCrop, getItem, type CropId, type ItemId } from "@farmverse/shared/farming";
+import { cropUnlockLevel } from "@farmverse/shared/progression";
 import {
   FarmApi,
   NetworkError,
@@ -56,7 +57,12 @@ const COLORS = {
   overlay: 0x052e16,
 };
 const TONE_COLORS: Record<StatusTone, string> = { ok: "#bbf7d0", pending: "#fde68a", error: "#fecaca" };
-const PRODUCE_IDS: readonly ItemId[] = CROP_IDS.map((id) => getCrop(id).produceItemId);
+/**
+ * Crops shown in the UI: the level-1 (Phase 1) crops. Level, locked plots and
+ * Phase 2 crops arrive with the progression UI (Phase 2 step 2.5).
+ */
+const UI_CROP_IDS: readonly CropId[] = CROP_IDS.filter((id) => cropUnlockLevel(id) === 1);
+const PRODUCE_IDS: readonly ItemId[] = UI_CROP_IDS.map((id) => getCrop(id).produceItemId);
 
 interface Button {
   box: GameObjects.Rectangle;
@@ -122,7 +128,7 @@ export class FarmScene extends Scene {
       this.plots.push({ box, bar, label });
     }
 
-    for (const cropId of CROP_IDS) {
+    for (const cropId of UI_CROP_IDS) {
       this.seedButtons.set(cropId, this.addButton("", () => this.selectCrop(cropId)));
     }
     this.refillButton = this.addButton("", () => void this.onRefillTap());
@@ -399,7 +405,7 @@ export class FarmScene extends Scene {
       bar.setPosition(rect.x + 8, rect.y + rect.height - 10);
     });
 
-    CROP_IDS.forEach((cropId, index) => {
+    UI_CROP_IDS.forEach((cropId, index) => {
       const button = this.seedButtons.get(cropId);
       if (button !== undefined) this.placeButton(button, layout.seedButtons[index]!, fontSize.text);
     });

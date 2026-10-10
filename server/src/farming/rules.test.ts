@@ -8,6 +8,7 @@ import {
   type ItemId,
 } from "@farmverse/shared/farming";
 import { isFarmState, isHarvestResponse } from "@farmverse/shared/api";
+import { levelFromXp, plotCountForLevel } from "@farmverse/shared/progression";
 import {
   createStarterFarm,
   getReadyAt,
@@ -48,6 +49,11 @@ function farmWith(options: {
   };
 }
 
+/** The given leading plots followed by empty plots up to FARM_PLOT_COUNT. */
+function plotsOf(...leading: Array<FarmPlot | null>): Array<FarmPlot | null> {
+  return [...leading, ...Array.from({ length: FARM_PLOT_COUNT - leading.length }, () => null)];
+}
+
 function deepFreeze<T>(value: T): T {
   if (typeof value === "object" && value !== null) {
     for (const child of Object.values(value)) deepFreeze(child);
@@ -78,10 +84,10 @@ function seedTotal(farm: FarmData): number {
 }
 
 describe("createStarterFarm", () => {
-  it("has 6 empty plots, 5 seeds of each crop, no produce and no refill cooldown", () => {
+  it("has 9 empty plots, 5 seeds of each level-1 crop, no produce and no refill cooldown", () => {
     const farm = createStarterFarm();
 
-    expect(farm.plots).toEqual([null, null, null, null, null, null]);
+    expect(farm.plots).toEqual(plotsOf());
     expect(farm.inventory).toEqual(
       inventory({ wheat_seed: 5, carrot_seed: 5, tomato_seed: 5 }),
     );
@@ -98,7 +104,7 @@ describe("createStarterFarm", () => {
   it("converts to the shared FarmState contract", () => {
     expect(toFarmState(createStarterFarm(), T)).toEqual({
       serverTime: T,
-      plots: [0, 1, 2, 3, 4, 5].map((index) => ({ index, crop: null })),
+      plots: plotsOf().map((_, index) => ({ index, crop: null })),
       inventory: [
         { itemId: "wheat_seed", quantity: 5 },
         { itemId: "carrot_seed", quantity: 5 },
@@ -118,7 +124,7 @@ describe("plant", () => {
     const farm = expectOk(plant(before, 0, "wheat", T));
 
     expect(farm.plots[0]).toEqual({ cropId: "wheat", plantedAt: T });
-    expect(farm.plots.slice(1)).toEqual([null, null, null, null, null]);
+    expect(farm.plots.slice(1)).toEqual(plotsOf().slice(1));
     expect(farm.inventory.wheat_seed).toBe(4);
     expect(farm.inventory.carrot_seed).toBe(5);
     expect(farm.seedRefillAvailableAt).toBeNull();
@@ -143,7 +149,7 @@ describe("plant", () => {
   });
 
   it("checks the plot before the seed (P2-3)", () => {
-    const farm = farmWith({ plots: [{ cropId: "wheat", plantedAt: T }, null, null, null, null, null] });
+    const farm = farmWith({ plots: plotsOf({ cropId: "wheat", plantedAt: T }) });
 
     expect(plant(farm, 0, "tomato", T)).toEqual({ ok: false, error: "PLOT_NOT_EMPTY" });
   });
@@ -159,14 +165,15 @@ describe("plant", () => {
     expect(expectOk(plant(farm, 5, "tomato", T)).plots).toHaveLength(FARM_PLOT_COUNT);
   });
 
-  it("can fill all 6 plots", () => {
+  it("can fill the 6 level-1 plots, and plots 7–9 stay locked", () => {
     const crops: CropId[] = ["wheat", "wheat", "carrot", "carrot", "tomato", "tomato"];
     let farm = createStarterFarm();
     crops.forEach((cropId, plot) => {
       farm = expectOk(plant(farm, plot, cropId, T));
     });
 
-    expect(farm.plots.every((plot) => plot !== null)).toBe(true);
+    expect(farm.plots.slice(0, 6).every((plot) => plot !== null)).toBe(true);
+    for (const plot of [6, 7, 8]) expect(plant(farm, plot, "wheat", T)).toEqual({ ok: false, error: "LEVEL_TOO_LOW" });
     expect(seedTotal(farm)).toBe(15 - 6);
     expectInvariants(farm, T);
   });
@@ -306,7 +313,7 @@ describe("seed refill eligibility", () => {
   });
 
   it("is false while a crop is on the farm, even a ready one", () => {
-    const farm = farmWith({ plots: [null, null, null, null, null, { cropId: "wheat", plantedAt: T }] });
+    const farm = farmWith({ plots: plotsOf(null, null, null, null, null, { cropId: "wheat", plantedAt: T }) });
 
     expect(isSeedRefillEligible(farm)).toBe(false);
     expect(toFarmState(farm, T + WHEAT_MS * 2).seedRefill).toEqual({
@@ -323,7 +330,7 @@ describe("seed refill eligibility", () => {
 describe("seed refill cooldown", () => {
   /** No seeds left and one wheat planted at T: harvesting it is the last harvest. */
   const lastCrop = deepFreeze(
-    farmWith({ plots: [{ cropId: "wheat", plantedAt: T }, null, null, null, null, null] }),
+    farmWith({ plots: plotsOf({ cropId: "wheat", plantedAt: T }) }),
   );
   const H = T + WHEAT_MS;
 
@@ -339,7 +346,7 @@ describe("seed refill cooldown", () => {
 
   it("does not start when another crop remains", () => {
     const farm = farmWith({
-      plots: [{ cropId: "wheat", plantedAt: T }, { cropId: "tomato", plantedAt: T }, null, null, null, null],
+      plots: plotsOf({ cropId: "wheat", plantedAt: T }, { cropId: "tomato", plantedAt: T }),
     });
 
     expect(expectOk(harvest(farm, 0, H)).seedRefillAvailableAt).toBeNull();
@@ -347,7 +354,7 @@ describe("seed refill cooldown", () => {
 
   it("does not start when seeds remain", () => {
     const farm = farmWith({
-      plots: [{ cropId: "wheat", plantedAt: T }, null, null, null, null, null],
+      plots: plotsOf({ cropId: "wheat", plantedAt: T }),
       inventory: { carrot_seed: 1 },
     });
 
@@ -425,7 +432,7 @@ describe("full loop from a new farm", () => {
     // Plant every free plot with any remaining seed, then harvest when ready.
     while (seedTotal(farm) > 0 || farm.plots.some((plot) => plot !== null)) {
       farm.plots.forEach((plot, index) => {
-        if (plot !== null) return;
+        if (plot !== null || index >= plotCountForLevel(levelFromXp(farm.xp))) return;
         const cropId = crops.find((id) => farm.inventory[`${id}_seed`] > 0);
         if (cropId) farm = expectOk(plant(farm, index, cropId, now));
       });
@@ -474,13 +481,13 @@ describe("toFarmState", () => {
 describe("out-of-range input (P2-2)", () => {
   const farm = createStarterFarm();
 
-  it.each([-1, 6, 1.5, NaN])("throws RangeError for plot index %s", (plotIndex) => {
+  it.each([-1, 9, 1.5, NaN])("throws RangeError for plot index %s", (plotIndex) => {
     expect(() => plant(farm, plotIndex, "wheat", T)).toThrow(RangeError);
     expect(() => harvest(farm, plotIndex, T)).toThrow(RangeError);
   });
 
   it("throws RangeError for an unknown crop id", () => {
-    expect(() => plant(farm, 0, "corn" as CropId, T)).toThrow(RangeError);
+    expect(() => plant(farm, 0, "rice" as CropId, T)).toThrow(RangeError);
   });
 
   it.each([-1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1])(
@@ -520,7 +527,7 @@ describe("malformed FarmData (RangeError, never a gameplay error)", () => {
     ["sparse plots (hole)", farmWith({ plots: sparsePlots })],
     ["undefined plot", farmWith({ plots: plotsWith(undefined) })],
     ["plot not an object", farmWith({ plots: plotsWith("wheat") })],
-    ["unknown cropId", farmWith({ plots: plotsWith({ cropId: "corn", plantedAt: T }) })],
+    ["unknown cropId", farmWith({ plots: plotsWith({ cropId: "rice", plantedAt: T }) })],
     ["wrong-case cropId", farmWith({ plots: plotsWith({ cropId: "Wheat", plantedAt: T }) })],
     ["missing plantedAt", farmWith({ plots: plotsWith({ cropId: "wheat" }) })],
     ["negative plantedAt", farmWith({ plots: plotsWith(wheatAt(-1)) })],

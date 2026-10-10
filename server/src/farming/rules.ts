@@ -36,7 +36,7 @@ import type {
   SeedRefillState,
 } from "@farmverse/shared/api";
 import type { ErrorCode } from "@farmverse/shared/errors";
-import { cropUnlockLevel, levelFromXp, plotUnlockLevel } from "@farmverse/shared/progression";
+import { cropUnlockLevel, levelFromXp, plotUnlockLevel, unlocksBetween } from "@farmverse/shared/progression";
 
 /** A plot with a crop. Readiness is derived from plantedAt; it is never stored. */
 export interface FarmPlot {
@@ -157,6 +157,12 @@ function withPlot(
 
 // ---------- queries ----------
 
+/** Crops the player can plant at the level that `xp` gives. */
+function unlockedCrops(xp: number): typeof CROPS {
+  const level = levelFromXp(xp);
+  return CROPS.filter((crop) => cropUnlockLevel(crop.id) <= level);
+}
+
 /**
  * LEVEL_TOO_LOW when the plot or the crop needs a higher level than `xp`
  * gives (Phase 2 unlocks), otherwise null. Plots outside the unlock table
@@ -174,7 +180,7 @@ export function createStarterFarm(): FarmData {
     ItemId,
     number
   >;
-  for (const crop of CROPS) {
+  for (const crop of unlockedCrops(0)) {
     inventory[crop.seedItemId] = STARTER_SEEDS_PER_CROP;
   }
   return {
@@ -214,6 +220,20 @@ export function isSeedRefillEligible(farm: FarmData): boolean {
 // ---------- actions ----------
 
 /**
+ * Adds XP and grants STARTER_SEEDS_PER_CROP seeds of every crop unlocked by
+ * the resulting level-up. XP never decreases, so each crop is granted once.
+ * Used by harvest and by quest claims.
+ */
+export function gainXp(farm: FarmData, xp: number): FarmData {
+  const total = farm.xp + xp;
+  const inventory: Record<ItemId, number> = { ...farm.inventory };
+  for (const unlock of unlocksBetween(levelFromXp(farm.xp), levelFromXp(total))) {
+    if (unlock.kind === "crop") inventory[getCrop(unlock.cropId).seedItemId] += STARTER_SEEDS_PER_CROP;
+  }
+  return { ...farm, inventory, xp: total };
+}
+
+/**
  * Plants one seed of `cropId` in an empty plot. Checks the player's level for
  * the plot and crop first, then the plot, then the seed.
  */
@@ -249,9 +269,10 @@ export function plant(
 }
 
 /**
- * Harvests a ready crop: adds the produce, the crop's coin and XP reward, and
- * empties the plot. When this harvest leaves the farm with no seeds and no
- * crops, the seed refill cooldown starts at `now`.
+ * Harvests a ready crop: adds the produce, the crop's coin and XP reward
+ * (with seeds for any crop the level-up unlocks), and empties the plot. When
+ * this harvest leaves the farm with no seeds and no crops, the seed refill
+ * cooldown starts at `now`.
  */
 export function harvest(
   farm: FarmData,
@@ -269,16 +290,19 @@ export function harvest(
   const crop = getCrop(plot.cropId);
   const harvested = { itemId: crop.produceItemId, quantity: crop.harvestYield };
   const reward: HarvestReward = { coins: crop.coinReward, xp: crop.xpReward };
-  const next: FarmData = {
-    plots: withPlot(farm.plots, plotIndex, null),
-    inventory: {
-      ...farm.inventory,
-      [crop.produceItemId]: farm.inventory[crop.produceItemId] + crop.harvestYield,
+  const next = gainXp(
+    {
+      plots: withPlot(farm.plots, plotIndex, null),
+      inventory: {
+        ...farm.inventory,
+        [crop.produceItemId]: farm.inventory[crop.produceItemId] + crop.harvestYield,
+      },
+      seedRefillAvailableAt: farm.seedRefillAvailableAt,
+      coins: farm.coins + reward.coins,
+      xp: farm.xp,
     },
-    seedRefillAvailableAt: farm.seedRefillAvailableAt,
-    coins: farm.coins + reward.coins,
-    xp: farm.xp + reward.xp,
-  };
+    reward.xp,
+  );
 
   return {
     ok: true,
@@ -293,7 +317,8 @@ export function harvest(
 
 /**
  * MVP seed refill: allowed only when the farm has no seeds and no crops and
- * the cooldown has passed. A failed attempt does not change the cooldown.
+ * the cooldown has passed. Grants seeds of every crop unlocked at the
+ * player's level. A failed attempt does not change the cooldown.
  */
 export function refillSeeds(farm: FarmData, now: number): RuleResult {
   assertFarmData(farm);
@@ -305,7 +330,7 @@ export function refillSeeds(farm: FarmData, now: number): RuleResult {
   if (availableAt !== null && now < availableAt) return fail("REFILL_NOT_ALLOWED");
 
   const inventory: Record<ItemId, number> = { ...farm.inventory };
-  for (const crop of CROPS) {
+  for (const crop of unlockedCrops(farm.xp)) {
     inventory[crop.seedItemId] += SEED_REFILL_PER_CROP;
   }
   return {

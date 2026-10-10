@@ -46,7 +46,7 @@ describe("openDatabase", () => {
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
       .all()
       .map((row) => row["name"]);
-    expect(tables).toEqual(["action_log", "inventory", "players", "plots", "schema_version"]);
+    expect(tables).toEqual(["action_log", "inventory", "players", "plots", "quest_state", "schema_version"]);
   });
 
   it("enables foreign keys", () => {
@@ -93,8 +93,9 @@ describe("players and farms", () => {
     transaction(db, () => insertPlayer(db, PLAYER, createStarterFarm()));
 
     expect(loadFarm(db, PLAYER.id)).toEqual(createStarterFarm());
-    expect(db.prepare("SELECT COUNT(*) AS n FROM plots").get()?.["n"]).toBe(6);
-    expect(db.prepare("SELECT COUNT(*) AS n FROM inventory").get()?.["n"]).toBe(6);
+    expect(db.prepare("SELECT COUNT(*) AS n FROM plots").get()?.["n"]).toBe(9);
+    expect(db.prepare("SELECT COUNT(*) AS n FROM inventory").get()?.["n"]).toBe(10);
+    expect(db.prepare("SELECT quest_index, progress FROM quest_state").all()).toEqual([{ quest_index: 0, progress: 0 }]);
   });
 
   it("finds a player by token hash only", () => {
@@ -184,7 +185,7 @@ describe("corrupted rows are reported, not repaired", () => {
   });
 
   it("throws RangeError for an unknown crop id", () => {
-    db.prepare("UPDATE plots SET crop_id = 'corn', planted_at = 1 WHERE player_id = ? AND plot_index = 0").run(
+    db.prepare("UPDATE plots SET crop_id = 'rice', planted_at = 1 WHERE player_id = ? AND plot_index = 0").run(
       PLAYER.id,
     );
 
@@ -192,7 +193,7 @@ describe("corrupted rows are reported, not repaired", () => {
   });
 
   it("throws RangeError for a plot index beyond the farm", () => {
-    db.prepare("INSERT INTO plots (player_id, plot_index) VALUES (?, 6)").run(PLAYER.id);
+    db.prepare("INSERT INTO plots (player_id, plot_index) VALUES (?, 9)").run(PLAYER.id);
 
     expect(() => loadFarm(db, PLAYER.id)).toThrow(RangeError);
   });

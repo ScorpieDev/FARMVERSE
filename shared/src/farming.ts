@@ -1,26 +1,30 @@
 /**
- * Static farming data shared by client and server (Phase 1 MVP).
+ * Static farming data shared by client and server (Phase 1 MVP; Phase 2 adds
+ * Corn, Strawberry and plots 7–9, unlocked by level — see progression.ts).
  *
  * Only definitions and shape checks live here. Gameplay rules (planting,
  * readiness, harvesting, seed refill eligibility) are decided by the server.
  */
 
-/** Plots per farm; indices are 0..FARM_PLOT_COUNT-1. */
-export const FARM_PLOT_COUNT = 6;
+/**
+ * Plots per farm; indices are 0..FARM_PLOT_COUNT-1. Plots from 6 up are
+ * locked until the level in progression.ts LEVEL_UNLOCKS.
+ */
+export const FARM_PLOT_COUNT = 9;
 
-/** Seeds of each crop a new player starts with. */
+/** Seeds of each level-1 crop a new player starts with, and of a crop when it unlocks. */
 export const STARTER_SEEDS_PER_CROP = 5;
 
 /**
- * MVP seed refill (temporary until the Shop in Phase 6): seeds of each crop
- * granted when the player has no seeds and no crops left.
+ * MVP seed refill (temporary until the Shop in Phase 6): seeds of each
+ * unlocked crop granted when the player has no seeds and no crops left.
  */
 export const SEED_REFILL_PER_CROP = 5;
 
 /** Wait, measured on the server clock, before a seed refill is allowed. */
 export const SEED_REFILL_COOLDOWN_MS = 60_000;
 
-export const CROP_IDS = ["wheat", "carrot", "tomato"] as const;
+export const CROP_IDS = ["wheat", "carrot", "tomato", "corn", "strawberry"] as const;
 export type CropId = (typeof CROP_IDS)[number];
 
 export const ITEM_IDS = [
@@ -30,6 +34,10 @@ export const ITEM_IDS = [
   "wheat_produce",
   "carrot_produce",
   "tomato_produce",
+  "corn_seed",
+  "strawberry_seed",
+  "corn_produce",
+  "strawberry_produce",
 ] as const;
 export type ItemId = (typeof ITEM_IDS)[number];
 
@@ -67,6 +75,10 @@ export const ITEMS: readonly ItemDefinition[] = [
   { id: "wheat_produce", name: "Wheat", kind: "produce" },
   { id: "carrot_produce", name: "Carrot", kind: "produce" },
   { id: "tomato_produce", name: "Tomato", kind: "produce" },
+  { id: "corn_seed", name: "Corn Seed", kind: "seed" },
+  { id: "strawberry_seed", name: "Strawberry Seed", kind: "seed" },
+  { id: "corn_produce", name: "Corn", kind: "produce" },
+  { id: "strawberry_produce", name: "Strawberry", kind: "produce" },
 ];
 
 export const CROPS: readonly CropDefinition[] = [
@@ -99,6 +111,27 @@ export const CROPS: readonly CropDefinition[] = [
     harvestYield: 1,
     coinReward: 12,
     xpReward: 6,
+  },
+  // Phase 2 (P2-4, provisional values): unlocked at levels 3 and 5.
+  {
+    id: "corn",
+    name: "Corn",
+    seedItemId: "corn_seed",
+    produceItemId: "corn_produce",
+    growthMs: 180_000,
+    harvestYield: 1,
+    coinReward: 9,
+    xpReward: 4,
+  },
+  {
+    id: "strawberry",
+    name: "Strawberry",
+    seedItemId: "strawberry_seed",
+    produceItemId: "strawberry_produce",
+    growthMs: 480_000,
+    harvestYield: 1,
+    coinReward: 20,
+    xpReward: 9,
   },
 ];
 

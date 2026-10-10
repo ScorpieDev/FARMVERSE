@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FarmState } from "@farmverse/shared/api";
+import { FARM_PLOT_COUNT } from "@farmverse/shared/farming";
 import { createRequestIdFactory } from "../network/requestId.js";
 import {
   clockFromState,
@@ -17,7 +18,7 @@ const T = 1_700_000_000_000;
 
 const STATE: FarmState = {
   serverTime: T,
-  plots: [0, 1, 2, 3, 4, 5].map((index) => ({ index, crop: null })),
+  plots: Array.from({ length: FARM_PLOT_COUNT }, (_, index) => ({ index, crop: null })),
   inventory: [
     { itemId: "wheat_seed", quantity: 3 },
     { itemId: "tomato_produce", quantity: 2 },

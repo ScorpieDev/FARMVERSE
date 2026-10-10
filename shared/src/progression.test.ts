@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { CROP_IDS } from "./farming.js";
+import { CROP_IDS, FARM_PLOT_COUNT, getCrop } from "./farming.js";
+
+const PHASE1_CROPS = ["wheat", "carrot", "tomato"] as const;
 import {
   BASE_PLOT_COUNT,
   LEVEL_UNLOCKS,
@@ -80,12 +82,13 @@ describe("unlocks (P2-3, U-A)", () => {
     expect(BASE_PLOT_COUNT).toBe(6);
     expect(plotCountForLevel(1)).toBe(6);
     for (let index = 0; index < BASE_PLOT_COUNT; index++) expect(plotUnlockLevel(index)).toBe(1);
-    for (const cropId of CROP_IDS) expect(cropUnlockLevel(cropId)).toBe(1);
+    for (const cropId of PHASE1_CROPS) expect(cropUnlockLevel(cropId)).toBe(1);
   });
 
   it("counts usable plots per level", () => {
     expect([1, 2, 3, 4, 5, 6, 10].map(plotCountForLevel)).toEqual([6, 7, 7, 8, 8, 9, 9]);
     expect(MAX_PLOT_COUNT).toBe(plotCountForLevel(MAX_LEVEL));
+    expect(FARM_PLOT_COUNT).toBe(MAX_PLOT_COUNT);
   });
 
   it("gives each new plot's unlock level and rejects out-of-range plots", () => {
@@ -98,8 +101,10 @@ describe("unlocks (P2-3, U-A)", () => {
     expect(cropUnlockLevel("strawberry")).toBe(5);
   });
 
-  it("introduces progression crops that do not clash with Phase 1 crops", () => {
-    for (const cropId of PROGRESSION_CROP_IDS) expect((CROP_IDS as readonly string[]).includes(cropId)).toBe(false);
+  it("adds the progression crops to the farming crops with the approved values (P2-4)", () => {
+    for (const cropId of PROGRESSION_CROP_IDS) expect(CROP_IDS).toContain(cropId);
+    expect(getCrop("corn")).toMatchObject({ growthMs: 180_000, coinReward: 9, xpReward: 4 });
+    expect(getCrop("strawberry")).toMatchObject({ growthMs: 480_000, coinReward: 20, xpReward: 9 });
   });
 
   it("lists the unlocks gained between two levels", () => {
@@ -125,7 +130,7 @@ describe("quests (P2-5, Q-A)", () => {
   });
 
   it("only names known crops, unlocked no later than the quests reach that level", () => {
-    const knownCrops: readonly string[] = [...CROP_IDS, ...PROGRESSION_CROP_IDS];
+    const knownCrops: readonly string[] = CROP_IDS;
     let guaranteedLevel = 1;
     for (const { goal } of QUESTS) {
       if (goal.kind === "reach_level") {

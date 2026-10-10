@@ -58,11 +58,7 @@ export const BASE_PLOT_COUNT = 6;
 /** Plots at the highest unlock. */
 export const MAX_PLOT_COUNT = 9;
 
-/**
- * Crops added in Phase 2. They join the farming crop list when the server
- * enforces their unlock level (Phase 2 step 2.2); until then they are only
- * referenced here.
- */
+/** Crops added in Phase 2 (also in farming.ts CROP_IDS), unlocked by level. */
 export const PROGRESSION_CROP_IDS = ["corn", "strawberry"] as const;
 export type ProgressionCropId = (typeof PROGRESSION_CROP_IDS)[number];
 
@@ -108,11 +104,7 @@ export function unlocksBetween(fromLevel: number, toLevel: number): Unlock[] {
 
 // ---------- quests ----------
 
-/**
- * What a quest counts. `cropId` omitted on a harvest goal means any crop.
- * Crop ids are plain strings so quests can name progression crops before
- * they join the farming crop list.
- */
+/** What a quest counts. `cropId` omitted on a harvest goal means any crop. */
 export type QuestGoal =
   | { kind: "harvest"; cropId?: string; count: number }
   | { kind: "plant"; cropId: string; count: number }

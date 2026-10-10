@@ -21,7 +21,7 @@ import {
   type QuestDefinition,
   type Unlock,
 } from "@farmverse/shared/progression";
-import { assertFarmData, type FarmData } from "./rules.js";
+import { assertFarmData, gainXp, type FarmData } from "./rules.js";
 
 // ---------- level-ups ----------
 
@@ -102,8 +102,8 @@ export function activeQuest(state: QuestState, xp: number): ActiveQuest | null {
 }
 
 /**
- * Claims the active quest's reward: adds its coins and XP to the farm and
- * moves to the next quest. Fails with QUEST_NOT_COMPLETE when the active
+ * Claims the active quest's reward: adds its coins and XP to the farm (with
+ * seeds for any crop the level-up unlocks) and moves to the next quest. Fails with QUEST_NOT_COMPLETE when the active
  * quest is not complete or the chain is finished.
  */
 export function claimQuest(
@@ -119,7 +119,7 @@ export function claimQuest(
   const { coins, xp } = active.quest.reward;
   return {
     ok: true,
-    farm: { ...farm, coins: farm.coins + coins, xp: farm.xp + xp },
+    farm: gainXp({ ...farm, coins: farm.coins + coins }, xp),
     quests: { index: state.index + 1, progress: 0 },
     quest: active.quest,
     levelChange: levelChange(farm.xp, farm.xp + xp),

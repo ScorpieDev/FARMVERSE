@@ -17,8 +17,8 @@ import {
 } from "./farming.js";
 
 describe("farming constants", () => {
-  it("match the approved Phase 1 design", () => {
-    expect(FARM_PLOT_COUNT).toBe(6);
+  it("match the approved Phase 1 and Phase 2 design", () => {
+    expect(FARM_PLOT_COUNT).toBe(9);
     expect(STARTER_SEEDS_PER_CROP).toBe(5);
     expect(SEED_REFILL_PER_CROP).toBe(5);
     expect(SEED_REFILL_COOLDOWN_MS).toBe(60_000);
@@ -29,8 +29,8 @@ describe("static definitions", () => {
   it("define exactly the listed crops and items, without duplicates", () => {
     expect(CROPS.map((crop) => crop.id)).toEqual([...CROP_IDS]);
     expect(ITEMS.map((item) => item.id)).toEqual([...ITEM_IDS]);
-    expect(new Set(CROP_IDS).size).toBe(3);
-    expect(new Set(ITEM_IDS).size).toBe(6);
+    expect(new Set(CROP_IDS).size).toBe(5);
+    expect(new Set(ITEM_IDS).size).toBe(10);
   });
 
   it("name items <crop>_seed and <crop>_produce with matching kinds", () => {
@@ -90,7 +90,7 @@ describe("isCropId", () => {
     expect(isCropId(id)).toBe(true);
   });
 
-  it.each([["Wheat"], ["wheat_seed"], ["wheat_produce"], ["corn"], [""], [1], [null], [undefined]])(
+  it.each([["Wheat"], ["wheat_seed"], ["wheat_produce"], ["rice"], [""], [1], [null], [undefined]])(
     "rejects %j",
     (value) => {
       expect(isCropId(value)).toBe(false);
@@ -103,7 +103,7 @@ describe("isItemId", () => {
     expect(isItemId(id)).toBe(true);
   });
 
-  it.each([["wheat"], ["WHEAT_SEED"], ["corn_seed"], [""], [0], [null]])(
+  it.each([["wheat"], ["WHEAT_SEED"], ["rice_seed"], [""], [0], [null]])(
     "rejects %j",
     (value) => {
       expect(isItemId(value)).toBe(false);
@@ -122,7 +122,7 @@ describe("isProduceItemId", () => {
     ["tomato_seed"],
     ["wheat"],
     ["WHEAT_PRODUCE"],
-    ["corn_produce"],
+    ["rice_produce"],
     [""],
     [null],
   ])("rejects %j", (value) => {
@@ -137,11 +137,11 @@ describe("isProduceItemId", () => {
 });
 
 describe("isPlotIndex", () => {
-  it.each([0, 1, 2, 3, 4, 5])("accepts %i", (index) => {
+  it.each([0, 1, 2, 3, 4, 5, 6, 7, 8])("accepts %i", (index) => {
     expect(isPlotIndex(index)).toBe(true);
   });
 
-  it.each([[-1], [6], [1.5], [NaN], [Infinity], ["1"], [null], [undefined]])(
+  it.each([[-1], [9], [1.5], [NaN], [Infinity], ["1"], [null], [undefined]])(
     "rejects %j",
     (value) => {
       expect(isPlotIndex(value)).toBe(false);

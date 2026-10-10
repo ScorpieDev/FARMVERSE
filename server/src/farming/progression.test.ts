@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CROP_IDS, FARM_PLOT_COUNT } from "@farmverse/shared/farming";
+import { SEED_REFILL_COOLDOWN_MS, type CropId } from "@farmverse/shared/farming";
 import { QUESTS } from "@farmverse/shared/progression";
 import {
   activeQuest,
@@ -10,12 +10,15 @@ import {
   startingQuestState,
   type QuestState,
 } from "./progression.js";
-import { createStarterFarm, plant, unlockError, type FarmData } from "./rules.js";
+import { createStarterFarm, gainXp, harvest, plant, refillSeeds, unlockError, type FarmData } from "./rules.js";
 
 const T = 1_700_000_000_000;
+const PHASE1_CROPS: readonly CropId[] = ["wheat", "carrot", "tomato"];
 
+/** A level-1-style farm with no seeds unless given, so refill eligibility is easy to set up. */
 function farmWith(values: Partial<FarmData> = {}): FarmData {
-  return { ...createStarterFarm(), ...values };
+  const empty = Object.fromEntries(Object.keys(createStarterFarm().inventory).map((id) => [id, 0]));
+  return { ...createStarterFarm(), inventory: empty as FarmData["inventory"], ...values };
 }
 
 /** Quest state at the quest with this id. */
@@ -27,8 +30,8 @@ function at(id: string, progress = 0): QuestState {
 
 describe("unlockError", () => {
   it("allows every Phase 1 plot and crop at level 1", () => {
-    for (let plotIndex = 0; plotIndex < FARM_PLOT_COUNT; plotIndex++) {
-      for (const cropId of CROP_IDS) expect(unlockError(0, plotIndex, cropId)).toBeNull();
+    for (let plotIndex = 0; plotIndex < 6; plotIndex++) {
+      for (const cropId of PHASE1_CROPS) expect(unlockError(0, plotIndex, cropId)).toBeNull();
     }
   });
 
@@ -56,7 +59,62 @@ describe("unlockError", () => {
 
 describe("plant keeps Phase 1 behaviour", () => {
   it("still plants every Phase 1 crop on a level-1 farm", () => {
-    for (const cropId of CROP_IDS) expect(plant(createStarterFarm(), 0, cropId, T).ok).toBe(true);
+    for (const cropId of PHASE1_CROPS) expect(plant(createStarterFarm(), 0, cropId, T).ok).toBe(true);
+  });
+
+  it("refuses Corn, Strawberry and plots 7–9 on a level-1 farm, even with seeds", () => {
+    const farm = farmWith({ inventory: { ...createStarterFarm().inventory, corn_seed: 5, strawberry_seed: 5 } });
+    expect(plant(farm, 0, "corn", T)).toEqual({ ok: false, error: "LEVEL_TOO_LOW" });
+    expect(plant(farm, 0, "strawberry", T)).toEqual({ ok: false, error: "LEVEL_TOO_LOW" });
+    expect(plant(farm, 6, "wheat", T)).toEqual({ ok: false, error: "LEVEL_TOO_LOW" });
+  });
+
+  it("plants unlocked content once the level is reached", () => {
+    const farm = farmWith({ xp: 500, inventory: { ...createStarterFarm().inventory, corn_seed: 1, strawberry_seed: 1 } });
+    expect(plant(farm, 6, "corn", T).ok).toBe(true);
+    expect(plant(farm, 7, "strawberry", T).ok).toBe(true);
+    expect(plant(farm, 8, "wheat", T)).toEqual({ ok: false, error: "LEVEL_TOO_LOW" }); // level 6
+  });
+});
+
+describe("seeds for unlocked crops", () => {
+  it("starts new players with seeds of the level-1 crops only", () => {
+    const { inventory } = createStarterFarm();
+    expect([inventory.wheat_seed, inventory.carrot_seed, inventory.tomato_seed]).toEqual([5, 5, 5]);
+    expect([inventory.corn_seed, inventory.strawberry_seed]).toEqual([0, 0]);
+  });
+
+  it("grants 5 seeds of a crop exactly when its level is reached", () => {
+    expect(gainXp(farmWith({ xp: 140 }), 9).inventory.corn_seed).toBe(0); // 149: still level 2
+    const unlocked = gainXp(farmWith({ xp: 140 }), 10); // 150: level 3
+    expect(unlocked).toMatchObject({ xp: 150 });
+    expect(unlocked.inventory.corn_seed).toBe(5);
+    // Further XP inside or above level 3 does not grant Corn again.
+    expect(gainXp(unlocked, 100).inventory.corn_seed).toBe(5);
+  });
+
+  it("grants every crop unlocked by a multi-level jump, keeping existing seeds", () => {
+    const farm = gainXp(farmWith({ inventory: { ...createStarterFarm().inventory, corn_seed: 2 } }), 500);
+    expect([farm.inventory.corn_seed, farm.inventory.strawberry_seed]).toEqual([7, 5]);
+  });
+
+  it("grants unlock seeds from the harvest that levels up, and does not start the refill cooldown", () => {
+    const farm = farmWith({ xp: 144, plots: [{ cropId: "tomato", plantedAt: T }, ...createStarterFarm().plots.slice(1)] });
+    const result = harvest(farm, 0, T + 300_000); // tomato: +6 XP → 150
+    if (!result.ok) throw new Error(result.error);
+    expect(result.farm.xp).toBe(150);
+    expect(result.farm.inventory.corn_seed).toBe(5);
+    expect(result.farm.seedRefillAvailableAt).toBeNull();
+  });
+
+  it("refills seeds of every crop unlocked at the player's level", () => {
+    const level1 = refillSeeds(farmWith({}), T);
+    const level3 = refillSeeds(farmWith({ xp: 150 }), T);
+    const level5 = refillSeeds(farmWith({ xp: 500 }), T + SEED_REFILL_COOLDOWN_MS);
+    if (!level1.ok || !level3.ok || !level5.ok) throw new Error("refill failed");
+    expect(level1.farm.inventory.corn_seed).toBe(0);
+    expect(level3.farm.inventory).toMatchObject({ wheat_seed: 5, corn_seed: 5, strawberry_seed: 0 });
+    expect(level5.farm.inventory).toMatchObject({ corn_seed: 5, strawberry_seed: 5 });
   });
 });
 
@@ -176,9 +234,9 @@ describe("claimQuest", () => {
     expect(farm).toMatchObject({ coins: 7, xp: 3 });
   });
 
-  it("reports a level-up caused by the reward", () => {
+  it("reports a level-up caused by the reward and grants the unlocked crop's seeds", () => {
     const result = claimQuest(farmWith({ xp: 140 }), at("harvest_tomato_1", 1));
-    expect(result).toMatchObject({ ok: true, farm: { xp: 150 }, levelChange: { from: 2, to: 3 } });
+    expect(result).toMatchObject({ ok: true, farm: { xp: 150, inventory: { corn_seed: 5 } }, levelChange: { from: 2, to: 3 } });
   });
 
   it("lets a reach-level quest be claimed as soon as it becomes active if already satisfied", () => {
