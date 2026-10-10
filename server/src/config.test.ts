@@ -8,6 +8,7 @@ describe("loadConfig", () => {
       port: 3000,
       clientOrigin: "http://localhost:5173",
       logLevel: "info",
+      databasePath: "data/farmverse.db",
     });
   });
 
@@ -25,12 +26,14 @@ describe("loadConfig", () => {
         PORT: "8080",
         CLIENT_ORIGIN: "https://farm.example.com",
         LOG_LEVEL: "debug",
+        DATABASE_PATH: ":memory:",
       }),
     ).toEqual({
       host: "127.0.0.1",
       port: 8080,
       clientOrigin: "https://farm.example.com",
       logLevel: "debug",
+      databasePath: ":memory:",
     });
   });
 

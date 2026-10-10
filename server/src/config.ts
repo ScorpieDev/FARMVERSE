@@ -22,6 +22,11 @@ export interface ServerConfig {
   /** Only this origin may call the API from a browser (CORS). */
   clientOrigin: string;
   logLevel: LogLevel;
+  /**
+   * SQLite database file, relative to the server's working directory, or
+   * ":memory:" for a temporary in-memory database (tests).
+   */
+  databasePath: string;
 }
 
 export class ConfigError extends Error {
@@ -33,6 +38,7 @@ const DEFAULTS = {
   PORT: "3000",
   CLIENT_ORIGIN: "http://localhost:5173",
   LOG_LEVEL: "info",
+  DATABASE_PATH: "data/farmverse.db",
 };
 
 function parsePort(value: string): number | undefined {
@@ -92,5 +98,5 @@ export function loadConfig(
     throw new ConfigError(`Invalid server configuration:\n- ${problems.join("\n- ")}`);
   }
 
-  return { host, port, clientOrigin, logLevel };
+  return { host, port, clientOrigin, logLevel, databasePath: read("DATABASE_PATH") };
 }

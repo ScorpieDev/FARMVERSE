@@ -30,7 +30,7 @@ docs/     Game design, rules, architecture, roadmap and development rules
 
 ## Requirements
 
-- Node.js **24 (LTS)** — `.nvmrc` pins `24`; `engines.node` requires `>=24.0.0`
+- Node.js **24 LTS, 24.15 or newer** — `.nvmrc` pins `24`; `engines.node` requires `>=24.15.0` (the server uses the built-in `node:sqlite`)
 - npm **10 or newer**
 
 ## Install
@@ -86,6 +86,7 @@ file in the repository root (copy [`.env.example`](.env.example)). Never commit
 | `PORT` | server, Vite proxy | `3000` | Server port |
 | `CLIENT_ORIGIN` | server | `http://localhost:5173` | The only origin allowed by CORS and the WebSocket `Origin` check. Must match exactly, without a trailing slash |
 | `LOG_LEVEL` | server | `info` | `fatal`, `error`, `warn`, `info`, `debug`, `trace` or `silent` |
+| `DATABASE_PATH` | server | `data/farmverse.db` | SQLite file, relative to `server/` when started with the npm scripts (`:memory:` = temporary). The `server/data/` folder and `*.db` files are git-ignored |
 | `VITE_SERVER_URL` | client | empty | Leave empty in development (same origin through the Vite proxy). Set to the server origin, e.g. `https://api.example.com`, only when the deployed client and server have different origins. `ws://`/`wss://` is derived from it |
 
 The server exits with a clear message if a value is invalid.

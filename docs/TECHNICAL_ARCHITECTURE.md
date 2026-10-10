@@ -574,7 +574,7 @@ Stack đã chốt trong Phase 0:
 
 Chưa triển khai:
 
-- Database (chưa chọn)
+- Database: SQLite qua `node:sqlite` (Phase 1 Bước 1.3) — chưa nối vào route
 - Authentication
 - Gameplay, economy, multiplayer gameplay (Phase 0 chỉ có kết nối)
 - Duplication protection / request ID (§12)

@@ -6,6 +6,7 @@
 
 - Shared farming contract: 6 plots, crops wheat/carrot/tomato (30/120/300 s, yield 1), items `<crop>_seed` / `<crop>_produce`, seed refill constants (5 per crop, 60 s cooldown), session/farm API types, structure-only validators (`requestId` is a lowercase UUID v4), farming error codes — `7afe6d9`
 - Server farming rules (pure functions, server clock passed in): starter farm, plant, readiness, harvest, seed refill with cooldown, `FarmState` conversion, `FarmData` validation — `e02e344`
+- Server storage (Step 1.3): SQLite via the built-in `node:sqlite` (no new dependency) — schema with migrations (`players` incl. coins/XP columns, `plots`, `inventory`, `action_log`), transactions, farm load/save with corruption checks; `DATABASE_PATH` setting; Node.js floor raised to 24.15
 
 ## Phase 0 closeout (2026-10-10)
 
@@ -76,7 +77,7 @@ Phase 1 — Farming
 
 Status:
 
-IN PROGRESS (Steps 1.1–1.2 done; next: Step 1.3 storage)
+IN PROGRESS (Steps 1.1–1.3 done; next: Step 1.4 guest session)
 
 Phase 0 — Foundation: COMPLETED (closed 2026-10-10).
 

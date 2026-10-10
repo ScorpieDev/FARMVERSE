@@ -16,6 +16,7 @@ const config: ServerConfig = {
   port: 0,
   clientOrigin: CLIENT_ORIGIN,
   logLevel: "silent",
+  databasePath: ":memory:",
 };
 
 let app: FastifyInstance;

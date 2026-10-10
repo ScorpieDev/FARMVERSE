@@ -17,6 +17,12 @@ coverage/
 .env.*
 !.env.example
 
+# Local database files
+server/data/
+*.db
+*.db-wal
+*.db-shm
+
 # Logs
 logs/
 *.log

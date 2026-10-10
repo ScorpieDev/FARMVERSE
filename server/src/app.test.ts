@@ -10,6 +10,7 @@ const config: ServerConfig = {
   port: 0,
   clientOrigin: "http://localhost:5173",
   logLevel: "silent",
+  databasePath: ":memory:",
 };
 
 let app: FastifyInstance;

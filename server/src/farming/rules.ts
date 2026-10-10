@@ -95,8 +95,9 @@ function isNonNegativeSafeInteger(value: unknown): value is number {
  * Checks the FarmData invariants: exactly FARM_PLOT_COUNT plots, each empty or
  * holding a known crop with a valid plantedAt; every item present with a
  * non-negative safe-integer quantity; a valid or null refill time.
+ * Exported so storage can reject corrupted data as soon as it is loaded.
  */
-function assertFarmData(farm: FarmData): void {
+export function assertFarmData(farm: FarmData): void {
   if (typeof farm !== "object" || farm === null) {
     throw new RangeError("Invalid farm data");
   }
