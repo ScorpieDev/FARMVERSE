@@ -1,11 +1,29 @@
 /**
  * HTTP API contract shared by client and server.
  *
- * Phase 0 only has the health check. Gameplay endpoints are added in the
- * phase that implements them.
+ * Phase 0: health check. Phase 1: guest session and farming endpoints.
+ *
+ * Validators here only check structure and types. The server still enforces
+ * ownership, gameplay rules and stored data; clients never send time,
+ * quantities, player IDs or crop readiness.
  */
+import {
+  FARM_PLOT_COUNT,
+  isCropId,
+  isItemId,
+  isPlotIndex,
+  isProduceItemId,
+  type CropId,
+  type ItemId,
+  type ProduceItemId,
+} from "./farming.js";
 
 export const HEALTH_PATH = "/api/health";
+export const SESSION_PATH = "/api/session";
+export const FARM_PATH = "/api/farm";
+export const FARM_PLANT_PATH = "/api/farm/plant";
+export const FARM_HARVEST_PATH = "/api/farm/harvest";
+export const FARM_REFILL_SEEDS_PATH = "/api/farm/refill-seeds";
 
 /** Response body of GET /api/health. */
 export interface HealthResponse {
@@ -16,17 +34,218 @@ export interface HealthResponse {
   serverTime: number;
 }
 
+/** Response body of POST /api/session (201). The token is only returned once. */
+export interface SessionResponse {
+  playerId: string;
+  token: string;
+}
+
+export interface PlantedCrop {
+  cropId: CropId;
+  /** Server time (ms) when the crop was planted. */
+  plantedAt: number;
+  /** Server time (ms) when the crop becomes ready to harvest. */
+  readyAt: number;
+}
+
+export interface PlotState {
+  index: number;
+  crop: PlantedCrop | null;
+}
+
+export interface InventoryEntry {
+  itemId: ItemId;
+  quantity: number;
+}
+
+/**
+ * MVP seed refill state, computed by the server from its own clock.
+ *
+ * `availableAt` and `FarmState.serverTime` are both server times; the client
+ * may only use `availableAt - serverTime` to show a countdown. The client never
+ * decides when a refill is allowed: it sends refill-seeds and the server
+ * accepts it or answers REFILL_NOT_ALLOWED.
+ */
+export interface SeedRefillState {
+  /** True when the player has no seeds of any kind and no crops on the farm. */
+  eligible: boolean;
+  /** Server time (ms) from which the refill is allowed; null when not eligible. */
+  availableAt: number | null;
+}
+
+/**
+ * GET /api/farm (200); also the success body of plant and refill-seeds.
+ * A replayed request returns the state saved when it first succeeded.
+ */
+export interface FarmState {
+  /** Server time (ms) when this state was produced. */
+  serverTime: number;
+  /** Exactly FARM_PLOT_COUNT plots, ordered by index. */
+  plots: PlotState[];
+  /** Items with quantity > 0, each item at most once. */
+  inventory: InventoryEntry[];
+  seedRefill: SeedRefillState;
+}
+
+/** Produce added to the inventory by a harvest. Never a seed item. */
+export interface HarvestedProduce {
+  itemId: ProduceItemId;
+  quantity: number;
+}
+
+/** POST /api/farm/harvest (200). */
+export interface HarvestResponse extends FarmState {
+  harvested: HarvestedProduce;
+}
+
+/** POST /api/farm/plant body. */
+export interface PlantRequest {
+  requestId: string;
+  plotIndex: number;
+  cropId: CropId;
+}
+
+/** POST /api/farm/harvest body. */
+export interface HarvestRequest {
+  requestId: string;
+  plotIndex: number;
+}
+
+/** POST /api/farm/refill-seeds body. */
+export interface RefillSeedsRequest {
+  requestId: string;
+}
+
+// ---------- validation ----------
+
+type JsonObject = Record<string, unknown>;
+
+function isObject(value: unknown): value is JsonObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
+}
+
+function isPositiveInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 1;
+}
+
+/** UUID version 4, lowercase, as produced by `crypto.randomUUID()`. */
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+/** 32 random bytes encoded as base64url without padding. */
+const SESSION_TOKEN = /^[A-Za-z0-9_-]{43}$/;
+
 /** Checks that a value is a well-formed health response. Extra fields are ignored. */
 export function isHealthResponse(value: unknown): value is HealthResponse {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+  if (!isObject(value)) return false;
+  return (
+    value["status"] === "ok" &&
+    typeof value["version"] === "string" &&
+    typeof value["serverTime"] === "number" &&
+    Number.isFinite(value["serverTime"]) &&
+    value["serverTime"] >= 0
+  );
+}
+
+export function isRequestId(value: unknown): value is string {
+  return typeof value === "string" && UUID_V4.test(value);
+}
+
+export function isSessionResponse(value: unknown): value is SessionResponse {
+  return (
+    isObject(value) &&
+    isRequestId(value["playerId"]) &&
+    typeof value["token"] === "string" &&
+    SESSION_TOKEN.test(value["token"])
+  );
+}
+
+function isPlantedCrop(value: unknown): value is PlantedCrop {
+  return (
+    isObject(value) &&
+    isCropId(value["cropId"]) &&
+    isNonNegativeInteger(value["plantedAt"]) &&
+    isNonNegativeInteger(value["readyAt"]) &&
+    value["readyAt"] >= value["plantedAt"]
+  );
+}
+
+function isInventoryEntry(value: unknown): value is InventoryEntry {
+  return (
+    isObject(value) &&
+    isItemId(value["itemId"]) &&
+    isPositiveInteger(value["quantity"])
+  );
+}
+
+function isHarvestedProduce(value: unknown): value is HarvestedProduce {
+  return (
+    isObject(value) &&
+    isProduceItemId(value["itemId"]) &&
+    isPositiveInteger(value["quantity"])
+  );
+}
+
+export function isSeedRefillState(value: unknown): value is SeedRefillState {
+  if (!isObject(value) || typeof value["eligible"] !== "boolean") return false;
+  return value["eligible"]
+    ? isNonNegativeInteger(value["availableAt"])
+    : value["availableAt"] === null;
+}
+
+export function isFarmState(value: unknown): value is FarmState {
+  if (!isObject(value) || !isNonNegativeInteger(value["serverTime"])) {
     return false;
   }
-  const body = value as Record<string, unknown>;
-  return (
-    body["status"] === "ok" &&
-    typeof body["version"] === "string" &&
-    typeof body["serverTime"] === "number" &&
-    Number.isFinite(body["serverTime"]) &&
-    body["serverTime"] >= 0
+
+  const plots = value["plots"];
+  if (!Array.isArray(plots) || plots.length !== FARM_PLOT_COUNT) return false;
+  const plotsValid = plots.every(
+    (plot: unknown, index) =>
+      isObject(plot) &&
+      plot["index"] === index &&
+      (plot["crop"] === null || isPlantedCrop(plot["crop"])),
   );
+  if (!plotsValid) return false;
+
+  const inventory = value["inventory"];
+  if (!Array.isArray(inventory) || !inventory.every(isInventoryEntry)) {
+    return false;
+  }
+  const itemIds = inventory.map((entry: InventoryEntry) => entry.itemId);
+  if (new Set(itemIds).size !== itemIds.length) return false;
+
+  return isSeedRefillState(value["seedRefill"]);
+}
+
+export function isHarvestResponse(value: unknown): value is HarvestResponse {
+  return (
+    isObject(value) &&
+    isFarmState(value) &&
+    isHarvestedProduce(value["harvested"])
+  );
+}
+
+export function isPlantRequest(value: unknown): value is PlantRequest {
+  return (
+    isObject(value) &&
+    isRequestId(value["requestId"]) &&
+    isPlotIndex(value["plotIndex"]) &&
+    isCropId(value["cropId"])
+  );
+}
+
+export function isHarvestRequest(value: unknown): value is HarvestRequest {
+  return (
+    isObject(value) &&
+    isRequestId(value["requestId"]) &&
+    isPlotIndex(value["plotIndex"])
+  );
+}
+
+export function isRefillSeedsRequest(value: unknown): value is RefillSeedsRequest {
+  return isObject(value) && isRequestId(value["requestId"]);
 }

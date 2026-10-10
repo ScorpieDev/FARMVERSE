@@ -1,0 +1,131 @@
+/**
+ * Static farming data shared by client and server (Phase 1 MVP).
+ *
+ * Only definitions and shape checks live here. Gameplay rules (planting,
+ * readiness, harvesting, seed refill eligibility) are decided by the server.
+ */
+
+/** Plots per farm; indices are 0..FARM_PLOT_COUNT-1. */
+export const FARM_PLOT_COUNT = 6;
+
+/** Seeds of each crop a new player starts with. */
+export const STARTER_SEEDS_PER_CROP = 5;
+
+/**
+ * MVP seed refill (temporary until the Shop in Phase 6): seeds of each crop
+ * granted when the player has no seeds and no crops left.
+ */
+export const SEED_REFILL_PER_CROP = 5;
+
+/** Wait, measured on the server clock, before a seed refill is allowed. */
+export const SEED_REFILL_COOLDOWN_MS = 60_000;
+
+export const CROP_IDS = ["wheat", "carrot", "tomato"] as const;
+export type CropId = (typeof CROP_IDS)[number];
+
+export const ITEM_IDS = [
+  "wheat_seed",
+  "carrot_seed",
+  "tomato_seed",
+  "wheat_produce",
+  "carrot_produce",
+  "tomato_produce",
+] as const;
+export type ItemId = (typeof ITEM_IDS)[number];
+
+/** Items produced by harvesting (`<crop>_produce`). */
+export type ProduceItemId = Extract<ItemId, `${string}_produce`>;
+
+export type ItemKind = "seed" | "produce";
+
+export interface ItemDefinition {
+  id: ItemId;
+  /** Display name shown to players. */
+  name: string;
+  kind: ItemKind;
+}
+
+export interface CropDefinition {
+  id: CropId;
+  name: string;
+  seedItemId: ItemId;
+  produceItemId: ItemId;
+  /** Time from planting until the crop is ready, in milliseconds. */
+  growthMs: number;
+  /** Produce items added to the inventory per harvest. */
+  harvestYield: number;
+}
+
+export const ITEMS: readonly ItemDefinition[] = [
+  { id: "wheat_seed", name: "Wheat Seed", kind: "seed" },
+  { id: "carrot_seed", name: "Carrot Seed", kind: "seed" },
+  { id: "tomato_seed", name: "Tomato Seed", kind: "seed" },
+  { id: "wheat_produce", name: "Wheat", kind: "produce" },
+  { id: "carrot_produce", name: "Carrot", kind: "produce" },
+  { id: "tomato_produce", name: "Tomato", kind: "produce" },
+];
+
+export const CROPS: readonly CropDefinition[] = [
+  {
+    id: "wheat",
+    name: "Wheat",
+    seedItemId: "wheat_seed",
+    produceItemId: "wheat_produce",
+    growthMs: 30_000,
+    harvestYield: 1,
+  },
+  {
+    id: "carrot",
+    name: "Carrot",
+    seedItemId: "carrot_seed",
+    produceItemId: "carrot_produce",
+    growthMs: 120_000,
+    harvestYield: 1,
+  },
+  {
+    id: "tomato",
+    name: "Tomato",
+    seedItemId: "tomato_seed",
+    produceItemId: "tomato_produce",
+    growthMs: 300_000,
+    harvestYield: 1,
+  },
+];
+
+export function isCropId(value: unknown): value is CropId {
+  return (
+    typeof value === "string" && (CROP_IDS as readonly string[]).includes(value)
+  );
+}
+
+export function isItemId(value: unknown): value is ItemId {
+  return (
+    typeof value === "string" && (ITEM_IDS as readonly string[]).includes(value)
+  );
+}
+
+/** True only for produce items (`kind: "produce"`), never for seeds. */
+export function isProduceItemId(value: unknown): value is ProduceItemId {
+  return isItemId(value) && getItem(value).kind === "produce";
+}
+
+export function isPlotIndex(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 0 &&
+    value < FARM_PLOT_COUNT
+  );
+}
+
+export function getCrop(id: CropId): CropDefinition {
+  const crop = CROPS.find((definition) => definition.id === id);
+  if (!crop) throw new Error(`Unknown crop: ${id}`);
+  return crop;
+}
+
+export function getItem(id: ItemId): ItemDefinition {
+  const item = ITEMS.find((definition) => definition.id === id);
+  if (!item) throw new Error(`Unknown item: ${id}`);
+  return item;
+}
