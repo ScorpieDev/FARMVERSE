@@ -48,6 +48,7 @@ const HTTP_STATUS: Partial<Record<ErrorCode, number>> = {
   CROP_NOT_READY: 409,
   ITEM_NOT_OWNED: 409,
   REFILL_NOT_ALLOWED: 409,
+  LEVEL_TOO_LOW: 409,
   REQUEST_ID_REUSED: 409,
 };
 
@@ -57,6 +58,7 @@ const ERROR_MESSAGES: Record<RuleError, string> = {
   CROP_NOT_READY: "This crop is not ready yet",
   ITEM_NOT_OWNED: "No seeds left for this crop",
   REFILL_NOT_ALLOWED: "Seeds cannot be refilled yet",
+  LEVEL_TOO_LOW: "Your level is too low for this",
 };
 
 /** Small JSON bodies only: the largest valid request is well under 200 bytes. */

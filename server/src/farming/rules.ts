@@ -1,5 +1,6 @@
 /**
- * Server-side farming rules (Phase 1 MVP). Pure functions: no I/O, no clock.
+ * Server-side farming rules (Phase 1 MVP, Phase 2 unlock checks). Pure
+ * functions: no I/O, no clock.
  *
  * The caller always passes `now` from the server clock; nothing here reads
  * the time or trusts time, quantities or readiness from a client. Functions
@@ -35,6 +36,7 @@ import type {
   SeedRefillState,
 } from "@farmverse/shared/api";
 import type { ErrorCode } from "@farmverse/shared/errors";
+import { cropUnlockLevel, levelFromXp, plotUnlockLevel } from "@farmverse/shared/progression";
 
 /** A plot with a crop. Readiness is derived from plantedAt; it is never stored. */
 export interface FarmPlot {
@@ -66,6 +68,7 @@ export type RuleError = Extract<
   | "CROP_NOT_READY"
   | "ITEM_NOT_OWNED"
   | "REFILL_NOT_ALLOWED"
+  | "LEVEL_TOO_LOW"
 >;
 
 export type RuleResult<Extra extends object = Record<never, never>> =
@@ -154,6 +157,18 @@ function withPlot(
 
 // ---------- queries ----------
 
+/**
+ * LEVEL_TOO_LOW when the plot or the crop needs a higher level than `xp`
+ * gives (Phase 2 unlocks), otherwise null. Plots outside the unlock table
+ * count as locked.
+ */
+export function unlockError(xp: number, plotIndex: number, cropId: string): "LEVEL_TOO_LOW" | null {
+  const level = levelFromXp(xp);
+  const plotLevel = plotUnlockLevel(plotIndex);
+  if (plotLevel === undefined || plotLevel > level) return "LEVEL_TOO_LOW";
+  return cropUnlockLevel(cropId) > level ? "LEVEL_TOO_LOW" : null;
+}
+
 export function createStarterFarm(): FarmData {
   const inventory = Object.fromEntries(ITEM_IDS.map((id) => [id, 0])) as Record<
     ItemId,
@@ -198,7 +213,10 @@ export function isSeedRefillEligible(farm: FarmData): boolean {
 
 // ---------- actions ----------
 
-/** Plants one seed of `cropId` in an empty plot. Checks the plot before the seed. */
+/**
+ * Plants one seed of `cropId` in an empty plot. Checks the player's level for
+ * the plot and crop first, then the plot, then the seed.
+ */
 export function plant(
   farm: FarmData,
   plotIndex: number,
@@ -210,6 +228,8 @@ export function plant(
   assertCropId(cropId);
   assertTime(now);
 
+  const locked = unlockError(farm.xp, plotIndex, cropId);
+  if (locked !== null) return fail(locked);
   if (farm.plots[plotIndex] !== null) return fail("PLOT_NOT_EMPTY");
 
   const seedItemId = getCrop(cropId).seedItemId;

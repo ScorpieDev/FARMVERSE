@@ -8,7 +8,7 @@
 
 ## Project Status
 
-Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: IN PROGRESS (Step 2.1 done).
+Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: IN PROGRESS (Steps 2.1–2.2 done).
 
 ---
 
@@ -121,8 +121,9 @@ Design approved by the Game Director on 2026-10-10 (P2-1…P2-7 as recommended i
 | Step | Status | Report |
 |---|---|---|
 | 2.1 Shared progression data (`shared/src/progression.ts`: XP → level, unlock table, quest chain; error codes `LEVEL_TOO_LOW`, `QUEST_NOT_COMPLETE`) | Done | `docs/reports/phase2/PHASE2_STEP2_1_REPORT.md` |
-| 2.2 Server rules: Corn / Strawberry crops, unlock checks, plot count by level, quest progress and claim | Next | |
-| 2.3 Storage migration v2 · 2.4 API · 2.5 Client · 2.6 E2E | Not started | |
+| 2.2 Pure server rules (`server/src/farming/progression.ts`, `rules.ts`): `LEVEL_TOO_LOW` on planting, level-change detection, quest progress and claim | Done | `docs/reports/phase2/PHASE2_STEP2_2_REPORT.md` |
+| 2.3 Storage migration v2: Corn / Strawberry items, plots 7–9, quest state; seeds granted on unlock | Next | |
+| 2.4 API · 2.5 Client · 2.6 E2E | Not started | |
 
 Tests after Step 1.7: shared 226, server 336, client 75 — 637 passing; `npm run typecheck` clean; `npm audit` 0 vulnerabilities.
 
@@ -148,7 +149,7 @@ Phase 2 — Progression
 
 Status:
 
-IN PROGRESS — Step 2.1 done (shared definitions only; no gameplay change yet).
+IN PROGRESS — Steps 2.1–2.2 done (shared definitions and pure server rules; no visible gameplay change yet).
 
 Phase 1 — Farming: COMPLETED.
 
@@ -168,7 +169,7 @@ Phase 0 — Foundation: COMPLETED.
 
 # NEXT OBJECTIVE
 
-Phase 2 Step 2.2: pure server rules — add Corn / Strawberry to the farming crops with unlock-level checks on planting, plot count by level, quest progress counting and claim (with tests). New crops become plantable only once the server enforces their level.
+Phase 2 Step 2.3: storage migration v2 — add Corn / Strawberry to the crop and item lists together with their inventory rows, 9 plot rows (7–9 locked by level), a quest-state table, and 5 seeds granted when a crop unlocks (with migration tests on v1 data).
 
 ---
 
