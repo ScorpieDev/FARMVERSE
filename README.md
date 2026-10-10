@@ -30,7 +30,7 @@ docs/     Game design, rules, architecture, roadmap and development rules
 
 ## Requirements
 
-- Node.js **22.12 or newer** (see [`.nvmrc`](.nvmrc))
+- Node.js **24 (LTS)** — `.nvmrc` pins `24`; `engines.node` requires `>=24.0.0`
 - npm **10 or newer**
 
 ## Install
