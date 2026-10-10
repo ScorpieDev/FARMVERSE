@@ -2,7 +2,8 @@
  * Error codes shared by client and server.
  *
  * Phase 0 defines what the foundation needs (connection, health check,
- * message validation); Phase 1 adds the farming API errors. Errors of later
+ * message validation); Phase 1 adds the farming API errors and Phase 2 the
+ * progression errors. Errors of later
  * features (e.g. INSUFFICIENT_CURRENCY, TECHNICAL_ARCHITECTURE.md §18) are
  * added in the phase that implements them.
  */
@@ -38,6 +39,13 @@ export const ErrorCode = {
   REFILL_NOT_ALLOWED: "REFILL_NOT_ALLOWED",
   /** The request ID was already used for a different action or body. */
   REQUEST_ID_REUSED: "REQUEST_ID_REUSED",
+
+  // ---------- Phase 2: progression ----------
+
+  /** The player's level is too low for this plot or crop. */
+  LEVEL_TOO_LOW: "LEVEL_TOO_LOW",
+  /** Claiming a quest reward before the active quest is complete. */
+  QUEST_NOT_COMPLETE: "QUEST_NOT_COMPLETE",
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

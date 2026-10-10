@@ -8,7 +8,8 @@
     "./protocol": "./src/protocol.ts",
     "./api": "./src/api.ts",
     "./errors": "./src/errors.ts",
-    "./farming": "./src/farming.ts"
+    "./farming": "./src/farming.ts",
+    "./progression": "./src/progression.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",

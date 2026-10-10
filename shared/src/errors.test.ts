@@ -8,7 +8,7 @@ describe("isErrorCode", () => {
     }
   });
 
-  it("defines the Phase 0 and Phase 1 codes", () => {
+  it("defines the Phase 0, Phase 1 and Phase 2 codes", () => {
     expect(Object.values(ErrorCode).sort()).toEqual(
       [
         "INVALID_MESSAGE",
@@ -23,6 +23,8 @@ describe("isErrorCode", () => {
         "ITEM_NOT_OWNED",
         "REFILL_NOT_ALLOWED",
         "REQUEST_ID_REUSED",
+        "LEVEL_TOO_LOW",
+        "QUEST_NOT_COMPLETE",
       ].sort(),
     );
   });

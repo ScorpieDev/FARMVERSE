@@ -1,14 +1,14 @@
 # FARMVERSE CURRENT STATUS
 
 ## Version
-1.2
+1.3
 
 ## Last Updated
 2026-10-10
 
 ## Project Status
 
-Phase 0 — Foundation: COMPLETED (closed 2026-10-10). Phase 1 — Farming: IN PROGRESS (Steps 1.1–1.2 done).
+Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: IN PROGRESS (Step 2.1 done).
 
 ---
 
@@ -93,7 +93,7 @@ Browser verification (closeout, 2026-10-10):
 | `vite preview` / HMR through the Codespaces URL | NOT VERIFIED — needs a GitHub-authenticated browser session |
 | Android device | NOT VERIFIED — deferred by the Game Director |
 
-## Phase 1 — Farming (in progress)
+## Phase 1 — Farming (completed 2026-10-10)
 
 | Step | Status | Commit |
 |---|---|---|
@@ -110,7 +110,19 @@ Scope note: the Game Director execution directive of 2026-10-10 requires basic c
 
 Responsive layout fix (2026-10-10): farm laid out in design units with uniform camera zoom; consistent at browser zoom 50–200% and window sizes 320×568 to 2560×1440 (headless Chromium). See `docs/reports/phase1/PHASE1_ZOOM_LAYOUT_FIX_REPORT.md`.
 
+Responsive scaling fix (`aa07122`): farm UI capped at 2 CSS px per design unit (browser zoom-out shrinks it), frame follows the screen's aspect ratio, canvas rendered at devicePixelRatio. See `docs/reports/phase1/PHASE1_RESPONSIVE_SCALING_FIX_REPORT.md`.
+
 Tests after the layout fix and polish: shared 226, server 336, client 95 — 657 passing.
+
+## Phase 2 — Progression (in progress)
+
+Design approved by the Game Director on 2026-10-10 (P2-1…P2-7 as recommended in `docs/reports/phase2/PHASE2_PROGRESSION_PLAN_REPORT.md`: level 50 × L up to 10; plots 7–9 and Corn / Strawberry unlocked by level; 8 tutorial quests with Claim; no coin sink; no achievements).
+
+| Step | Status | Report |
+|---|---|---|
+| 2.1 Shared progression data (`shared/src/progression.ts`: XP → level, unlock table, quest chain; error codes `LEVEL_TOO_LOW`, `QUEST_NOT_COMPLETE`) | Done | `docs/reports/phase2/PHASE2_STEP2_1_REPORT.md` |
+| 2.2 Server rules: Corn / Strawberry crops, unlock checks, plot count by level, quest progress and claim | Next | |
+| 2.3 Storage migration v2 · 2.4 API · 2.5 Client · 2.6 E2E | Not started | |
 
 Tests after Step 1.7: shared 226, server 336, client 75 — 637 passing; `npm run typecheck` clean; `npm audit` 0 vulnerabilities.
 
@@ -132,11 +144,13 @@ Tests at Phase 0 closeout: shared 218, server 245, client 44 — 507 passing; `n
 
 # CURRENT PHASE
 
-Phase 1 — Farming
+Phase 2 — Progression
 
 Status:
 
-IN PROGRESS — Steps 1.1–1.8 done; Farming MVP verified locally. Awaiting Game Director review and Phase 1 closeout approval.
+IN PROGRESS — Step 2.1 done (shared definitions only; no gameplay change yet).
+
+Phase 1 — Farming: COMPLETED.
 
 Phase 0 — Foundation: COMPLETED.
 
@@ -147,7 +161,6 @@ Phase 0 — Foundation: COMPLETED.
 - `vite preview` and HMR through the Codespaces URL — not verified (needs an authenticated browser session).
 - Android device testing — deferred by the Game Director.
 - Real Chrome page zoom was emulated (CSS viewport + devicePixelRatio) in headless Chromium, not tested with the zoom menu in a real browser window.
-- The canvas renders one pixel per CSS pixel (Phaser RESIZE mode), so on high-DPI screens and at browser zoom above 100% the farm is slightly soft. Proportions and layout are correct.
 - On Codespaces the server runs with `CLIENT_ORIGIN=https://localhost:5173` (observed Origin through port forwarding; not verified for every Codespaces configuration).
 - Security work scheduled before multiplayer or public deployment: authentication, connection and rate limits, server-side WebSocket heartbeat, request IDs and action log (see `docs/reports/phase0/PHASE0_CLOSEOUT_AUDIT.md` §6).
 
@@ -155,7 +168,7 @@ Phase 0 — Foundation: COMPLETED.
 
 # NEXT OBJECTIVE
 
-Game Director decisions P2-1…P2-7: Phase 1 closeout and the Phase 2 Progression design (level curve, unlocks, quests). See `docs/reports/phase2/PHASE2_PROGRESSION_PLAN_REPORT.md`. No Phase 2 code until approved.
+Phase 2 Step 2.2: pure server rules — add Corn / Strawberry to the farming crops with unlock-level checks on planting, plot count by level, quest progress counting and claim (with tests). New crops become plantable only once the server enforces their level.
 
 ---
 
