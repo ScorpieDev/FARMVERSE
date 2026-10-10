@@ -1,7 +1,7 @@
 # FARMVERSE DEVELOPMENT ROADMAP
 
 ## Version
-1.1
+1.2
 
 ---
 
@@ -39,12 +39,20 @@ Kết quả:
 - Client chạy được: Phaser 3 + Vite.
 - Server chạy được: Fastify + `ws`.
 - Client kết nối được server: `/api/health` + WebSocket `/ws`, Game Director xác nhận trên trình duyệt qua URL Codespaces.
-- 150 test tự động pass.
-- Việc còn lại: review tổng thể Phase 0 và tài liệu (đang chờ Game Director duyệt), kiểm tra Android (hoãn theo quyết định của Game Director).
+- 150 test tự động pass (Bước 8); khi đóng Phase 0: 507 test pass (gồm test Phase 1).
+- Kiểm tra trình duyệt khi đóng Phase 0 (headless Chromium, local): resize, xoay dọc ↔ ngang (đã sửa lỗi xoay của Phaser 3.90), `vite preview`, HMR, mất kết nối → chạm để thử lại → `Connected`.
+- Đã đóng theo chỉ thị của Game Director ngày 2026-10-10 (`docs/reports/phase0/PHASE0_CLOSEOUT_AUDIT.md`).
+- Chưa xác minh: `vite preview` và HMR qua URL Codespaces (cần trình duyệt đã đăng nhập GitHub); thiết bị Android (hoãn theo quyết định của Game Director).
 
 ---
 
 # PHASE 1 — FARMING
+
+Status:
+
+IN PROGRESS — Bước 1.1 (`7afe6d9`) và 1.2 (`e02e344`) đã xong; tiếp theo: Bước 1.3 (lưu trữ).
+
+Thiết kế: `docs/reports/phase1/PHASE1_FARMING_PLAN_REPORT.md` (mục 0).
 
 Mục tiêu:
 
@@ -238,13 +246,13 @@ Sau khi phase ổn định mới chuyển phase tiếp theo.
 
 # CURRENT PHASE
 
-Phase 0 — Foundation
+Phase 1 — Farming
 
 Status:
 
-COMPLETED (review tổng thể Phase 0 và tài liệu vẫn đang chờ Game Director duyệt)
+IN PROGRESS (Bước 1.1–1.2 xong; tiếp theo Bước 1.3)
 
-Phase tiếp theo: Phase 1 — Farming (NOT STARTED, chờ Game Director duyệt).
+Phase 0 — Foundation: COMPLETED (2026-10-10).
 
 ---
 

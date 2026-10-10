@@ -135,3 +135,5 @@ Run from the repository root:
 - [Game design](docs/GAME_DESIGN.md) and [game rules](docs/GAME_RULES.md)
 - [Development roadmap](docs/DEVELOPMENT_ROADMAP.md)
 - [Development rules](docs/CLAUDE_DEVELOPMENT_RULES.md)
+- [Current status](docs/CURRENT_STATUS.md) and [changelog](docs/CHANGELOG.md)
+- [Phase reports](docs/reports/README.md) (plans, step reports, audits)
