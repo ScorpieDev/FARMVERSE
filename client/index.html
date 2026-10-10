@@ -27,6 +27,14 @@
         -webkit-user-select: none;
         -webkit-tap-highlight-color: transparent;
       }
+
+      /* The drawing buffer is sized in device pixels (src/core/display.ts);
+         the canvas element always covers the page in CSS pixels. */
+      #game canvas {
+        display: block;
+        width: 100% !important;
+        height: 100% !important;
+      }
     </style>
   </head>
   <body>

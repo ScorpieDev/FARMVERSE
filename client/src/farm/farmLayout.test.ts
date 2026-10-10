@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { DESIGN_SIZE, computeFarmLayout, designToScreen, textResolution, type FarmLayout, type Rect } from "./farmLayout.js";
+import { DESIGN_SIZE, MAX_FRAME, MAX_ZOOM, computeFarmLayout, designToScreen, textResolution, type FarmLayout, type Rect } from "./farmLayout.js";
 
 /** A 1280×720 window at the Chrome zoom levels from the bug report (CSS viewport = window / zoom). */
-const DESKTOP_ZOOMS = [0.5, 0.75, 1, 1.25, 1.5, 2];
+const DESKTOP_ZOOMS = [0.33, 0.5, 0.67, 0.8, 1, 1.25, 1.5, 2];
 
 function cssViewport(zoom: number, width = 1280, height = 720) {
   return { width: Math.round(width / zoom), height: Math.round(height / zoom) };
@@ -34,24 +34,39 @@ describe("computeFarmLayout", () => {
     expect(computeFarmLayout(844, 390)).toMatchObject({ orientation: "landscape", columns: 3 });
   });
 
-  it("keeps the same design layout at every browser zoom level (only the camera zoom changes)", () => {
-    const layouts = DESKTOP_ZOOMS.map((zoom) => computeFarmLayout(cssViewport(zoom).width, cssViewport(zoom).height));
-    const reference = layouts[0]!;
-    for (const layout of layouts) {
-      expect(layout.plots).toEqual(reference.plots);
-      expect(layout.seedButtons).toEqual(reference.seedButtons);
-      expect(layout.fontSize).toEqual(reference.fontSize);
-    }
+  it("makes the farm physically smaller when the page is zoomed out, never larger than the window when zoomed in", () => {
+    // Physical pixels per design unit = CSS px per unit × browser zoom.
+    const physical = DESKTOP_ZOOMS.map((zoom) => {
+      const viewport = cssViewport(zoom);
+      return computeFarmLayout(viewport.width, viewport.height).zoom * zoom;
+    });
+    // 1280×720 at 100% is exactly at the cap: zooming out shrinks in proportion…
+    expect(physical[DESKTOP_ZOOMS.indexOf(1)]).toBeCloseTo(MAX_ZOOM, 6);
+    expect(physical[DESKTOP_ZOOMS.indexOf(0.33)]).toBeCloseTo(MAX_ZOOM * 0.33, 2);
+    for (let i = 1; i < physical.length; i++) expect(physical[i]!).toBeGreaterThanOrEqual(physical[i - 1]! - 0.01);
+    // …while zooming in cannot grow past what fits the window.
+    for (const zoom of [1.25, 1.5, 2]) expect(physical[DESKTOP_ZOOMS.indexOf(zoom)]).toBeCloseTo(MAX_ZOOM, 1);
   });
 
-  it("covers the same share of the physical window at every browser zoom level", () => {
-    for (const zoom of DESKTOP_ZOOMS) {
-      const viewport = cssViewport(zoom);
-      const layout = computeFarmLayout(viewport.width, viewport.height);
-      // Physical pixels = CSS pixels × browser zoom.
-      const physicalPlotWidth = layout.plots[0]!.width * layout.zoom * zoom;
-      expect(physicalPlotWidth).toBeCloseTo(layout.plots[0]!.width * 2, 0); // 1280×720 fits 640×360 at 2×
-    }
+  it("caps CSS px per design unit on large screens and fills the frame up to MAX_FRAME", () => {
+    const fullHd = computeFarmLayout(1920, 1080);
+    expect(fullHd.zoom).toBe(MAX_ZOOM);
+    expect(fullHd.design).toEqual(MAX_FRAME.landscape);
+    const zoomedOut = computeFarmLayout(3879, 2182);
+    expect(zoomedOut.zoom).toBe(MAX_ZOOM);
+    expect(zoomedOut.design).toEqual(MAX_FRAME.landscape);
+    expect(zoomedOut.fontSize).toEqual(fullHd.fontSize);
+  });
+
+  it("follows the screen's aspect ratio instead of leaving empty bands", () => {
+    const tallPhone = computeFarmLayout(390, 844);
+    expect(tallPhone.design.width).toBeCloseTo(DESIGN_SIZE.portrait.width, 6);
+    expect(tallPhone.design.height * tallPhone.zoom).toBeCloseTo(844, 6);
+    const fixedFrame = computeFarmLayout(360, 640);
+    expect(tallPhone.plots[0]!.height).toBeGreaterThan(fixedFrame.plots[0]!.height);
+    const wideWindow = computeFarmLayout(800, 600);
+    expect(wideWindow.design.width * wideWindow.zoom).toBeCloseTo(800, 6);
+    expect(wideWindow.design.height * wideWindow.zoom).toBeCloseTo(600, 6);
   });
 
   it.each([
@@ -61,6 +76,8 @@ describe("computeFarmLayout", () => {
     ["desktop", 1280, 720],
     ["desktop zoom 200%", 640, 360],
     ["desktop zoom 50%", 2560, 1440],
+    ["desktop zoom 33%", 3879, 2182],
+    ["desktop zoom 67%", 1910, 1075],
     ["full HD", 1920, 1080],
     ["ultrawide", 2560, 720],
     ["tall narrow window", 400, 1000],
@@ -74,8 +91,14 @@ describe("computeFarmLayout", () => {
       expect(inside(rect, design)).toBe(true);
       expect(inside(screenRect(layout, rect), canvas)).toBe(true);
     }
-    // The frame is scaled uniformly and centred.
-    expect(Math.min(width / layout.design.width, height / layout.design.height)).toBeCloseTo(layout.zoom, 9);
+    // The frame is scaled uniformly, within its bounds, and centred.
+    const min = DESIGN_SIZE[layout.orientation];
+    const max = MAX_FRAME[layout.orientation];
+    expect(layout.zoom).toBeCloseTo(Math.min(MAX_ZOOM, width / min.width, height / min.height), 9);
+    expect(layout.design.width).toBeGreaterThanOrEqual(min.width - 1e-9);
+    expect(layout.design.height).toBeGreaterThanOrEqual(min.height - 1e-9);
+    expect(layout.design.width).toBeLessThanOrEqual(max.width);
+    expect(layout.design.height).toBeLessThanOrEqual(max.height);
     const frame = screenRect(layout, design);
     expect(frame.x).toBeCloseTo(width - (frame.x + frame.width), 6);
     expect(frame.y).toBeCloseTo(height - (frame.y + frame.height), 6);
@@ -93,6 +116,9 @@ describe("computeFarmLayout", () => {
     for (const [width, height] of [
       [390, 844],
       [844, 390],
+      [1920, 1080],
+      [3879, 2182],
+      [800, 600],
     ] as const) {
       const { plots, seedButtons } = computeFarmLayout(width, height);
       const all = [...plots, ...seedButtons];
@@ -135,10 +161,13 @@ describe("computeFarmLayout", () => {
 });
 
 describe("textResolution", () => {
-  it("follows the camera zoom between 1 and 4", () => {
+  it("follows device pixels per design unit between 1 and 4", () => {
     expect(textResolution(computeFarmLayout(640, 360))).toBe(1);
     expect(textResolution(computeFarmLayout(1280, 720))).toBe(2);
     expect(textResolution(computeFarmLayout(320, 180))).toBe(1);
-    expect(textResolution(computeFarmLayout(5120, 2880))).toBe(4);
+    expect(textResolution(computeFarmLayout(5120, 2880))).toBe(2);
+    expect(textResolution(computeFarmLayout(390, 844), 3)).toBeCloseTo(3.25, 2);
+    expect(textResolution(computeFarmLayout(1280, 720), 3)).toBe(4);
+    expect(textResolution(computeFarmLayout(3879, 2182), 0.33)).toBe(1);
   });
 });

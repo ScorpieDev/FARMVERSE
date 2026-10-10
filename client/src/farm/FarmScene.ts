@@ -35,7 +35,11 @@ import {
   serverNow,
   type ServerClock,
 } from "./farmView.js";
+import type { DisplaySize } from "../core/display.js";
 import { computeFarmLayout, designToScreen, textResolution, type FarmLayout, type Rect } from "./farmLayout.js";
+
+/** Registry key of the current DisplaySize (set by main.ts). */
+export const DISPLAY_KEY = "display";
 
 const FONT = "system-ui, sans-serif";
 const COLORS = {
@@ -363,21 +367,23 @@ export class FarmScene extends Scene {
   }
 
   /**
-   * Places everything in design units (see farmLayout.ts) and zooms the camera
-   * so the design frame fits the canvas. Browser zoom and window size only
-   * change the camera zoom, never the proportions.
+   * Lays the farm out for the canvas's CSS size (see farmLayout.ts) and zooms
+   * the camera by CSS px per design unit × canvas pixels per CSS pixel.
+   * `width` and `height` are the canvas drawing-buffer size in pixels.
    */
   private layout(width: number, height: number): void {
-    const layout = computeFarmLayout(width, height);
+    const display = this.registry.get(DISPLAY_KEY) as DisplaySize | undefined;
+    const renderScale = display?.renderScale ?? 1;
+    const layout = computeFarmLayout(width / renderScale, height / renderScale);
     this.currentLayout = layout;
     const { fontSize, design } = layout;
 
     const camera = this.cameras.main;
     camera.setSize(width, height);
-    camera.setZoom(layout.zoom);
+    camera.setZoom(layout.zoom * renderScale);
     camera.centerOn(design.width / 2, design.height / 2);
 
-    const resolution = textResolution(layout);
+    const resolution = textResolution(layout, renderScale);
     for (const text of this.children.list) {
       if (text instanceof GameObjects.Text) text.setResolution(resolution);
     }
