@@ -225,6 +225,37 @@ describe("actions", () => {
     expect(calls[0]).toMatchObject({ url: "/api/farm/refill-seeds", body: { requestId: REQUEST_ID } });
   });
 
+  it("claims a quest with only the request ID and validates the response", async () => {
+    const claimed = { ...FARM, quest: null, coins: 10, xp: 5, progression: { ...FARM.progression, xpIntoLevel: 5 } };
+    const response = { ...claimed, claimed: { questId: "harvest_wheat_3", reward: { coins: 10, xp: 5 } } };
+    const { fetch, calls } = fakeFetch(json(200, response), json(200, claimed));
+    const { client } = api(fetch);
+
+    expect(await client.claimQuest({ requestId: REQUEST_ID })).toEqual({ ok: true, state: response });
+    expect(calls[0]).toMatchObject({ url: "/api/quests/claim", method: "POST", body: { requestId: REQUEST_ID } });
+    // A body without `claimed` is not a claim response.
+    await expect(client.claimQuest({ requestId: REQUEST_ID })).rejects.toThrow(/Invalid action/);
+  });
+
+  it("returns QUEST_NOT_COMPLETE without retrying", async () => {
+    const { fetch, calls } = fakeFetch(json(409, { code: "QUEST_NOT_COMPLETE", message: "Quest not complete" }));
+
+    expect(await api(fetch).client.claimQuest({ requestId: REQUEST_ID })).toEqual({
+      ok: false,
+      code: "QUEST_NOT_COMPLETE",
+      message: "Quest not complete",
+    });
+    expect(calls).toHaveLength(1);
+  });
+
+  it("retries a claim after a gateway error with the same request ID", async () => {
+    const response = { ...FARM, claimed: { questId: "harvest_wheat_3", reward: { coins: 10, xp: 5 } } };
+    const { fetch, calls } = fakeFetch(json(504, {}), json(200, response));
+
+    expect(await api(fetch).client.claimQuest({ requestId: REQUEST_ID })).toEqual({ ok: true, state: response });
+    expect(calls.map((call) => call.body)).toEqual([{ requestId: REQUEST_ID }, { requestId: REQUEST_ID }]);
+  });
+
   it("rejects an unexpected error body", async () => {
     const { fetch } = fakeFetch(json(409, { code: "SOMETHING", message: "x" }));
     await expect(api(fetch).client.plant(plantBody)).rejects.toThrow(/Unexpected response 409/);

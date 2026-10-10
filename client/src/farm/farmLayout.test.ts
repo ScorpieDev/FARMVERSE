@@ -25,13 +25,40 @@ function inside(inner: Rect, outer: Rect): boolean {
 
 /** Everything that must stay visible, in design units. */
 function widgets(layout: FarmLayout): Rect[] {
-  return [...layout.plots, ...layout.seedButtons, layout.refillButton, layout.overlayButton];
+  return [
+    ...layout.plots,
+    ...layout.seedButtons,
+    layout.refillButton,
+    layout.claimButton,
+    layout.questText,
+    layout.xpBar,
+    layout.overlayButton,
+  ];
 }
 
 describe("computeFarmLayout", () => {
-  it("uses 2×3 plots in portrait and 3×2 in landscape", () => {
-    expect(computeFarmLayout(390, 844)).toMatchObject({ orientation: "portrait", columns: 2 });
-    expect(computeFarmLayout(844, 390)).toMatchObject({ orientation: "landscape", columns: 3 });
+  it("shows 9 plots in a 3×3 grid and 5 seed buttons in both orientations", () => {
+    for (const [width, height] of [
+      [390, 844],
+      [844, 390],
+    ] as const) {
+      const layout = computeFarmLayout(width, height);
+      expect(layout.columns).toBe(3);
+      expect(layout.plots).toHaveLength(9);
+      expect(layout.seedButtons).toHaveLength(5);
+      expect(new Set(layout.plots.map((plot) => plot.y)).size).toBe(3);
+    }
+  });
+
+  it("puts the controls below the plots in portrait and beside them in landscape", () => {
+    const portrait = computeFarmLayout(390, 844);
+    const lowestPlot = Math.max(...portrait.plots.map((plot) => plot.y + plot.height));
+    expect(portrait.claimButton.y).toBeGreaterThan(lowestPlot);
+    const landscape = computeFarmLayout(844, 390);
+    const rightmostPlot = Math.max(...landscape.plots.map((plot) => plot.x + plot.width));
+    for (const rect of [landscape.claimButton, landscape.questText, ...landscape.seedButtons]) {
+      expect(rect.x).toBeGreaterThan(rightmostPlot);
+    }
   });
 
   it("makes the farm physically smaller when the page is zoomed out, never larger than the window when zoomed in", () => {
@@ -120,8 +147,8 @@ describe("computeFarmLayout", () => {
       [3879, 2182],
       [800, 600],
     ] as const) {
-      const { plots, seedButtons } = computeFarmLayout(width, height);
-      const all = [...plots, ...seedButtons];
+      const { plots, seedButtons, claimButton, questText, xpBar } = computeFarmLayout(width, height);
+      const all = [...plots, ...seedButtons, claimButton, questText, xpBar];
       for (let i = 0; i < all.length; i++) {
         for (let j = i + 1; j < all.length; j++) {
           const a = all[i]!;
@@ -142,10 +169,25 @@ describe("computeFarmLayout", () => {
       [844, 390],
     ] as const) {
       const layout = computeFarmLayout(width, height);
-      for (const rect of [...layout.seedButtons, layout.refillButton, ...layout.plots]) {
+      for (const rect of [...layout.seedButtons, layout.refillButton, layout.claimButton, ...layout.plots]) {
         expect(rect.height * layout.zoom).toBeGreaterThanOrEqual(44);
       }
     }
+  });
+
+  it.each([
+    [360, 640],
+    [640, 360],
+    [320, 568],
+    [568, 320],
+    [1920, 1080],
+  ])("leaves room for two message lines inside the frame (%ix%i)", (width, height) => {
+    const layout = computeFarmLayout(width, height);
+    const lineHeight = layout.orientation === "portrait" ? 22 : 20;
+    expect(layout.message.y + 2 * lineHeight).toBeLessThanOrEqual(layout.design.height);
+    const lowestButton = Math.max(...layout.seedButtons.map((button) => button.y + button.height));
+    expect(layout.produce.y).toBeGreaterThanOrEqual(lowestButton);
+    expect(layout.message.y).toBeGreaterThanOrEqual(layout.produce.y + 2 * lineHeight);
   });
 
   it("covers the whole canvas with the view rectangle (used by the overlay)", () => {

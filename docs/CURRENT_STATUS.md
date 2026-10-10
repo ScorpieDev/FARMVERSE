@@ -1,14 +1,14 @@
 # FARMVERSE CURRENT STATUS
 
 ## Version
-1.3
+1.4
 
 ## Last Updated
 2026-10-10
 
 ## Project Status
 
-Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: IN PROGRESS (Steps 2.1–2.4 done).
+Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: IN PROGRESS (Steps 2.1–2.5 done).
 
 ---
 
@@ -124,8 +124,10 @@ Design approved by the Game Director on 2026-10-10 (P2-1…P2-7 as recommended i
 | 2.2 Pure server rules (`server/src/farming/progression.ts`, `rules.ts`): `LEVEL_TOO_LOW` on planting, level-change detection, quest progress and claim | Done | `docs/reports/phase2/PHASE2_STEP2_2_REPORT.md` |
 | 2.3 Corn / Strawberry and plots 7–9 in shared data; seeds only for unlocked crops (+5 on unlock); storage schema v2 migration (plots, items, `quest_state`) | Done | `docs/reports/phase2/PHASE2_STEP2_3_REPORT.md` |
 | 2.4 API: `progression` and `quest` in `FarmState`, quest progress saved in the plant / harvest transactions, `POST /api/quests/claim` (request IDs, `QUEST_NOT_COMPLETE`) | Done | `docs/reports/phase2/PHASE2_STEP2_4_REPORT.md` |
-| 2.5 Client: level / XP bar, locked plots, Corn / Strawberry buttons, quest line with Claim | Awaiting Game Director approval | |
+| 2.5 Client: level / XP bar, locked plots (`Level N`), Corn / Strawberry buttons, quest line with Claim, level-up message; 3×3 plots, landscape controls column | Done | `docs/reports/phase2/PHASE2_STEP2_5_REPORT.md` |
 | 2.6 E2E | Not started | |
+
+Tests after Step 2.5: shared 279, server 414, client 120 — 813 passing; `npm run typecheck` clean; client build OK.
 
 Tests after Step 1.7: shared 226, server 336, client 75 — 637 passing; `npm run typecheck` clean; `npm audit` 0 vulnerabilities.
 
@@ -151,7 +153,7 @@ Phase 2 — Progression
 
 Status:
 
-IN PROGRESS — Steps 2.1–2.4 done. The server has 9 plots (7–9 locked by level), Corn / Strawberry (levels 3 / 5), database schema v2, and an API that reports level and quest progress and lets players claim quest rewards. The client still shows the Phase 1 view until Step 2.5.
+IN PROGRESS — Steps 2.1–2.5 done. The server has 9 plots (7–9 locked by level), Corn / Strawberry (levels 3 / 5), database schema v2, and an API that reports level and quest progress and lets players claim quest rewards. The client shows level, XP bar, locked plots and crops, the active quest with Claim, and level-up messages.
 
 Phase 1 — Farming: COMPLETED.
 
@@ -163,6 +165,7 @@ Phase 0 — Foundation: COMPLETED.
 
 - `vite preview` and HMR through the Codespaces URL — not verified (needs an authenticated browser session).
 - Android device testing — deferred by the Game Director.
+- Uncommitted Codespaces WebSocket-origin changes (10 files, `server/src/config.ts` etc.; see `docs/reports/phase1/PHASE1_CODESPACES_WS_ORIGIN_FIX_REPORT.md`) are still in the working tree, reviewed but not committed; awaiting a Game Director decision.
 - Real Chrome page zoom was emulated (CSS viewport + devicePixelRatio) in headless Chromium, not tested with the zoom menu in a real browser window.
 - On Codespaces the server runs with `CLIENT_ORIGIN=https://localhost:5173` (observed Origin through port forwarding; not verified for every Codespaces configuration).
 - Security work scheduled before multiplayer or public deployment: authentication, connection and rate limits, server-side WebSocket heartbeat, request IDs and action log (see `docs/reports/phase0/PHASE0_CLOSEOUT_AUDIT.md` §6).
@@ -171,7 +174,7 @@ Phase 0 — Foundation: COMPLETED.
 
 # NEXT OBJECTIVE
 
-Game Director review of Step 2.4, then Phase 2 Step 2.5: client progression UI — level and XP bar, locked plots ("Level N"), Corn / Strawberry seed buttons, quest line with a Claim button, level-up message.
+Phase 2 Step 2.6: end-to-end verification in a real browser (including the Codespaces URL), documentation, Phase 2 closeout report. Game Director review of the Step 2.5 UI.
 
 ---
 

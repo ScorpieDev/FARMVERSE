@@ -1,16 +1,18 @@
 /**
- * Farm scene (Phase 1): the player's 6 plots, seed buttons, inventory, coins
- * and XP, plus the live server connection status from Phase 0.
+ * Farm scene: the player's 9 plots (locked ones show their unlock level), seed
+ * buttons, inventory, coins, level and XP bar, the active quest with a Claim
+ * button, and the live server connection status from Phase 0.
  *
  * The scene only shows server state and sends intentions (plant / harvest /
  * refill with a request ID). It never decides outcomes: after any rejected
  * action it reloads the farm from the server. Actions are locked while
  * offline, while another action is in flight, or when the browser cannot
- * create secure request IDs.
+ * create secure request IDs. Locks (plots, crops) and quest completion are
+ * shown from the server state; the server enforces them again on every action.
  */
 import { GameObjects, Input, Scale, Scene, type Time } from "phaser";
 import type { FarmState } from "@farmverse/shared/api";
-import { CROP_IDS, getCrop, getItem, type CropId, type ItemId } from "@farmverse/shared/farming";
+import { CROP_IDS, FARM_PLOT_COUNT, getCrop, getItem, type CropId } from "@farmverse/shared/farming";
 import { cropUnlockLevel } from "@farmverse/shared/progression";
 import {
   FarmApi,
@@ -29,11 +31,19 @@ import {
   emptyPlotHint,
   errorText,
   formatDuration,
-  inventoryLine,
+  isCropLocked,
+  isPlotLocked,
+  levelLine,
+  levelUpText,
+  plotLevel,
   plotView,
+  produceLine,
+  questLine,
   refillLabel,
+  rewardText,
   seedCount,
   serverNow,
+  xpFraction,
   type ServerClock,
 } from "./farmView.js";
 import type { DisplaySize } from "../core/display.js";
@@ -48,6 +58,7 @@ const COLORS = {
   muted: "#d9f99d",
   soil: 0x7c4a1e,
   growing: 0x4d7c0f,
+  locked: 0x3f3f46,
   ready: 0xca8a04,
   bar: 0xbef264,
   border: 0xfef3c7,
@@ -55,14 +66,9 @@ const COLORS = {
   buttonSelected: 0xca8a04,
   buttonDisabled: 0x3f3f46,
   overlay: 0x052e16,
+  xpTrack: 0x052e16,
 };
 const TONE_COLORS: Record<StatusTone, string> = { ok: "#bbf7d0", pending: "#fde68a", error: "#fecaca" };
-/**
- * Crops shown in the UI: the level-1 (Phase 1) crops. Level, locked plots and
- * Phase 2 crops arrive with the progression UI (Phase 2 step 2.5).
- */
-const UI_CROP_IDS: readonly CropId[] = CROP_IDS.filter((id) => cropUnlockLevel(id) === 1);
-const PRODUCE_IDS: readonly ItemId[] = UI_CROP_IDS.map((id) => getCrop(id).produceItemId);
 
 interface Button {
   box: GameObjects.Rectangle;
@@ -100,6 +106,10 @@ export class FarmScene extends Scene {
   private title!: GameObjects.Text;
   private status!: GameObjects.Text;
   private stats!: GameObjects.Text;
+  private xpTrack!: GameObjects.Rectangle;
+  private xpFill!: GameObjects.Rectangle;
+  private questText!: GameObjects.Text;
+  private claimButton!: Button;
   private produce!: GameObjects.Text;
   private message!: GameObjects.Text;
   private plots: PlotWidget[] = [];
@@ -117,10 +127,14 @@ export class FarmScene extends Scene {
     this.title = this.addText("FARMVERSE", { fontStyle: "bold" }).setOrigin(0.5, 0);
     this.status = this.addText("").setOrigin(0.5, 0);
     this.stats = this.addText("").setOrigin(0.5, 0);
-    this.produce = this.addText("").setOrigin(0.5, 0);
+    this.xpTrack = this.add.rectangle(0, 0, 10, 6, COLORS.xpTrack).setOrigin(0, 0).setStrokeStyle(1, COLORS.border, 0.4);
+    this.xpFill = this.add.rectangle(0, 0, 0, 6, COLORS.bar).setOrigin(0, 0);
+    this.questText = this.addText("").setOrigin(0, 0);
+    this.claimButton = this.addButton("Claim", () => void this.onClaimTap());
+    this.produce = this.addText("", { align: "center" }).setOrigin(0.5, 0);
     this.message = this.addText("Loading your farm…", { align: "center" }).setOrigin(0.5, 0);
 
-    for (let index = 0; index < 6; index++) {
+    for (let index = 0; index < FARM_PLOT_COUNT; index++) {
       const box = this.add.rectangle(0, 0, 10, 10, COLORS.soil).setStrokeStyle(2, COLORS.border, 0.4);
       const bar = this.add.rectangle(0, 0, 0, 6, COLORS.bar).setOrigin(0, 0.5);
       const label = this.addText("", { align: "center" }).setOrigin(0.5);
@@ -128,7 +142,7 @@ export class FarmScene extends Scene {
       this.plots.push({ box, bar, label });
     }
 
-    for (const cropId of UI_CROP_IDS) {
+    for (const cropId of CROP_IDS) {
       this.seedButtons.set(cropId, this.addButton("", () => this.selectCrop(cropId)));
     }
     this.refillButton = this.addButton("", () => void this.onRefillTap());
@@ -233,10 +247,12 @@ export class FarmScene extends Scene {
     this.busy = true;
     this.render();
     try {
+      const before = this.state?.progression;
       const result = await request;
       if (result.ok) {
         this.applyState(result.state);
-        this.showMessage(describe(result.state));
+        const levelUp = before === undefined ? null : levelUpText(before, result.state.progression);
+        this.showMessage(levelUp === null ? describe(result.state) : `${describe(result.state)}\n${levelUp}`);
       } else {
         this.showMessage(errorText(result.code));
         await this.reload();
@@ -252,6 +268,10 @@ export class FarmScene extends Scene {
   private async onPlotTap(index: number): Promise<void> {
     const plot = this.state?.plots[index];
     if (this.state === null || plot === undefined || this.sessionInvalid) return;
+    if (isPlotLocked(this.state, index)) {
+      this.showMessage(`Plot ${index + 1} unlocks at level ${plotLevel(index)}.`);
+      return;
+    }
 
     const view = plotView(plot, serverNow(this.clock, Date.now()));
     if (view.kind === "growing") {
@@ -285,10 +305,21 @@ export class FarmScene extends Scene {
     }
     const requestId = this.actionRequestId();
     if (requestId === null) return;
-    await this.send(this.api.refillSeeds({ requestId }), () => "You received 5 seeds of each crop.");
+    await this.send(this.api.refillSeeds({ requestId }), () => "You received 5 seeds of each unlocked crop.");
+  }
+
+  private async onClaimTap(): Promise<void> {
+    if (this.state?.quest?.complete !== true) return;
+    const requestId = this.actionRequestId();
+    if (requestId === null) return;
+    await this.send(this.api.claimQuest({ requestId }), (state) => `Quest complete! ${rewardText(state.claimed.reward)}`);
   }
 
   private selectCrop(cropId: CropId): void {
+    if (this.state !== null && isCropLocked(this.state, cropId)) {
+      this.showMessage(`${getCrop(cropId).name} unlocks at level ${cropUnlockLevel(cropId)}.`);
+      return;
+    }
     this.selectedCrop = cropId;
     this.render();
   }
@@ -321,13 +352,27 @@ export class FarmScene extends Scene {
     const now = serverNow(this.clock, Date.now());
     const locked = !this.connected || this.busy || this.newRequestId === null;
 
-    this.stats.setText(state === null ? "" : `Coins ${state.coins} · XP ${state.xp}`);
-    this.produce.setText(state === null ? "" : `Harvest: ${inventoryLine(state, PRODUCE_IDS)}`);
+    this.stats.setText(state === null ? "" : `Coins ${state.coins} · ${levelLine(state.progression)}`);
+    this.xpTrack.setVisible(state !== null);
+    this.xpFill.setVisible(state !== null);
+    if (state !== null) this.xpFill.width = this.xpTrack.width * xpFraction(state.progression);
+    this.produce.setText(state === null ? "" : produceLine(state));
+
+    this.questText.setText(state === null ? "" : questLine(state.quest));
+    const claimable = state?.quest?.complete === true;
+    this.claimButton.box.setVisible(claimable).setFillStyle(locked ? COLORS.buttonDisabled : COLORS.buttonSelected);
+    this.claimButton.label.setVisible(claimable);
 
     this.plots.forEach(({ box, bar, label }, index) => {
       const plot = state?.plots[index];
       if (state === null || plot === undefined) {
         label.setText("");
+        bar.setVisible(false);
+        return;
+      }
+      if (isPlotLocked(state, index)) {
+        box.setFillStyle(COLORS.locked).setAlpha(1);
+        label.setText(`Locked\nLevel ${plotLevel(index)}`);
         bar.setVisible(false);
         return;
       }
@@ -350,8 +395,15 @@ export class FarmScene extends Scene {
     const refill = state === null ? null : refillLabel(state.seedRefill, now);
     for (const [cropId, button] of this.seedButtons) {
       const count = state === null ? 0 : seedCount(state, cropId);
-      button.label.setText(`${getCrop(cropId).name}\n${count} seeds`);
-      const color = cropId === this.selectedCrop ? COLORS.buttonSelected : count === 0 ? COLORS.buttonDisabled : COLORS.button;
+      const cropLocked = state !== null && isCropLocked(state, cropId);
+      const name = getCrop(cropId).name;
+      button.label.setText(cropLocked ? `${name}\nLevel ${cropUnlockLevel(cropId)}` : `${name}\n${count} seeds`);
+      const color =
+        cropId === this.selectedCrop && !cropLocked
+          ? COLORS.buttonSelected
+          : count === 0 || cropLocked
+            ? COLORS.buttonDisabled
+            : COLORS.button;
       button.box.setFillStyle(color);
       button.box.setVisible(refill === null);
       button.label.setVisible(refill === null);
@@ -397,6 +449,13 @@ export class FarmScene extends Scene {
     this.title.setFontSize(fontSize.title).setPosition(layout.title.x, layout.title.y);
     this.status.setFontSize(fontSize.text).setPosition(layout.status.x, layout.status.y);
     this.stats.setFontSize(fontSize.text).setPosition(layout.stats.x, layout.stats.y);
+    this.xpTrack.setSize(layout.xpBar.width, layout.xpBar.height).setPosition(layout.xpBar.x, layout.xpBar.y);
+    this.xpFill.setSize(this.xpFill.width, layout.xpBar.height).setPosition(layout.xpBar.x, layout.xpBar.y);
+    this.questText
+      .setFontSize(fontSize.text)
+      .setWordWrapWidth(layout.questText.width)
+      .setPosition(layout.questText.x, layout.questText.y);
+    this.placeButton(this.claimButton, layout.claimButton, fontSize.text);
 
     this.plots.forEach(({ box, bar, label }, index) => {
       const rect = layout.plots[index]!;
@@ -405,13 +464,13 @@ export class FarmScene extends Scene {
       bar.setPosition(rect.x + 8, rect.y + rect.height - 10);
     });
 
-    UI_CROP_IDS.forEach((cropId, index) => {
+    CROP_IDS.forEach((cropId, index) => {
       const button = this.seedButtons.get(cropId);
       if (button !== undefined) this.placeButton(button, layout.seedButtons[index]!, fontSize.text);
     });
     this.placeButton(this.refillButton, layout.refillButton, fontSize.text);
 
-    this.produce.setFontSize(fontSize.text).setPosition(layout.produce.x, layout.produce.y);
+    this.produce.setFontSize(fontSize.text).setWordWrapWidth(layout.wrapWidth).setPosition(layout.produce.x, layout.produce.y);
     this.message.setFontSize(fontSize.text).setWordWrapWidth(layout.wrapWidth).setPosition(layout.message.x, layout.message.y);
 
     this.placeRect(this.overlay.shade, layout.view);
@@ -460,6 +519,9 @@ export class FarmScene extends Scene {
       plot: (index: number) => center(this.plots[index]!.box),
       seedButton: (cropId: CropId) => center(this.seedButtons.get(cropId)!.box),
       refillButton: () => center(this.refillButton.box),
+      claimButton: () => (this.claimButton.box.visible ? center(this.claimButton.box) : null),
+      questText: () => this.questText.text,
+      stats: () => this.stats.text,
       overlayVisible: () => this.overlay.shade.visible,
       newFarmButton: () => center(this.overlay.button.box),
       layout: () => this.currentLayout,

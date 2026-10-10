@@ -15,14 +15,18 @@ import {
   FARM_PATH,
   FARM_PLANT_PATH,
   FARM_REFILL_SEEDS_PATH,
+  QUEST_CLAIM_PATH,
   SESSION_PATH,
   isFarmState,
   isHarvestResponse,
+  isQuestClaimResponse,
   isSessionResponse,
   type FarmState,
   type HarvestRequest,
   type HarvestResponse,
   type PlantRequest,
+  type QuestClaimRequest,
+  type QuestClaimResponse,
   type RefillSeedsRequest,
 } from "@farmverse/shared/api";
 import { isErrorCode, type ErrorCode } from "@farmverse/shared/errors";
@@ -121,6 +125,11 @@ export class FarmApi {
 
   refillSeeds(body: RefillSeedsRequest): Promise<ActionResult<FarmState>> {
     return this.action(FARM_REFILL_SEEDS_PATH, body, isFarmState);
+  }
+
+  /** Claims the active quest; the server decides which quest and what reward. */
+  claimQuest(body: QuestClaimRequest): Promise<ActionResult<QuestClaimResponse>> {
+    return this.action(QUEST_CLAIM_PATH, body, isQuestClaimResponse);
   }
 
   private token(): string | null {

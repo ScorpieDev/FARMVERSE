@@ -49,12 +49,17 @@ export interface FarmLayout {
   title: TextSpot;
   status: TextSpot;
   stats: TextSpot;
+  /** Track of the XP bar under the stats line (the fill grows from its left edge). */
+  xpBar: Rect;
   plots: Rect[];
+  /** Quest text: left-aligned, wrapped to `questText.width`. */
+  questText: Rect;
+  claimButton: Rect;
   seedButtons: Rect[];
   refillButton: Rect;
   produce: TextSpot;
   message: TextSpot;
-  /** Wrap width for the message and overlay text. */
+  /** Wrap width for the produce line, the message and overlay text. */
   wrapWidth: number;
   overlayText: TextSpot;
   overlayButton: Rect;
@@ -75,8 +80,14 @@ export const MAX_FRAME: Readonly<Record<Orientation, Size>> = {
 /** Largest CSS px per design unit (text 14–15 units → about 30 CSS px at most). */
 export const MAX_ZOOM = 2;
 
-const PLOT_COUNT = 6;
-const SEED_BUTTONS = 3;
+/** 3×3 plots in both orientations (FARM_PLOT_COUNT; locked plots are shown too). */
+const PLOT_COUNT = 9;
+const PLOT_COLUMNS = 3;
+/** One button per crop (CROP_IDS), in rows of up to three. */
+const SEED_BUTTONS = 5;
+const SEED_BUTTONS_PER_ROW = 3;
+const XP_BAR_HEIGHT = 6;
+const MAX_XP_BAR_WIDTH = 240;
 
 interface Metrics {
   margin: number;
@@ -98,7 +109,82 @@ export function orientationOf(width: number, height: number): Orientation {
   return width > height ? "landscape" : "portrait";
 }
 
-/** Lays out the farm for a canvas of `width`×`height` CSS pixels. */
+/** Rows of `count` cells, at most `perRow` per row, each row centred in `area`. */
+function cellRows(count: number, perRow: number, area: Rect, gap: number, maxWidth: number, height: number): Rect[] {
+  const width = Math.min(maxWidth, (area.width - (perRow - 1) * gap) / perRow);
+  return Array.from({ length: count }, (_, index) => {
+    const row = Math.floor(index / perRow);
+    const inRow = Math.min(perRow, count - row * perRow);
+    const rowWidth = inRow * width + (inRow - 1) * gap;
+    return {
+      x: area.x + (area.width - rowWidth) / 2 + (index % perRow) * (width + gap),
+      y: area.y + row * (height + gap),
+      width,
+      height,
+    };
+  });
+}
+
+/**
+ * Controls below or beside the plots, stacked top to bottom in `column`:
+ * quest line with Claim, seed buttons (two rows), produce and message text.
+ */
+function layoutControls(column: Rect, m: Metrics, produceLines: number) {
+  const claimWidth = Math.min(96, column.width / 3);
+  const questText = {
+    x: column.x,
+    y: column.y + (m.buttonHeight - 2 * m.lineHeight) / 2,
+    width: column.width - claimWidth - m.gap,
+    height: 2 * m.lineHeight,
+  };
+  const claimButton = { x: column.x + column.width - claimWidth, y: column.y, width: claimWidth, height: m.buttonHeight };
+
+  const seedTop = column.y + m.buttonHeight + m.gap;
+  const seedArea = { x: column.x, y: seedTop, width: column.width, height: 0 };
+  const seedButtons = cellRows(SEED_BUTTONS, SEED_BUTTONS_PER_ROW, seedArea, m.gap, m.maxCellWidth, m.buttonHeight);
+  const firstRow = seedButtons.slice(0, SEED_BUTTONS_PER_ROW);
+  const rowLeft = firstRow[0]!.x;
+  const rowRight = firstRow[firstRow.length - 1]!;
+  const refillButton = { x: rowLeft, y: seedTop, width: rowRight.x + rowRight.width - rowLeft, height: m.buttonHeight };
+  const seedRows = Math.ceil(SEED_BUTTONS / SEED_BUTTONS_PER_ROW);
+
+  const centerX = column.x + column.width / 2;
+  const produce = { x: centerX, y: seedTop + seedRows * m.buttonHeight + (seedRows - 1) * m.gap + m.gap };
+  const message = { x: centerX, y: produce.y + produceLines * m.lineHeight };
+  return { questText, claimButton, seedButtons, refillButton, produce, message };
+}
+
+/** Height `layoutControls` needs. */
+function controlsHeight(m: Metrics, produceLines: number): number {
+  const seedRows = Math.ceil(SEED_BUTTONS / SEED_BUTTONS_PER_ROW);
+  const seeds = seedRows * m.buttonHeight + (seedRows - 1) * m.gap;
+  return m.buttonHeight + m.gap + seeds + m.gap + (produceLines + 2) * m.lineHeight;
+}
+
+/** 3×3 plot grid as large as fits in `area` (square at most), centred. */
+function layoutPlots(area: Rect, m: Metrics): Rect[] {
+  const rows = PLOT_COUNT / PLOT_COLUMNS;
+  const plotWidth = Math.min(m.maxCellWidth, (area.width - (PLOT_COLUMNS - 1) * m.gap) / PLOT_COLUMNS);
+  const plotHeight = Math.min(plotWidth, (area.height - (rows - 1) * m.gap) / rows);
+  const gridWidth = PLOT_COLUMNS * plotWidth + (PLOT_COLUMNS - 1) * m.gap;
+  const gridHeight = rows * plotHeight + (rows - 1) * m.gap;
+  const left = area.x + (area.width - gridWidth) / 2;
+  const top = area.y + (area.height - gridHeight) / 2;
+  return Array.from({ length: PLOT_COUNT }, (_, index) => ({
+    x: left + (index % PLOT_COLUMNS) * (plotWidth + m.gap),
+    y: top + Math.floor(index / PLOT_COLUMNS) * (plotHeight + m.gap),
+    width: plotWidth,
+    height: plotHeight,
+  }));
+}
+
+/**
+ * Lays out the farm for a canvas of `width`×`height` CSS pixels.
+ *
+ * Portrait: header, plots, then the controls in one column. Landscape: header
+ * across the top, plots on the left and the controls in a column on the right,
+ * so 9 plots stay large enough to tap on a 360-unit-tall phone screen.
+ */
 export function computeFarmLayout(width: number, height: number): FarmLayout {
   const safeWidth = Math.max(1, width);
   const safeHeight = Math.max(1, height);
@@ -122,45 +208,33 @@ export function computeFarmLayout(width: number, height: number): FarmLayout {
   const centerX = design.width / 2;
   const contentWidth = design.width - 2 * m.margin;
 
-  // Header: title, connection status, coins/XP.
+  // Header: title, connection status, coins and level, XP bar.
   const title = { x: centerX, y: m.margin };
   const status = { x: centerX, y: m.margin + Math.round(m.titleSize * 1.3) };
   const stats = { x: centerX, y: status.y + m.lineHeight };
-  const headerBottom = stats.y + m.lineHeight;
+  const xpBarWidth = Math.min(MAX_XP_BAR_WIDTH, contentWidth);
+  const xpBar = { x: centerX - xpBarWidth / 2, y: stats.y + m.lineHeight, width: xpBarWidth, height: XP_BAR_HEIGHT };
+  const headerBottom = xpBar.y + XP_BAR_HEIGHT + m.gap;
+  const bodyBottom = design.height - m.margin;
 
-  // Footer: seed buttons, produce line, message (up to two lines).
-  const footerHeight = m.gap + m.buttonHeight + m.gap + 3 * m.lineHeight;
-  const footerTop = design.height - m.margin - footerHeight;
-
-  // Plot grid fills the space between header and footer.
-  const columns = orientation === "landscape" ? 3 : 2;
-  const rows = PLOT_COUNT / columns;
-  const plotWidth = Math.min(m.maxCellWidth, (contentWidth - (columns - 1) * m.gap) / columns);
-  const plotHeight = Math.min(plotWidth, (footerTop - headerBottom - (rows - 1) * m.gap) / rows);
-  const gridWidth = columns * plotWidth + (columns - 1) * m.gap;
-  const gridHeight = rows * plotHeight + (rows - 1) * m.gap;
-  const gridLeft = centerX - gridWidth / 2;
-  const gridTop = headerBottom + (footerTop - headerBottom - gridHeight) / 2;
-  const plots = Array.from({ length: PLOT_COUNT }, (_, index) => ({
-    x: gridLeft + (index % columns) * (plotWidth + m.gap),
-    y: gridTop + Math.floor(index / columns) * (plotHeight + m.gap),
-    width: plotWidth,
-    height: plotHeight,
-  }));
-
-  const buttonTop = footerTop + m.gap;
-  const buttonWidth = Math.min(m.maxCellWidth, (contentWidth - (SEED_BUTTONS - 1) * m.gap) / SEED_BUTTONS);
-  const buttonsWidth = SEED_BUTTONS * buttonWidth + (SEED_BUTTONS - 1) * m.gap;
-  const seedButtons = Array.from({ length: SEED_BUTTONS }, (_, index) => ({
-    x: centerX - buttonsWidth / 2 + index * (buttonWidth + m.gap),
-    y: buttonTop,
-    width: buttonWidth,
-    height: m.buttonHeight,
-  }));
-  const refillButton = { x: centerX - buttonsWidth / 2, y: buttonTop, width: buttonsWidth, height: m.buttonHeight };
-
-  const produce = { x: centerX, y: buttonTop + m.buttonHeight + m.gap };
-  const message = { x: centerX, y: produce.y + m.lineHeight };
+  let plots: Rect[];
+  let controls: ReturnType<typeof layoutControls>;
+  let wrapWidth: number;
+  if (orientation === "portrait") {
+    const produceLines = 2;
+    const controlsTop = bodyBottom - controlsHeight(m, produceLines);
+    plots = layoutPlots({ x: m.margin, y: headerBottom, width: contentWidth, height: controlsTop - m.gap - headerBottom }, m);
+    controls = layoutControls({ x: m.margin, y: controlsTop, width: contentWidth, height: 0 }, m, produceLines);
+    wrapWidth = contentWidth;
+  } else {
+    const produceLines = 2;
+    const panelWidth = Math.min(400, Math.max(280, design.width * 0.47));
+    const panel = { x: design.width - m.margin - panelWidth, y: headerBottom, width: panelWidth, height: 0 };
+    const gridArea = { x: m.margin, y: headerBottom, width: panel.x - 2 * m.gap - m.margin, height: bodyBottom - headerBottom };
+    plots = layoutPlots(gridArea, m);
+    controls = layoutControls(panel, m, produceLines);
+    wrapWidth = panelWidth;
+  }
 
   const overlayButtonWidth = Math.min(260, contentWidth);
   const overlayButton = {
@@ -170,23 +244,22 @@ export function computeFarmLayout(width: number, height: number): FarmLayout {
     height: m.buttonHeight,
   };
   const overlayText = { x: centerX, y: design.height / 2 - m.buttonHeight - m.lineHeight };
+  const plotWidth = plots[0]!.width;
 
   return {
     orientation,
     design,
     zoom,
     view,
-    columns,
+    columns: PLOT_COLUMNS,
     fontSize: { title: m.titleSize, text: m.textSize, plot: Math.min(m.textSize, Math.floor(plotWidth / 8)) },
     title,
     status,
     stats,
+    xpBar,
     plots,
-    seedButtons,
-    refillButton,
-    produce,
-    message,
-    wrapWidth: contentWidth,
+    ...controls,
+    wrapWidth,
     overlayText,
     overlayButton,
   };
