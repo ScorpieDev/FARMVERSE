@@ -36,10 +36,11 @@ export function buildApp(config: ServerConfig): FastifyInstance {
         : 500;
 
     if (statusCode >= 400 && statusCode < 500) {
-      // Client errors raised by Fastify itself (e.g. malformed request body).
+      // Client errors raised by Fastify itself (e.g. malformed JSON body).
+      // The fixed message avoids echoing parser or framework internals.
       const body: ErrorPayload = {
-        code: "INVALID_MESSAGE",
-        message: error instanceof Error ? error.message : "Invalid request",
+        code: "INVALID_REQUEST",
+        message: "Invalid request",
       };
       return reply.code(statusCode).send(body);
     }

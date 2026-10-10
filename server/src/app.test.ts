@@ -67,7 +67,7 @@ describe("errors", () => {
     expect(response.body).not.toContain("secret");
   });
 
-  it("returns INVALID_MESSAGE for malformed request bodies", async () => {
+  it("returns INVALID_REQUEST with a fixed message for malformed JSON", async () => {
     app.post("/test/echo", () => ({ ok: true }));
 
     const response = await app.inject({
@@ -78,7 +78,21 @@ describe("errors", () => {
     });
 
     expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({ code: "INVALID_MESSAGE" });
+    expect(response.json()).toEqual({ code: "INVALID_REQUEST", message: "Invalid request" });
+  });
+
+  it("returns INVALID_REQUEST for other client errors without internal details", async () => {
+    app.post("/test/echo", () => ({ ok: true }));
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/test/echo",
+      headers: { "content-type": "application/x-unknown" },
+      payload: "data",
+    });
+
+    expect(response.statusCode).toBe(415);
+    expect(response.json()).toEqual({ code: "INVALID_REQUEST", message: "Invalid request" });
   });
 });
 
