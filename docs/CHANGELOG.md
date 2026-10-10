@@ -7,7 +7,8 @@
 - Shared farming contract: 6 plots, crops wheat/carrot/tomato (30/120/300 s, yield 1), items `<crop>_seed` / `<crop>_produce`, seed refill constants (5 per crop, 60 s cooldown), session/farm API types, structure-only validators (`requestId` is a lowercase UUID v4), farming error codes — `7afe6d9`
 - Server farming rules (pure functions, server clock passed in): starter farm, plant, readiness, harvest, seed refill with cooldown, `FarmState` conversion, `FarmData` validation — `e02e344`
 - Server storage (Step 1.3): SQLite via the built-in `node:sqlite` (no new dependency) — schema with migrations (`players` incl. coins/XP columns, `plots`, `inventory`, `action_log`), transactions, farm load/save with corruption checks; `DATABASE_PATH` setting; Node.js floor raised to 24.15 — `c5367d5`
-- Coin and XP harvest rewards (Game Director directive 2026-10-10, replaces earlier decision Q4): each harvest grants the crop's coins and XP — provisional values wheat 2 coins / 1 XP, carrot 6 / 3, tomato 12 / 6; `FarmState` exposes `coins` and `xp`, the harvest response includes `reward`; totals stored on the player. No levels, shop or spending yet
+- Coin and XP harvest rewards (Game Director directive 2026-10-10, replaces earlier decision Q4): each harvest grants the crop's coins and XP — provisional values wheat 2 coins / 1 XP, carrot 6 / 3, tomato 12 / 6; `FarmState` exposes `coins` and `xp`, the harvest response includes `reward`; totals stored on the player. No levels, shop or spending yet — `e2e8084`
+- Guest session and farm HTTP API (Steps 1.4–1.5): `POST /api/session` (UUID player, 32-byte token, SHA-256 hash stored), Bearer authentication, `GET /api/farm`, `POST /api/farm/plant`, `/harvest`, `/refill-seeds`; shared validators → `400 INVALID_REQUEST`; gameplay errors → `409`; each action in one transaction with request-ID idempotency (only successful actions recorded; `REQUEST_ID_REUSED` for a different action/body); 1 KB body limit; action log entries (player, action, request ID, result — never the token)
 
 ## Phase 0 closeout (2026-10-10)
 
@@ -78,7 +79,7 @@ Phase 1 — Farming
 
 Status:
 
-IN PROGRESS (Steps 1.1–1.3 done; next: Step 1.4 guest session)
+IN PROGRESS (Steps 1.1–1.5 done; next: Steps 1.6–1.7 client farm scene)
 
 Phase 0 — Foundation: COMPLETED (closed 2026-10-10).
 

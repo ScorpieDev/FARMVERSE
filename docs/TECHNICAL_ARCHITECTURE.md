@@ -570,14 +570,20 @@ Stack đã chốt trong Phase 0:
 - Client (§4): Phaser scene hiển thị trạng thái kết nối; health check, handshake `hello`/`welcome`, ping 15 s đo RTT, reconnect có giới hạn
 - Communication (§2): HTTP(S) cho API, WebSocket cho realtime (local dev dùng `http`/`ws`; qua URL Codespaces là `https`/`wss`; HTTPS khi deploy chưa triển khai); khi dev, Vite proxy `/api` và `/ws` (client chỉ dùng một origin); `VITE_SERVER_URL` dành cho deploy khác origin
 - Testing (§20): 507 test tự động khi đóng Phase 0 (gồm test Phase 1)
-- Phase 1 (đang làm): contract farming trong `shared` (`farming.ts`, `api.ts`), quy tắc farming thuần phía server (`server/src/farming/rules.ts`) — chưa có route, database hay client dùng
+- Phase 1 — Farming (đang làm, phía server đã xong):
+  - Database (§6): SQLite qua `node:sqlite` (built-in Node.js 24), schema có migration (`players`, `plots`, `inventory`, `action_log`), ràng buộc CHECK/foreign key, transaction `BEGIN IMMEDIATE`; dữ liệu đọc ra được kiểm tra (`assertFarmData`)
+  - Guest session: server tạo player UUID và token 32 byte, chỉ lưu SHA-256; xác thực `Authorization: Bearer`
+  - Farm API (§17): `POST /api/session`, `GET /api/farm`, `POST /api/farm/plant`, `/harvest`, `/refill-seeds`; quy tắc thuần trong `server/src/farming/rules.ts`; thời gian chỉ lấy từ server
+  - Duplication protection (§12): request ID (UUID v4) + `action_log` trong cùng transaction — gửi lại trả kết quả cũ, không áp dụng lần hai; dùng lại cho hành động khác → `REQUEST_ID_REUSED`
+  - Logging (§19): mỗi hành động farm ghi Player ID, Action, Request ID, Result (không ghi token)
+  - Phần thưởng: coin và XP mỗi lần thu hoạch (giá trị tạm thời)
 
 Chưa triển khai:
 
-- Database: SQLite qua `node:sqlite` (Phase 1 Bước 1.3) — chưa nối vào route
-- Authentication
-- Gameplay, economy, multiplayer gameplay (Phase 0 chỉ có kết nối)
-- Duplication protection / request ID (§12)
+- Client farm scene (Phase 1 Bước 1.6–1.7)
+- Authentication thật (đăng nhập, khôi phục tài khoản); hiện chỉ có guest token
+- Rate limit / giới hạn kết nối, heartbeat WebSocket phía server
+- Multiplayer gameplay, economy (shop, marketplace), level
 - Deployment, CI/CD (§23)
 - Production build cho server
 

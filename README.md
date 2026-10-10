@@ -104,6 +104,22 @@ Run from the repository root:
 | `npm run build` | Build the client into `client/dist` |
 | `npm run preview -w client` | Serve the built client on port 4173 (run `npm run build` first) |
 
+## Farming API (Phase 1)
+
+The server owns all game state; the client only sends intentions. Every farm request needs `Authorization: Bearer <token>` from `POST /api/session`.
+
+| Method & path | Body | Result |
+|---|---|---|
+| `POST /api/session` | — | `201 { playerId, token }` — new guest player with 6 empty plots and 5 seeds of each crop. The token is shown once; the server stores only its SHA-256 hash |
+| `GET /api/farm` | — | `200 FarmState` (plots, inventory, coins, XP, seed refill state, server time) |
+| `POST /api/farm/plant` | `{ requestId, plotIndex, cropId }` | `200 FarmState` |
+| `POST /api/farm/harvest` | `{ requestId, plotIndex }` | `200 FarmState` + `harvested` + `reward` |
+| `POST /api/farm/refill-seeds` | `{ requestId }` | `200 FarmState` |
+
+- `requestId` is a lowercase UUID v4 chosen by the client per action. Repeating a successful request returns the stored result without applying it again; reusing the ID for a different action or body returns `409 REQUEST_ID_REUSED`.
+- Errors: `400 INVALID_REQUEST`, `401 UNAUTHORIZED`, `409` gameplay errors (`PLOT_NOT_EMPTY`, `PLOT_EMPTY`, `CROP_NOT_READY`, `ITEM_NOT_OWNED`, `REFILL_NOT_ALLOWED`).
+- Crops (growth time, reward per harvest): wheat 30 s / 2 coins / 1 XP, carrot 2 min / 6 / 3, tomato 5 min / 12 / 6 — provisional values.
+
 ## Connection status
 
 | Text on screen | Meaning |

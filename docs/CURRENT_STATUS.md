@@ -101,8 +101,8 @@ Browser verification (closeout, 2026-10-10):
 | 1.1 Farming contract in `shared` (crops, items, API types, validators, error codes) | Done | `7afe6d9` |
 | 1.2 Pure server farming rules (plant, grow, harvest, seed refill, `FarmState`) | Done | `e02e344` |
 | 1.3 Storage (SQLite via `node:sqlite`: schema, migrations, transactions, farm load/save, action log) | Done | see CHANGELOG |
-| 1.4 Guest session and token auth | Planned | — |
-| 1.5 Farm HTTP API with request IDs and transactions | Planned | — |
+| 1.4 Guest session and token auth | Done | see CHANGELOG |
+| 1.5 Farm HTTP API with request IDs and transactions (+ coin/XP rewards) | Done | see CHANGELOG |
 | 1.6–1.7 Client farm scene, actions, offline handling | Planned | — |
 | 1.8 End-to-end verification and docs | Planned | — |
 
@@ -131,7 +131,7 @@ Phase 1 — Farming
 
 Status:
 
-IN PROGRESS — Steps 1.1–1.3 done; next: Step 1.4 (guest session).
+IN PROGRESS — Steps 1.1–1.5 done (server side complete); next: Steps 1.6–1.7 (client farm scene).
 
 Phase 0 — Foundation: COMPLETED.
 
@@ -148,7 +148,7 @@ Phase 0 — Foundation: COMPLETED.
 
 # NEXT OBJECTIVE
 
-Phase 1 Step 1.4 — guest session (`POST /api/session`) and Bearer token authentication, followed by the farm HTTP API with request IDs, coin/XP rewards, and the client farm scene.
+Phase 1 Steps 1.6–1.7 — client farm scene: guest session handling (no silent new farm), 6 plots, seed buttons, inventory, coins/XP, plant/harvest/refill with request IDs and safe retries.
 
 ---
 

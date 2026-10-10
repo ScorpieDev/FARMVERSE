@@ -8,17 +8,30 @@ import { HEALTH_PATH, type HealthResponse } from "@farmverse/shared/api";
 import type { ErrorPayload } from "@farmverse/shared/errors";
 import packageJson from "../package.json" with { type: "json" };
 import type { ServerConfig } from "./config.js";
+import { registerFarmRoutes } from "./farming/routes.js";
 import { registerWebSocket } from "./multiplayer/websocket.js";
+import { openDatabase } from "./storage/database.js";
 
 export const SERVER_VERSION = packageJson.version;
 
-export function buildApp(config: ServerConfig): FastifyInstance {
+export interface AppOptions {
+  /** Server clock in ms (defaults to Date.now); injectable for tests. */
+  now?: () => number;
+}
+
+export function buildApp(config: ServerConfig, options: AppOptions = {}): FastifyInstance {
+  const now = options.now ?? Date.now;
   const app = Fastify({ logger: { level: config.logLevel } });
+
+  const db = openDatabase(config.databasePath);
+  app.addHook("onClose", () => {
+    db.close();
+  });
 
   void app.register(cors, { origin: config.clientOrigin });
 
   app.get(HEALTH_PATH, (): HealthResponse => {
-    return { status: "ok", version: SERVER_VERSION, serverTime: Date.now() };
+    return { status: "ok", version: SERVER_VERSION, serverTime: now() };
   });
 
   app.setNotFoundHandler((request, reply) => {
@@ -54,6 +67,7 @@ export function buildApp(config: ServerConfig): FastifyInstance {
     return reply.code(500).send(body);
   });
 
+  registerFarmRoutes(app, { db, now });
   registerWebSocket(app, config);
 
   return app;

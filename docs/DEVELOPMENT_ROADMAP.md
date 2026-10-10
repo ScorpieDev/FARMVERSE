@@ -50,7 +50,7 @@ Kết quả:
 
 Status:
 
-IN PROGRESS — Bước 1.1 (`7afe6d9`), 1.2 (`e02e344`) và 1.3 (lưu trữ SQLite) đã xong; tiếp theo: Bước 1.4 (guest session).
+IN PROGRESS — Bước 1.1 (`7afe6d9`), 1.2 (`e02e344`), 1.3 (lưu trữ SQLite), phần thưởng coin/XP, 1.4–1.5 (guest session, farm HTTP API) đã xong; tiếp theo: Bước 1.6–1.7 (client).
 
 Thiết kế: `docs/reports/phase1/PHASE1_FARMING_PLAN_REPORT.md` (mục 0).
 
@@ -250,7 +250,7 @@ Phase 1 — Farming
 
 Status:
 
-IN PROGRESS (Bước 1.1–1.3 xong; tiếp theo Bước 1.4)
+IN PROGRESS (Bước 1.1–1.5 xong; tiếp theo Bước 1.6–1.7 client)
 
 Phase 0 — Foundation: COMPLETED (2026-10-10).
 
