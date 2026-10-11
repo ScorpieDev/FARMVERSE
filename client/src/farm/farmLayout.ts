@@ -63,6 +63,28 @@ export interface FarmLayout {
   wrapWidth: number;
   overlayText: TextSpot;
   overlayButton: Rect;
+  /** Opens edit mode (the free slot beside the second row of seed buttons). */
+  editButton: Rect;
+  /** Edit mode: the farm grid fills the screen, controls beside or below it. */
+  edit: EditLayout;
+}
+
+/** Edit mode layout (Phase 3): FARM_GRID_WIDTH × FARM_GRID_HEIGHT square tiles. */
+export interface EditLayout {
+  /** The whole grid; tile (x, y) is at grid.x + x × tileSize, grid.y + y × tileSize. */
+  grid: Rect;
+  tileSize: number;
+  /** Connection status line. */
+  status: TextSpot;
+  /** One button per decoration, in catalog order. */
+  decorationButtons: Rect[];
+  rotateButton: Rect;
+  removeButton: Rect;
+  doneButton: Rect;
+  /** Selection and result text, wrapped to `wrapWidth`. */
+  message: TextSpot;
+  wrapWidth: number;
+  fontSize: { button: number; object: number };
 }
 
 /** Smallest frame: always fully visible. */
@@ -85,6 +107,12 @@ const PLOT_COUNT = 9;
 const PLOT_COLUMNS = 3;
 /** One button per crop (CROP_IDS), in rows of up to three. */
 const SEED_BUTTONS = 5;
+/** Farm grid tiles per side (shared building.ts FARM_GRID_WIDTH / FARM_GRID_HEIGHT). */
+const GRID_TILES = 8;
+/** One button per decoration (shared building.ts DECORATIONS). */
+const DECORATION_BUTTONS = 7;
+/** Space around the grid in edit mode: small, so tiles stay ≥ 44 units on the minimum frame. */
+const EDIT_MARGIN = 4;
 const SEED_BUTTONS_PER_ROW = 3;
 const XP_BAR_HEIGHT = 6;
 const MAX_XP_BAR_WIDTH = 240;
@@ -142,7 +170,10 @@ function layoutControls(column: Rect, m: Metrics, produceLines: number) {
 
   const seedTop = column.y + m.buttonHeight + m.gap;
   const seedArea = { x: column.x, y: seedTop, width: column.width, height: 0 };
-  const seedButtons = cellRows(SEED_BUTTONS, SEED_BUTTONS_PER_ROW, seedArea, m.gap, m.maxCellWidth, m.buttonHeight);
+  // The cell after the last seed button holds the Edit button.
+  const cells = cellRows(SEED_BUTTONS + 1, SEED_BUTTONS_PER_ROW, seedArea, m.gap, m.maxCellWidth, m.buttonHeight);
+  const seedButtons = cells.slice(0, SEED_BUTTONS);
+  const editButton = cells[SEED_BUTTONS]!;
   const firstRow = seedButtons.slice(0, SEED_BUTTONS_PER_ROW);
   const rowLeft = firstRow[0]!.x;
   const rowRight = firstRow[firstRow.length - 1]!;
@@ -152,7 +183,7 @@ function layoutControls(column: Rect, m: Metrics, produceLines: number) {
   const centerX = column.x + column.width / 2;
   const produce = { x: centerX, y: seedTop + seedRows * m.buttonHeight + (seedRows - 1) * m.gap + m.gap };
   const message = { x: centerX, y: produce.y + produceLines * m.lineHeight };
-  return { questText, claimButton, seedButtons, refillButton, produce, message };
+  return { questText, claimButton, seedButtons, refillButton, editButton, produce, message };
 }
 
 /** Height `layoutControls` needs. */
@@ -177,6 +208,70 @@ function layoutPlots(area: Rect, m: Metrics): Rect[] {
     width: plotWidth,
     height: plotHeight,
   }));
+}
+
+/** Buttons in rows of `perRow`, left-aligned in `area`, all the same width. */
+function buttonRows(count: number, perRow: number, area: Rect, gap: number, height: number): Rect[] {
+  const width = (area.width - (perRow - 1) * gap) / perRow;
+  return Array.from({ length: count }, (_, index) => ({
+    x: area.x + (index % perRow) * (width + gap),
+    y: area.y + Math.floor(index / perRow) * (height + gap),
+    width,
+    height,
+  }));
+}
+
+/**
+ * Edit mode: the grid as large as fits (portrait: full width at the top;
+ * landscape: full height on the left), then in the remaining column the
+ * status line, decoration buttons, Rotate / Remove / Done and the message.
+ */
+function layoutEdit(design: Size, orientation: Orientation, m: Metrics): EditLayout {
+  const gap = Math.min(m.gap, 8);
+  const perRow = orientation === "portrait" ? 4 : 3;
+  const decorationRows = Math.ceil(DECORATION_BUTTONS / perRow);
+  const panelHeight =
+    m.lineHeight + gap + decorationRows * m.buttonHeight + (decorationRows - 1) * gap + gap + m.buttonHeight + gap + 2 * m.lineHeight;
+
+  let grid: Rect;
+  let panel: Rect;
+  if (orientation === "portrait") {
+    const size = Math.min(design.width - 2 * EDIT_MARGIN, design.height - 2 * EDIT_MARGIN - gap - panelHeight);
+    grid = { x: (design.width - size) / 2, y: EDIT_MARGIN, width: size, height: size };
+    panel = { x: m.margin, y: grid.y + size + gap, width: design.width - 2 * m.margin, height: panelHeight };
+  } else {
+    const size = Math.min(design.height - 2 * EDIT_MARGIN, design.width * 0.6);
+    grid = { x: EDIT_MARGIN, y: (design.height - size) / 2, width: size, height: size };
+    const left = grid.x + size + gap;
+    panel = { x: left, y: EDIT_MARGIN, width: design.width - left - m.margin, height: panelHeight };
+  }
+
+  const status = { x: panel.x + panel.width / 2, y: panel.y };
+  const decorationArea = { x: panel.x, y: panel.y + m.lineHeight + gap, width: panel.width, height: 0 };
+  const decorationButtons = buttonRows(DECORATION_BUTTONS, perRow, decorationArea, gap, m.buttonHeight);
+  const actionsTop = decorationArea.y + decorationRows * (m.buttonHeight + gap);
+  const [rotateButton, removeButton, doneButton] = buttonRows(
+    3,
+    3,
+    { x: panel.x, y: actionsTop, width: panel.width, height: 0 },
+    gap,
+    m.buttonHeight,
+  ) as [Rect, Rect, Rect];
+  const tileSize = grid.width / GRID_TILES;
+  const buttonWidth = decorationButtons[0]!.width;
+  return {
+    grid,
+    tileSize,
+    status,
+    decorationButtons,
+    rotateButton,
+    removeButton,
+    doneButton,
+    message: { x: status.x, y: actionsTop + m.buttonHeight + gap },
+    wrapWidth: panel.width,
+    // "Small House" must fit on one line of a decoration button.
+    fontSize: { button: Math.min(m.textSize, Math.floor(buttonWidth / 7)), object: Math.min(12, Math.floor(tileSize / 4)) },
+  };
 }
 
 /**
@@ -263,6 +358,7 @@ export function computeFarmLayout(width: number, height: number): FarmLayout {
     wrapWidth,
     overlayText,
     overlayButton,
+    edit: layoutEdit(design, orientation, m),
   };
 }
 

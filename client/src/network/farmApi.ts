@@ -15,19 +15,29 @@ import {
   FARM_PATH,
   FARM_PLANT_PATH,
   FARM_REFILL_SEEDS_PATH,
+  OBJECT_MOVE_PATH,
+  OBJECT_PLACE_PATH,
+  OBJECT_REMOVE_PATH,
+  OBJECT_ROTATE_PATH,
   QUEST_CLAIM_PATH,
   SESSION_PATH,
   isFarmState,
   isHarvestResponse,
+  isObjectActionResponse,
   isQuestClaimResponse,
   isSessionResponse,
   type FarmState,
   type HarvestRequest,
   type HarvestResponse,
+  type MoveObjectRequest,
+  type ObjectActionResponse,
+  type PlaceObjectRequest,
   type PlantRequest,
   type QuestClaimRequest,
   type QuestClaimResponse,
   type RefillSeedsRequest,
+  type RemoveObjectRequest,
+  type RotateObjectRequest,
 } from "@farmverse/shared/api";
 import { isErrorCode, type ErrorCode } from "@farmverse/shared/errors";
 
@@ -130,6 +140,24 @@ export class FarmApi {
   /** Claims the active quest; the server decides which quest and what reward. */
   claimQuest(body: QuestClaimRequest): Promise<ActionResult<QuestClaimResponse>> {
     return this.action(QUEST_CLAIM_PATH, body, isQuestClaimResponse);
+  }
+
+  // ---------- building (Phase 3): the server assigns IDs and decides every result ----------
+
+  placeObject(body: PlaceObjectRequest): Promise<ActionResult<ObjectActionResponse>> {
+    return this.action(OBJECT_PLACE_PATH, body, isObjectActionResponse);
+  }
+
+  moveObject(body: MoveObjectRequest): Promise<ActionResult<ObjectActionResponse>> {
+    return this.action(OBJECT_MOVE_PATH, body, isObjectActionResponse);
+  }
+
+  rotateObject(body: RotateObjectRequest): Promise<ActionResult<ObjectActionResponse>> {
+    return this.action(OBJECT_ROTATE_PATH, body, isObjectActionResponse);
+  }
+
+  removeObject(body: RemoveObjectRequest): Promise<ActionResult<ObjectActionResponse>> {
+    return this.action(OBJECT_REMOVE_PATH, body, isObjectActionResponse);
   }
 
   private token(): string | null {

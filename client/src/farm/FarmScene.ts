@@ -3,6 +3,11 @@
  * buttons, inventory, coins, level and XP bar, the active quest with a Claim
  * button, and the live server connection status from Phase 0.
  *
+ * Edit mode (Phase 3, "Edit farm"): the whole 8×8 farm grid with the crop
+ * plots and placed decorations; select a decoration or object, tap a tile to
+ * place or move it, Rotate, Remove, Done. Each change is sent to the server,
+ * which decides it; the grid is redrawn from the server's answer.
+ *
  * The scene only shows server state and sends intentions (plant / harvest /
  * refill with a request ID). It never decides outcomes: after any rejected
  * action it reloads the farm from the server. Actions are locked while
@@ -11,7 +16,9 @@
  * shown from the server state; the server enforces them again on every action.
  */
 import { GameObjects, Input, Scale, Scene, type Time } from "phaser";
-import type { FarmState } from "@farmverse/shared/api";
+import type { FarmState, ObjectActionResponse } from "@farmverse/shared/api";
+import { FARM_GRID_HEIGHT, FARM_GRID_WIDTH, footprint, plotTile, type DecorationId } from "@farmverse/shared/building";
+import type { ErrorCode } from "@farmverse/shared/errors";
 import { CROP_IDS, FARM_PLOT_COUNT, getCrop, getItem, type CropId } from "@farmverse/shared/farming";
 import { cropUnlockLevel } from "@farmverse/shared/progression";
 import {
@@ -46,6 +53,23 @@ import {
   xpFraction,
   type ServerClock,
 } from "./farmView.js";
+import {
+  DECORATION_ORDER,
+  NO_SELECTION,
+  editErrorText,
+  editSuccessText,
+  objectLabel,
+  reconcileSelection,
+  selectionText,
+  stockLabel,
+  stockOf,
+  tapDecoration,
+  tapRemove,
+  tapRotate,
+  tapTile,
+  type EditIntent,
+  type EditSelection,
+} from "./buildView.js";
 import type { DisplaySize } from "../core/display.js";
 import { computeFarmLayout, designToScreen, textResolution, type FarmLayout, type Rect } from "./farmLayout.js";
 
@@ -69,6 +93,11 @@ const COLORS = {
   buttonDisabled: 0x3f3f46,
   overlay: 0x052e16,
   xpTrack: 0x052e16,
+  grass: 0x3f6212,
+  editBackground: 0x14532d,
+  object: 0x92400e,
+  building: 0x7f1d1d,
+  objectSelected: 0xfde047,
 };
 const TONE_COLORS: Record<StatusTone, string> = { ok: "#bbf7d0", pending: "#fde68a", error: "#fecaca" };
 
@@ -82,6 +111,13 @@ interface PlotWidget {
   bar: GameObjects.Rectangle;
   label: GameObjects.Text;
 }
+
+interface ObjectWidget {
+  box: GameObjects.Rectangle;
+  label: GameObjects.Text;
+}
+
+type Mode = "farm" | "edit";
 
 function safeLocalStorage(): TokenStorage {
   try {
@@ -121,6 +157,23 @@ export class FarmScene extends Scene {
   private ticker: Time.TimerEvent | undefined;
   private currentLayout: FarmLayout | null = null;
 
+  // Edit mode (Phase 3)
+  private mode: Mode = "farm";
+  private selection: EditSelection = NO_SELECTION;
+  private editButton!: Button;
+  private editBackground!: GameObjects.Rectangle;
+  private tiles: GameObjects.Rectangle[] = [];
+  private objectWidgets = new Map<number, ObjectWidget>();
+  private decorationButtons = new Map<DecorationId, Button>();
+  private rotateButton!: Button;
+  private removeButton!: Button;
+  private doneButton!: Button;
+  private editMessage = "";
+  /** Farm-mode message kept while editing. */
+  private farmMessage = "";
+  /** Objects and grid geometry the object widgets were last built for. */
+  private objectWidgetsKey = "";
+
   constructor() {
     super("FarmScene");
   }
@@ -148,11 +201,14 @@ export class FarmScene extends Scene {
       this.seedButtons.set(cropId, this.addButton("", () => this.selectCrop(cropId)));
     }
     this.refillButton = this.addButton("", () => void this.onRefillTap());
+    this.editButton = this.addButton("Edit farm", () => this.setMode("edit"));
+    this.createEditWidgets();
 
     const shade = this.add.rectangle(0, 0, 10, 10, COLORS.overlay, 0.94).setInteractive();
     const text = this.addText("Your farm could not be found on this device.", { align: "center" }).setOrigin(0.5);
     const button = this.addButton("Start a new farm", () => void this.onStartNewFarm());
     this.overlay = { shade, text, button };
+    for (const object of [shade, text, button.box, button.label]) object.setDepth(2);
     this.setOverlayVisible(false);
 
     this.layout(this.scale.width, this.scale.height);
@@ -197,6 +253,7 @@ export class FarmScene extends Scene {
   private applyState(state: FarmState): void {
     this.state = state;
     this.clock = clockFromState(state, Date.now());
+    this.selection = reconcileSelection(state, this.selection);
     this.render();
   }
 
@@ -245,6 +302,7 @@ export class FarmScene extends Scene {
   private async send<T extends FarmState>(
     request: Promise<ActionResult<T>>,
     describe: (state: T) => string,
+    describeError: (code: ErrorCode) => string = errorText,
   ): Promise<void> {
     this.busy = true;
     this.render();
@@ -256,7 +314,7 @@ export class FarmScene extends Scene {
         const levelUp = before === undefined ? null : levelUpText(before, result.state.progression);
         this.showMessage(levelUp === null ? describe(result.state) : `${describe(result.state)}\n${levelUp}`);
       } else {
-        this.showMessage(errorText(result.code));
+        this.showMessage(describeError(result.code));
         await this.reload();
       }
     } catch (error) {
@@ -345,14 +403,22 @@ export class FarmScene extends Scene {
 
   // ---------- rendering ----------
 
+  /** Shows a message in the current mode's message area. */
   private showMessage(text: string): void {
-    this.message.setText(text);
+    if (this.mode === "edit") {
+      this.editMessage = text;
+      this.render();
+    } else {
+      this.message.setText(text);
+    }
   }
 
   private render(): void {
     const state = this.state;
     const now = serverNow(this.clock, Date.now());
     const locked = !this.connected || this.busy || this.newRequestId === null;
+    this.renderEdit(state, now, locked);
+    if (this.mode === "edit") return;
 
     this.stats.setText(state === null ? "" : `Coins ${state.coins} · ${levelLine(state.progression)}`);
     this.xpTrack.setVisible(state !== null);
@@ -417,6 +483,7 @@ export class FarmScene extends Scene {
     this.refillButton.box.setVisible(refill !== null);
     this.refillButton.label.setVisible(refill !== null).setText(refill ?? "");
     this.refillButton.box.setFillStyle(refill === "Get free seeds" && !locked ? COLORS.buttonSelected : COLORS.buttonDisabled);
+    this.editButton.box.setFillStyle(state === null ? COLORS.buttonDisabled : COLORS.button);
   }
 
   private setOverlayVisible(visible: boolean): void {
@@ -473,6 +540,8 @@ export class FarmScene extends Scene {
       if (button !== undefined) this.placeButton(button, layout.seedButtons[index]!, fontSize.text);
     });
     this.placeButton(this.refillButton, layout.refillButton, fontSize.text);
+    this.placeButton(this.editButton, layout.editButton, fontSize.text);
+    this.layoutEdit(layout);
 
     this.produce.setFontSize(fontSize.text).setWordWrapWidth(layout.wrapWidth).setPosition(layout.produce.x, layout.produce.y);
     this.message.setFontSize(fontSize.text).setWordWrapWidth(layout.wrapWidth).setPosition(layout.message.x, layout.message.y);
@@ -485,6 +554,215 @@ export class FarmScene extends Scene {
     this.placeButton(this.overlay.button, layout.overlayButton, fontSize.text);
 
     this.render();
+  }
+
+  // ---------- edit mode (Phase 3) ----------
+
+  private createEditWidgets(): void {
+    // Covers the farm-mode widgets (created after them, so drawn and hit-tested
+    // on top); the status line, message and overlay have a higher depth.
+    this.status.setDepth(1);
+    this.message.setDepth(1);
+    this.editBackground = this.add.rectangle(0, 0, 10, 10, COLORS.editBackground).setInteractive();
+    for (let y = 0; y < FARM_GRID_HEIGHT; y++) {
+      for (let x = 0; x < FARM_GRID_WIDTH; x++) {
+        const tile = this.add.rectangle(0, 0, 10, 10, COLORS.grass).setStrokeStyle(1, COLORS.border, 0.25);
+        tile.setInteractive({ useHandCursor: true }).on("pointerdown", () => void this.onTileTap(x, y));
+        this.tiles.push(tile);
+      }
+    }
+    for (const decorationId of DECORATION_ORDER) {
+      this.decorationButtons.set(decorationId, this.addButton("", () => this.runIntent(this.editTapDecoration(decorationId))));
+    }
+    this.rotateButton = this.addButton("Rotate", () => this.state && void this.runIntent(tapRotate(this.state, this.selection)));
+    this.removeButton = this.addButton("Remove", () => void this.runIntent(tapRemove(this.selection)));
+    this.doneButton = this.addButton("Done", () => this.setMode("farm"));
+  }
+
+  private editTapDecoration(decorationId: DecorationId): EditIntent {
+    if (this.state === null) return { kind: "message", text: "Loading your farm…" };
+    return tapDecoration(this.state, this.selection, decorationId);
+  }
+
+  private setMode(mode: Mode): void {
+    if (mode === "edit" && (this.state === null || this.sessionInvalid)) return;
+    if (mode === this.mode) return;
+    if (mode === "edit") this.farmMessage = this.message.text;
+    else this.message.setText(this.farmMessage);
+    this.mode = mode;
+    this.selection = NO_SELECTION;
+    this.editMessage = "";
+    if (this.currentLayout !== null) this.positionStatus(this.currentLayout);
+    this.render();
+  }
+
+  private onTileTap(x: number, y: number): void {
+    if (this.state === null || this.mode !== "edit") return;
+    void this.runIntent(tapTile(this.state, this.selection, { x, y }));
+  }
+
+  /** Applies a local selection change or sends a change to the server. */
+  private async runIntent(intent: EditIntent): Promise<void> {
+    if (intent.kind === "select") {
+      this.selection = intent.selection;
+      this.editMessage = "";
+      this.render();
+      return;
+    }
+    if (intent.kind === "message") {
+      this.showMessage(intent.text);
+      return;
+    }
+    const requestId = this.actionRequestId();
+    if (requestId === null) return;
+    const describe = (state: ObjectActionResponse) => editSuccessText(intent.kind, state.object);
+    const describeError = (code: ErrorCode) => editErrorText(code) ?? errorText(code);
+    switch (intent.kind) {
+      case "place": {
+        const { decorationId, x, y, rotation } = intent;
+        await this.send(this.api.placeObject({ requestId, decorationId, x, y, rotation }), describe, describeError);
+        break;
+      }
+      case "move":
+        await this.send(
+          this.api.moveObject({ requestId, objectId: intent.objectId, x: intent.x, y: intent.y }),
+          describe,
+          describeError,
+        );
+        break;
+      case "rotate":
+        await this.send(
+          this.api.rotateObject({ requestId, objectId: intent.objectId, rotation: intent.rotation }),
+          describe,
+          describeError,
+        );
+        break;
+      case "remove":
+        await this.send(this.api.removeObject({ requestId, objectId: intent.objectId }), describe, describeError);
+        break;
+    }
+  }
+
+  /** Shows the widgets of the current mode and draws the grid from the server state. */
+  private renderEdit(state: FarmState | null, now: number, locked: boolean): void {
+    const editing = this.mode === "edit";
+    for (const object of this.editWidgetSet()) (object as GameObjects.Rectangle).setVisible(editing);
+    if (!editing) return;
+    if (state === null) return;
+
+    // Crop plots, coloured by state (only the server changes them).
+    this.tiles.forEach((tile) => tile.setFillStyle(COLORS.grass));
+    state.plots.forEach((plot, index) => {
+      const position = plotTile(index);
+      const tile = position && this.tiles[position.y * FARM_GRID_WIDTH + position.x];
+      if (tile === undefined) return;
+      const view = plotView(plot, now);
+      const color = isPlotLocked(state, index)
+        ? COLORS.locked
+        : view.kind === "empty"
+          ? COLORS.soil
+          : view.kind === "growing"
+            ? COLORS.growing
+            : COLORS.ready;
+      tile.setFillStyle(color);
+    });
+
+    this.syncObjects(state);
+    const selected = this.selection.kind === "object" ? this.selection.objectId : null;
+    for (const [objectId, widget] of this.objectWidgets) {
+      widget.box.setStrokeStyle(objectId === selected ? 4 : 2, objectId === selected ? COLORS.objectSelected : COLORS.border, 0.9);
+    }
+
+    for (const [decorationId, button] of this.decorationButtons) {
+      button.label.setText(stockLabel(state, decorationId));
+      const chosen = this.selection.kind === "decoration" && this.selection.decorationId === decorationId;
+      button.box.setFillStyle(chosen ? COLORS.buttonSelected : stockOf(state, decorationId) === 0 ? COLORS.buttonDisabled : COLORS.button);
+    }
+    const canChange = !locked && this.selection.kind === "object";
+    this.rotateButton.box.setFillStyle(this.selection.kind === "none" || (locked && this.selection.kind === "object") ? COLORS.buttonDisabled : COLORS.button);
+    this.removeButton.box.setFillStyle(canChange ? COLORS.button : COLORS.buttonDisabled);
+    this.message.setVisible(true).setText(this.editMessage === "" ? selectionText(state, this.selection) : `${this.editMessage}\n${selectionText(state, this.selection)}`);
+  }
+
+  private editWidgetSet(): Set<GameObjects.GameObject> {
+    const set = new Set<GameObjects.GameObject>([this.editBackground, ...this.tiles]);
+    for (const widget of this.objectWidgets.values()) set.add(widget.box).add(widget.label);
+    for (const button of [...this.decorationButtons.values(), this.rotateButton, this.removeButton, this.doneButton]) {
+      set.add(button.box).add(button.label);
+    }
+    return set;
+  }
+
+  /** Recreates the object widgets when the server's object list changed. */
+  private syncObjects(state: FarmState): void {
+    const layout = this.currentLayout?.edit;
+    if (layout === undefined) return;
+    const key = JSON.stringify([state.objects, layout.grid, layout.tileSize, layout.fontSize.object]);
+    if (key === this.objectWidgetsKey) return;
+    this.objectWidgetsKey = key;
+    for (const widget of this.objectWidgets.values()) {
+      widget.box.destroy();
+      widget.label.destroy();
+    }
+    this.objectWidgets.clear();
+    const resolution = this.currentLayout === null ? 1 : textResolution(this.currentLayout, this.renderScale());
+    for (const object of state.objects) {
+      const area = footprint(object);
+      const rect = {
+        x: layout.grid.x + area.x * layout.tileSize + 2,
+        y: layout.grid.y + area.y * layout.tileSize + 2,
+        width: area.width * layout.tileSize - 4,
+        height: area.height * layout.tileSize - 4,
+      };
+      const color = object.decorationId === "small_house" ? COLORS.building : COLORS.object;
+      const box = this.add.rectangle(0, 0, 10, 10, color);
+      this.placeRect(box, rect);
+      const label = this.addText(objectLabel(object), { align: "center" })
+        .setOrigin(0.5)
+        .setWordWrapWidth(rect.width - 2)
+        .setFontSize(layout.fontSize.object)
+        .setResolution(resolution)
+        .setPosition(rect.x + rect.width / 2, rect.y + rect.height / 2);
+      this.objectWidgets.set(object.objectId, { box, label });
+    }
+  }
+
+  private renderScale(): number {
+    return (this.registry.get(DISPLAY_KEY) as DisplaySize | undefined)?.renderScale ?? 1;
+  }
+
+  private layoutEdit(layout: FarmLayout): void {
+    const { edit } = layout;
+    this.placeRect(this.editBackground, layout.view);
+    this.tiles.forEach((tile, index) => {
+      const x = index % FARM_GRID_WIDTH;
+      const y = Math.floor(index / FARM_GRID_WIDTH);
+      this.placeRect(tile, {
+        x: edit.grid.x + x * edit.tileSize,
+        y: edit.grid.y + y * edit.tileSize,
+        width: edit.tileSize,
+        height: edit.tileSize,
+      });
+    });
+    DECORATION_ORDER.forEach((decorationId, index) => {
+      const button = this.decorationButtons.get(decorationId);
+      if (button !== undefined) this.placeButton(button, edit.decorationButtons[index]!, edit.fontSize.button);
+    });
+    this.placeButton(this.rotateButton, edit.rotateButton, layout.fontSize.text);
+    this.placeButton(this.removeButton, edit.removeButton, layout.fontSize.text);
+    this.placeButton(this.doneButton, edit.doneButton, layout.fontSize.text);
+    this.positionStatus(layout);
+  }
+
+  /** The status line and the message move into the edit panel in edit mode. */
+  private positionStatus(layout: FarmLayout): void {
+    if (this.mode === "edit") {
+      this.status.setPosition(layout.edit.status.x, layout.edit.status.y);
+      this.message.setWordWrapWidth(layout.edit.wrapWidth).setPosition(layout.edit.message.x, layout.edit.message.y);
+    } else {
+      this.status.setPosition(layout.status.x, layout.status.y);
+      this.message.setWordWrapWidth(layout.wrapWidth).setPosition(layout.message.x, layout.message.y);
+    }
   }
 
   // ---------- helpers ----------
@@ -550,6 +828,17 @@ export class FarmScene extends Scene {
       overlayVisible: () => this.overlay.shade.visible,
       newFarmButton: () => center(this.overlay.button.box),
       layout: () => this.currentLayout,
+      // Edit mode (Phase 3)
+      mode: () => this.mode,
+      busy: () => this.busy,
+      selection: () => this.selection,
+      editMessage: () => this.editMessage,
+      editButton: () => center(this.editButton.box),
+      tile: (x: number, y: number) => center(this.tiles[y * FARM_GRID_WIDTH + x]!),
+      decorationButton: (id: DecorationId) => center(this.decorationButtons.get(id)!.box),
+      rotateButton: () => center(this.rotateButton.box),
+      removeButton: () => center(this.removeButton.box),
+      doneButton: () => center(this.doneButton.box),
     };
   }
 

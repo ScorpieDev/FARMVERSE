@@ -1,14 +1,14 @@
 # FARMVERSE CURRENT STATUS
 
 ## Version
-1.8
+1.9
 
 ## Last Updated
 2026-10-11
 
 ## Project Status
 
-Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: ALL STEPS DONE (2.1–2.6), closeout awaiting Game Director approval; Android check deferred. Phase 3 — Building: Steps 3.1–3.2 done (shared grid rules; server place / move / rotate / remove API, database schema v3); P3-4 / P3-5 (how decorations are obtained, prices, levels) still to be decided.
+Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: ALL STEPS DONE (2.1–2.6), closeout awaiting Game Director approval; Android check deferred. Phase 3 — Building: Steps 3.1–3.3 done (shared grid rules; server place / move / rotate / remove API, database schema v3; client Edit farm mode); P3-4 / P3-5 (how decorations are obtained, prices, levels) still to be decided.
 
 ---
 
@@ -148,7 +148,11 @@ Started 2026-10-11 on the Game Director's directive, using draft options G-A (8�
 
 | 3.2 Server building (covers plan steps 3.2–3.4, Game Director decision 2026-10-11): pure rules `server/src/building/rules.ts`; schema v3 (`building_state`, `decoration_stock`, `farm_objects`, additive); `decorations` and `objects` in `FarmState`; `POST /api/farm/objects/place`, `/move`, `/rotate`, `/remove` with request IDs; error code `OBJECT_NOT_FOUND` | Done | `docs/reports/phase3/PHASE3_STEP3_2_REPORT.md` |
 
-Not yet included (waiting for P3-4 / P3-5): any way for players to obtain decorations (stock is 0 for everyone), coin prices, unlock levels, shop. Client building UI is Step 3.5.
+| 3.3 Client (plan step 3.5): **Edit farm** button; full-screen 8×8 grid editor with crop plots, placed decorations, decoration buttons, Rotate / Remove / Done; every change sent to the server, grid redrawn from its answer; tiles ≥ 44 CSS px from 360×640 / 640×360 | Done | `docs/reports/phase3/PHASE3_STEP3_3_REPORT.md` |
+
+Not yet included (waiting for P3-4 / P3-5): any way for players to obtain decorations (stock is 0 for everyone, so Edit mode shows "You have no decorations yet."), coin prices, unlock levels, shop. Decorations are shown in Edit mode only, not on the normal farm screen (open design question, Step 3.3 report §1).
+
+Tests after Step 3.3: shared 369, server 508, client 180 — 1057 passing; `npm run typecheck` clean; client build OK; headless Chromium edit-mode E2E 30/30 (isolated server and database).
 
 Tests after Step 3.2: shared 369, server 508, client 121 — 998 passing; `npm run typecheck` clean; client build OK.
 
@@ -186,6 +190,7 @@ Phase 0 — Foundation: COMPLETED.
 
 - `vite preview` and HMR through the Codespaces URL — not verified. (The dev game itself was verified through the Codespaces URL on 2026-10-11 with token access; see `PHASE2_STEP2_6_REPORT.md` §6.)
 - Android device testing — deferred by the Game Director.
+- The dev database `server/data/farmverse.db` is at schema v3 (the running dev server reloaded the Step 3.2 code and applied the additive migration).
 - A farming request logged before the schema v3 server upgrade and retried after it replays the old response without `decorations` / `objects`; the client reports an invalid response and the next farm load is correct (`PHASE3_STEP3_2_REPORT.md` §2).
 - Uncommitted Codespaces WebSocket-origin changes (10 files, `server/src/config.ts` etc.; see `docs/reports/phase1/PHASE1_CODESPACES_WS_ORIGIN_FIX_REPORT.md`) are still in the working tree, reviewed but not committed; awaiting a Game Director decision.
 - Real Chrome page zoom was emulated (CSS viewport + devicePixelRatio) in headless Chromium, not tested with the zoom menu in a real browser window.
@@ -196,7 +201,7 @@ Phase 0 — Foundation: COMPLETED.
 
 # NEXT OBJECTIVE
 
-Game Director: decide P3-4 (how decorations are obtained — coin shop or rewards) and P3-5 (prices, levels) in `docs/reports/phase3/PHASE3_BUILDING_PLAN_REPORT.md`; approve the Phase 2 closeout. Next: Step 3.5 — client grid, objects and Edit mode. Android check of Phase 2 when convenient.
+Game Director: decide P3-4 (how decorations are obtained — coin shop or rewards) and P3-5 (prices, levels) in `docs/reports/phase3/PHASE3_BUILDING_PLAN_REPORT.md`; approve the Phase 2 closeout. Also decide whether decorations should appear on the normal farm screen. Then: Phase 3 end-to-end check (device / Codespaces URL) and closeout. Android check of Phase 2 when convenient.
 
 ---
 

@@ -263,3 +263,34 @@ describe("actions", () => {
     await expect(api(fetch).client.plant(plantBody)).rejects.toThrow(/Unexpected response 409/);
   });
 });
+
+describe("object actions (Phase 3)", () => {
+  const tree = { objectId: 1, decorationId: "tree" as const, x: 0, y: 0, rotation: 0 as const };
+  const response = { ...FARM, objects: [tree], object: tree };
+
+  it.each([
+    ["placeObject", "/api/farm/objects/place", { requestId: REQUEST_ID, decorationId: "tree", x: 0, y: 0, rotation: 0 }],
+    ["moveObject", "/api/farm/objects/move", { requestId: REQUEST_ID, objectId: 1, x: 0, y: 0 }],
+    ["rotateObject", "/api/farm/objects/rotate", { requestId: REQUEST_ID, objectId: 1, rotation: 0 }],
+    ["removeObject", "/api/farm/objects/remove", { requestId: REQUEST_ID, objectId: 1 }],
+  ] as const)("%s posts the intent and returns the server's state", async (method, url, body) => {
+    const { fetch, calls } = fakeFetch(json(200, response));
+    const client = api(fetch).client as unknown as Record<string, (body: unknown) => Promise<unknown>>;
+
+    expect(await client[method]!(body)).toEqual({ ok: true, state: response });
+    expect(calls[0]).toMatchObject({ url, method: "POST", body });
+  });
+
+  it("returns placement errors from the server", async () => {
+    const { fetch } = fakeFetch(json(409, { code: "PLACEMENT_INVALID", message: "x" }));
+    const body = { requestId: REQUEST_ID, decorationId: "tree" as const, x: 7, y: 7, rotation: 0 as const };
+    expect(await api(fetch).client.placeObject(body)).toEqual({ ok: false, code: "PLACEMENT_INVALID", message: "x" });
+  });
+
+  it("rejects a success response without the object", async () => {
+    const { fetch } = fakeFetch(json(200, FARM));
+    await expect(api(fetch).client.removeObject({ requestId: REQUEST_ID, objectId: 1 })).rejects.toThrow(
+      "Invalid action response",
+    );
+  });
+});

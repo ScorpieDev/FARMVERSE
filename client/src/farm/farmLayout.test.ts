@@ -230,3 +230,74 @@ describe("textResolution", () => {
     expect(textResolution(computeFarmLayout(3879, 2182), 0.33)).toBe(1);
   });
 });
+
+function overlaps(a: Rect, b: Rect): boolean {
+  const eps = 1e-6;
+  return a.x < b.x + b.width - eps && b.x < a.x + a.width - eps && a.y < b.y + b.height - eps && b.y < a.y + a.height - eps;
+}
+
+/** Phone and desktop viewports at or above the minimum frame (CSS px). */
+const VIEWPORTS: ReadonlyArray<readonly [number, number]> = [
+  [360, 640],
+  [640, 360],
+  [390, 844],
+  [844, 390],
+  [412, 915],
+  [915, 412],
+  [768, 1024],
+  [1280, 720],
+  [1920, 1080],
+  [2560, 1440],
+];
+
+describe("Edit farm button (Phase 3)", () => {
+  it.each(VIEWPORTS)("sits in the free seed-row slot at %i×%i without covering other controls", (width, height) => {
+    const layout = computeFarmLayout(width, height);
+    expect(inside(layout.editButton, layout.view)).toBe(true);
+    for (const rect of [...layout.plots, ...layout.seedButtons, layout.refillButton, layout.claimButton]) {
+      expect(overlaps(layout.editButton, rect)).toBe(false);
+    }
+    expect(layout.editButton.y).toBe(layout.seedButtons[3]!.y);
+    expect(layout.editButton.width * layout.zoom).toBeGreaterThanOrEqual(44);
+  });
+});
+
+describe("edit mode layout (Phase 3)", () => {
+  it.each(VIEWPORTS)("shows an 8×8 grid with tiles of at least 44 CSS px at %i×%i", (width, height) => {
+    const { edit, zoom } = computeFarmLayout(width, height);
+    expect(edit.grid.width).toBeCloseTo(edit.grid.height, 6);
+    expect(edit.tileSize * 8).toBeCloseTo(edit.grid.width, 6);
+    expect(edit.tileSize * zoom).toBeGreaterThanOrEqual(44 - 1e-6);
+  });
+
+  it.each(VIEWPORTS)("keeps the grid and every control visible and apart at %i×%i", (width, height) => {
+    const layout = computeFarmLayout(width, height);
+    const { edit } = layout;
+    const controls = [...edit.decorationButtons, edit.rotateButton, edit.removeButton, edit.doneButton];
+    expect(edit.decorationButtons).toHaveLength(7);
+    for (const rect of [edit.grid, ...controls]) expect(inside(rect, layout.view)).toBe(true);
+    controls.forEach((rect, index) => {
+      expect(overlaps(rect, edit.grid)).toBe(false);
+      for (const other of controls.slice(index + 1)) expect(overlaps(rect, other)).toBe(false);
+      expect(rect.height * layout.zoom).toBeGreaterThanOrEqual(44);
+    });
+    // Status above the buttons, message below them, both outside the grid.
+    expect(edit.message.y).toBeGreaterThanOrEqual(edit.doneButton.y + edit.doneButton.height);
+    expect(edit.message.y).toBeLessThan(layout.view.y + layout.view.height);
+    expect(edit.fontSize.button).toBeGreaterThanOrEqual(11);
+  });
+
+  it("puts the controls below the grid in portrait and beside it in landscape", () => {
+    const portrait = computeFarmLayout(390, 844).edit;
+    expect(portrait.decorationButtons[0]!.y).toBeGreaterThan(portrait.grid.y + portrait.grid.height);
+    const landscape = computeFarmLayout(844, 390).edit;
+    expect(landscape.decorationButtons[0]!.x).toBeGreaterThan(landscape.grid.x + landscape.grid.width);
+  });
+
+  it("still fits on a 320×568 phone (tiles shrink with the whole farm)", () => {
+    const layout = computeFarmLayout(320, 568);
+    expect(inside(layout.edit.grid, layout.view)).toBe(true);
+    expect(inside(layout.edit.doneButton, layout.view)).toBe(true);
+    expect(layout.edit.tileSize * layout.zoom).toBeGreaterThanOrEqual(38);
+  });
+});
