@@ -1,5 +1,11 @@
 # FARMVERSE CHANGELOG
 
+## Phase 3 — Building (in progress)
+
+### Added
+
+- Shared building data (Step 3.1, provisional, draft options G-A / C-A): 8×8 farm grid with the 3×3 plot block fixed at (2, 2); 7 decorations (fence, path, flower bed, bush, bench 1×1; tree, small house 2×2); rotation 0/90/180/270; shape checks, `checkPlacement` (inside grid, off the plots, no overlap except the moved object itself) and `checkLayout`; error code `PLACEMENT_INVALID`
+
 ## Phase 2 — Progression (in progress)
 
 Design approved by the Game Director on 2026-10-10 (P2-1…P2-7, `docs/reports/phase2/PHASE2_PROGRESSION_PLAN_REPORT.md`).

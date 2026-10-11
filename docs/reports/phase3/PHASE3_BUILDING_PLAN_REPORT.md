@@ -6,7 +6,7 @@
 
 ## Trạng thái
 
-CHỜ GAME DIRECTOR DUYỆT. **Chưa viết code Phase 3.** Phase 2 đang chờ duyệt đóng (`docs/reports/phase2/PHASE2_CLOSEOUT_REPORT.md`).
+CHỜ GAME DIRECTOR DUYỆT P3-4, P3-5. Step 3.1 đã làm theo G-A / C-A (`PHASE3_STEP3_1_REPORT.md`). Phase 2 đang chờ duyệt đóng (`docs/reports/phase2/PHASE2_CLOSEOUT_REPORT.md`).
 
 Roadmap Phase 3: Farm grid, Buildings, Decorations, Placement, Remove / move objects, Save farm layout.
 Tài liệu hiện có (`GAME_DESIGN.md` §4, §7) chỉ liệt kê loại công trình (nhà, ruộng, hàng rào, đường đi, cây, đồ trang trí, furniture) và nói coin dùng để mua vật phẩm / trang trí. **Chưa có** kích thước lưới, danh mục vật phẩm, giá, cách nhận vật phẩm — đó là các quyết định ở mục 3.

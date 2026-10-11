@@ -3,7 +3,7 @@
  *
  * Phase 0 defines what the foundation needs (connection, health check,
  * message validation); Phase 1 adds the farming API errors and Phase 2 the
- * progression errors. Errors of later
+ * progression errors; Phase 3 adds building placement errors. Errors of later
  * features (e.g. INSUFFICIENT_CURRENCY, TECHNICAL_ARCHITECTURE.md §18) are
  * added in the phase that implements them.
  */
@@ -46,6 +46,14 @@ export const ErrorCode = {
   LEVEL_TOO_LOW: "LEVEL_TOO_LOW",
   /** Claiming a quest reward before the active quest is complete. */
   QUEST_NOT_COMPLETE: "QUEST_NOT_COMPLETE",
+
+  // ---------- Phase 3: building ----------
+
+  /**
+   * An object cannot be placed or moved there: outside the farm grid, on the
+   * crop plots, or overlapping another object (building.ts checkPlacement).
+   */
+  PLACEMENT_INVALID: "PLACEMENT_INVALID",
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

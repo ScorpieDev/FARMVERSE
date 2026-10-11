@@ -1,14 +1,14 @@
 # FARMVERSE CURRENT STATUS
 
 ## Version
-1.6
+1.7
 
 ## Last Updated
 2026-10-11
 
 ## Project Status
 
-Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: ALL STEPS DONE (2.1–2.6), closeout awaiting Game Director approval; Android check deferred. Phase 3 — Building: design draft awaiting review.
+Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: ALL STEPS DONE (2.1–2.6), closeout awaiting Game Director approval; Android check deferred. Phase 3 — Building: Step 3.1 done and approved (shared grid and placement rules); P3-4 / P3-5 (shop, prices, levels) still to be decided.
 
 ---
 
@@ -138,6 +138,20 @@ Tests at Phase 0 closeout: shared 218, server 245, client 44 — 507 passing; `n
 
 ---
 
+## Phase 3 — Building (in progress)
+
+Started 2026-10-11 on the Game Director's directive, using draft options G-A (8×8 grid, fixed plot block) and C-A (7 decorations, no function) from `docs/reports/phase3/PHASE3_BUILDING_PLAN_REPORT.md`; values provisional.
+
+| Step | Status | Report |
+|---|---|---|
+| 3.1 Shared grid and placement rules (`shared/src/building.ts`: 8×8 grid, plot block at (2, 2), 7 decorations 1×1 / 2×2, rotation 0/90/180/270, `checkPlacement`, `checkLayout`; error code `PLACEMENT_INVALID`) | Done (approved 2026-10-11) | `docs/reports/phase3/PHASE3_STEP3_1_REPORT.md` |
+
+Not yet included (waiting for P3-4 / P3-5): coin prices, unlock levels, shop, decoration inventory.
+
+Tests after Step 3.1: shared 343, server 414, client 121 — 878 passing; `npm run typecheck` clean.
+
+---
+
 # NOT STARTED
 
 ## Development
@@ -177,7 +191,7 @@ Phase 0 — Foundation: COMPLETED.
 
 # NEXT OBJECTIVE
 
-Game Director: approve the Phase 2 closeout (`docs/reports/phase2/PHASE2_CLOSEOUT_REPORT.md`) and decide P3-1…P3-7 in the Phase 3 design draft (`docs/reports/phase3/PHASE3_BUILDING_PLAN_REPORT.md`). Android check of Phase 2 when convenient (`PHASE2_STEP2_6_REPORT.md` §4). No Phase 3 code until the design is approved.
+Game Director: decide P3-4 (coin shop) and P3-5 (prices, levels) in `docs/reports/phase3/PHASE3_BUILDING_PLAN_REPORT.md`; approve the Phase 2 closeout. Then Step 3.2 — pure server rules for place / move / rotate / remove using `checkPlacement`. Android check of Phase 2 when convenient.
 
 ---
 

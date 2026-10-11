@@ -8,7 +8,7 @@ describe("isErrorCode", () => {
     }
   });
 
-  it("defines the Phase 0, Phase 1 and Phase 2 codes", () => {
+  it("defines the Phase 0–3 codes", () => {
     expect(Object.values(ErrorCode).sort()).toEqual(
       [
         "INVALID_MESSAGE",
@@ -25,6 +25,7 @@ describe("isErrorCode", () => {
         "REQUEST_ID_REUSED",
         "LEVEL_TOO_LOW",
         "QUEST_NOT_COMPLETE",
+        "PLACEMENT_INVALID",
       ].sort(),
     );
   });
