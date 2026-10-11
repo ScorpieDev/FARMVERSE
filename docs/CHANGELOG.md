@@ -4,7 +4,8 @@
 
 ### Added
 
-- Shared building data (Step 3.1, provisional, draft options G-A / C-A): 8×8 farm grid with the 3×3 plot block fixed at (2, 2); 7 decorations (fence, path, flower bed, bush, bench 1×1; tree, small house 2×2); rotation 0/90/180/270; shape checks, `checkPlacement` (inside grid, off the plots, no overlap except the moved object itself) and `checkLayout`; error code `PLACEMENT_INVALID`
+- Shared building data (Step 3.1, provisional, draft options G-A / C-A): 8×8 farm grid with the 3×3 plot block fixed at (2, 2); 7 decorations (fence, path, flower bed, bush, bench 1×1; tree, small house 2×2); rotation 0/90/180/270; shape checks, `checkPlacement` (inside grid, off the plots, no overlap except the moved object itself) and `checkLayout`; error code `PLACEMENT_INVALID` — `fbc1c46`
+- Server building (Step 3.2): pure rules for place / move / rotate / remove (server-assigned object IDs, decoration stock, ownership); database schema v3 (`building_state`, `decoration_stock`, `farm_objects`; additive, Phase 2 rows unchanged); `decorations` and `objects` in `FarmState`; `POST /api/farm/objects/place`, `/move`, `/rotate`, `/remove` with request IDs and transactions; error code `OBJECT_NOT_FOUND`. Decoration stock is 0 for every player until P3-4 is decided
 
 ## Phase 2 — Progression (in progress)
 

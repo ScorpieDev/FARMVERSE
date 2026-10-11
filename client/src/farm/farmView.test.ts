@@ -44,6 +44,8 @@ const STATE: FarmState = {
     complete: false,
     reward: { coins: 10, xp: 5 },
   },
+  decorations: [],
+  objects: [],
 };
 
 describe("server clock", () => {

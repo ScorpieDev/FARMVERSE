@@ -54,6 +54,8 @@ export const ErrorCode = {
    * crop plots, or overlapping another object (building.ts checkPlacement).
    */
   PLACEMENT_INVALID: "PLACEMENT_INVALID",
+  /** No placed object with that ID on the player's own farm. */
+  OBJECT_NOT_FOUND: "OBJECT_NOT_FOUND",
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

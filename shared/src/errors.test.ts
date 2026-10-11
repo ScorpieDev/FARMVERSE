@@ -26,6 +26,7 @@ describe("isErrorCode", () => {
         "LEVEL_TOO_LOW",
         "QUEST_NOT_COMPLETE",
         "PLACEMENT_INVALID",
+        "OBJECT_NOT_FOUND",
       ].sort(),
     );
   });

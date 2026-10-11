@@ -5,7 +5,16 @@ import { DatabaseSync } from "node:sqlite";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createStarterFarm, harvest, plant } from "../farming/rules.js";
 import { SCHEMA_MIGRATIONS, SCHEMA_VERSION, getSchemaVersion, openDatabase, transaction, type Database } from "./database.js";
-import { insertPlayer, loadFarm, loadQuestState, saveFarm, saveQuestState } from "./farmStore.js";
+import { createEmptyBuilding, grantDecoration, placeDecoration } from "../building/rules.js";
+import {
+  insertPlayer,
+  loadBuilding,
+  loadFarm,
+  loadQuestState,
+  saveBuilding,
+  saveFarm,
+  saveQuestState,
+} from "./farmStore.js";
 
 const T = 1_700_000_000_000;
 const V1_ITEMS = ["wheat_seed", "carrot_seed", "tomato_seed", "wheat_produce", "carrot_produce", "tomato_produce"];
@@ -95,15 +104,15 @@ function count(db: Database, sql: string): number {
 }
 
 describe("schema v1 → v2 migration", () => {
-  it("is the latest version", () => {
-    expect(SCHEMA_VERSION).toBe(2);
+  it("is followed by v3 (Phase 3 building) as the latest version", () => {
+    expect(SCHEMA_VERSION).toBe(3);
   });
 
   it("upgrades a v1 database and keeps every player's Phase 1 data", () => {
     createV1Database([NEWBIE, LEVEL3, LEVEL5]);
     const db = openDatabase(path);
     try {
-      expect(getSchemaVersion(db)).toBe(2);
+      expect(getSchemaVersion(db)).toBe(SCHEMA_VERSION);
 
       const farm = loadFarm(db, NEWBIE.id)!;
       expect(farm.plots).toHaveLength(9);
@@ -151,7 +160,7 @@ describe("schema v1 → v2 migration", () => {
     createV1Database([]);
     const db = openDatabase(path);
     try {
-      expect(getSchemaVersion(db)).toBe(2);
+      expect(getSchemaVersion(db)).toBe(SCHEMA_VERSION);
       expect(count(db, "SELECT COUNT(*) AS n FROM quest_state")).toBe(0);
     } finally {
       db.close();
@@ -195,7 +204,7 @@ describe("migration safety", () => {
 
     const again = openDatabase(path);
     try {
-      expect(getSchemaVersion(again)).toBe(2);
+      expect(getSchemaVersion(again)).toBe(SCHEMA_VERSION);
       const after = snapshot(again);
       expect(after["plots"]).toEqual(before["plots"]);
       expect(after["inventory"]).toEqual(before["inventory"]);
@@ -295,5 +304,162 @@ describe("backward compatibility after the upgrade", () => {
     } finally {
       db.close();
     }
+  });
+});
+
+/** Writes a schema v2 database as the Phase 2 server leaves it (v1 players, then the v2 upgrade). */
+function createV2Database(players: V1Player[], setup: (db: DatabaseSync) => void = () => {}): void {
+  createV1Database(players);
+  const db = new DatabaseSync(path);
+  db.exec(SCHEMA_MIGRATIONS[1]!);
+  db.exec("UPDATE schema_version SET version = 2");
+  setup(db);
+  db.close();
+}
+
+describe("schema v2 → v3 migration (Phase 3 building)", () => {
+  it("keeps every Phase 2 row unchanged and gives each player an empty building state", () => {
+    createV2Database([NEWBIE, LEVEL3, LEVEL5], (db) => {
+      db.exec(`UPDATE quest_state SET quest_index = 3, progress = 1 WHERE player_id = '${LEVEL3.id}'`);
+    });
+    const raw = new DatabaseSync(path);
+    const before = snapshot(raw);
+    raw.close();
+
+    const db = openDatabase(path);
+    try {
+      expect(getSchemaVersion(db)).toBe(3);
+      const after = snapshot(db);
+      for (const table of ["players", "plots", "inventory", "quest_state", "action_log"]) {
+        expect(after[table]).toEqual(before[table]);
+      }
+      for (const player of [NEWBIE, LEVEL3, LEVEL5]) {
+        expect(loadBuilding(db, player.id)).toEqual(createEmptyBuilding());
+      }
+      expect(loadQuestState(db, LEVEL3.id)).toEqual({ index: 3, progress: 1 });
+      expect(count(db, "SELECT COUNT(*) AS n FROM decoration_stock")).toBe(3 * 7);
+      expect(count(db, "SELECT COUNT(*) AS n FROM farm_objects")).toBe(0);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("upgrades an empty v2 database", () => {
+    createV2Database([]);
+    const db = openDatabase(path);
+    try {
+      expect(getSchemaVersion(db)).toBe(3);
+      expect(count(db, "SELECT COUNT(*) AS n FROM building_state")).toBe(0);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("never duplicates rows nor overwrites placed objects if v3 runs again", () => {
+    createV2Database([NEWBIE]);
+    const db = openDatabase(path);
+    const placed = placeDecoration(grantDecoration(createEmptyBuilding(), "tree", 2), {
+      decorationId: "tree",
+      x: 0,
+      y: 0,
+      rotation: 90,
+    });
+    if (!placed.ok) throw new Error(placed.error);
+    transaction(db, () => saveBuilding(db, NEWBIE.id, placed.building));
+    db.exec("UPDATE schema_version SET version = 2");
+    db.close();
+
+    const again = openDatabase(path);
+    try {
+      expect(getSchemaVersion(again)).toBe(3);
+      expect(loadBuilding(again, NEWBIE.id)).toEqual(placed.building);
+      expect(count(again, "SELECT COUNT(*) AS n FROM decoration_stock")).toBe(7);
+      expect(count(again, "SELECT COUNT(*) AS n FROM building_state")).toBe(1);
+    } finally {
+      again.close();
+    }
+  });
+
+  it("rolls back completely when the upgrade fails, leaving v2 data untouched", () => {
+    createV2Database([NEWBIE], (db) => db.exec("CREATE VIEW decoration_stock AS SELECT 1 AS x"));
+    expect(() => openDatabase(path)).toThrow();
+
+    const raw = new DatabaseSync(path);
+    try {
+      expect(raw.prepare("SELECT version FROM schema_version").get()?.["version"]).toBe(2);
+      expect(raw.prepare("SELECT name FROM sqlite_master WHERE name = 'building_state'").get()).toBeUndefined();
+      expect(count(raw, "SELECT COUNT(*) AS n FROM quest_state")).toBe(1);
+    } finally {
+      raw.close();
+    }
+  });
+
+  it("lets a Phase 2 player keep playing after the upgrade", () => {
+    createV2Database([LEVEL3]);
+    const db = openDatabase(path);
+    try {
+      const result = plant(loadFarm(db, LEVEL3.id)!, 6, "corn", T);
+      if (!result.ok) throw new Error(result.error);
+      transaction(db, () => saveFarm(db, LEVEL3.id, result.farm));
+      expect(loadFarm(db, LEVEL3.id)?.inventory.corn_seed).toBe(4);
+    } finally {
+      db.close();
+    }
+  });
+});
+
+describe("building storage", () => {
+  const ID = "00000000-0000-4000-8000-0000000000bb";
+
+  function withPlayer(work: (db: Database) => void): void {
+    const db = openDatabase(path);
+    try {
+      transaction(db, () => insertPlayer(db, { id: ID, tokenHash: "e".repeat(64), createdAt: T }, createStarterFarm()));
+      work(db);
+    } finally {
+      db.close();
+    }
+  }
+
+  it("creates new players with an empty building state and round-trips a layout", () => {
+    withPlayer((db) => {
+      expect(loadBuilding(db, ID)).toEqual(createEmptyBuilding());
+      let building = grantDecoration(grantDecoration(createEmptyBuilding(), "fence", 3), "small_house", 1);
+      for (const placement of [
+        { decorationId: "small_house", x: 6, y: 6, rotation: 180 },
+        { decorationId: "fence", x: 0, y: 0, rotation: 0 },
+      ] as const) {
+        const result = placeDecoration(building, placement);
+        if (!result.ok) throw new Error(result.error);
+        building = result.building;
+      }
+      transaction(db, () => saveBuilding(db, ID, building));
+      expect(loadBuilding(db, ID)).toEqual(building);
+      expect(loadBuilding(db, "no-such-player")).toBeNull();
+    });
+  });
+
+  it("rejects corrupted building rows when loading", () => {
+    withPlayer((db) => {
+      db.exec(`INSERT INTO farm_objects VALUES ('${ID}', 1, 'tree', 0, 0, 0), ('${ID}', 2, 'fence', 1, 1, 0)`);
+      db.exec(`UPDATE building_state SET next_object_id = 3`);
+      expect(() => loadBuilding(db, ID)).toThrow(RangeError);
+      db.exec("DELETE FROM farm_objects WHERE object_id = 2");
+      expect(loadBuilding(db, ID)?.objects).toHaveLength(1);
+      db.exec(`INSERT INTO farm_objects VALUES ('${ID}', 5, 'castle', 6, 6, 0)`);
+      expect(() => loadBuilding(db, ID)).toThrow(RangeError);
+      db.exec("DELETE FROM farm_objects WHERE object_id = 5");
+      db.exec("DELETE FROM decoration_stock WHERE decoration_id = 'bench'");
+      expect(() => loadBuilding(db, ID)).toThrow(RangeError);
+      db.exec("DELETE FROM building_state");
+      expect(() => loadBuilding(db, ID)).toThrow(RangeError);
+    });
+  });
+
+  it("enforces stock and rotation constraints in the schema", () => {
+    withPlayer((db) => {
+      expect(() => db.exec("UPDATE decoration_stock SET quantity = -1")).toThrow();
+      expect(() => db.exec(`INSERT INTO farm_objects VALUES ('${ID}', 1, 'tree', 0, 0, 45)`)).toThrow();
+    });
   });
 });

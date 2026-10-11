@@ -31,6 +31,8 @@ const FARM: FarmState = {
     complete: false,
     reward: { coins: 10, xp: 5 },
   },
+  decorations: [],
+  objects: [],
 };
 
 function json(status: number, body: unknown): Response {

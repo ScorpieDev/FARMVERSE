@@ -46,7 +46,17 @@ describe("openDatabase", () => {
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
       .all()
       .map((row) => row["name"]);
-    expect(tables).toEqual(["action_log", "inventory", "players", "plots", "quest_state", "schema_version"]);
+    expect(tables).toEqual([
+      "action_log",
+      "building_state",
+      "decoration_stock",
+      "farm_objects",
+      "inventory",
+      "players",
+      "plots",
+      "quest_state",
+      "schema_version",
+    ]);
   });
 
   it("enables foreign keys", () => {

@@ -1,14 +1,14 @@
 # FARMVERSE CURRENT STATUS
 
 ## Version
-1.7
+1.8
 
 ## Last Updated
 2026-10-11
 
 ## Project Status
 
-Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: ALL STEPS DONE (2.1–2.6), closeout awaiting Game Director approval; Android check deferred. Phase 3 — Building: Step 3.1 done and approved (shared grid and placement rules); P3-4 / P3-5 (shop, prices, levels) still to be decided.
+Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: ALL STEPS DONE (2.1–2.6), closeout awaiting Game Director approval; Android check deferred. Phase 3 — Building: Steps 3.1–3.2 done (shared grid rules; server place / move / rotate / remove API, database schema v3); P3-4 / P3-5 (how decorations are obtained, prices, levels) still to be decided.
 
 ---
 
@@ -146,7 +146,11 @@ Started 2026-10-11 on the Game Director's directive, using draft options G-A (8�
 |---|---|---|
 | 3.1 Shared grid and placement rules (`shared/src/building.ts`: 8×8 grid, plot block at (2, 2), 7 decorations 1×1 / 2×2, rotation 0/90/180/270, `checkPlacement`, `checkLayout`; error code `PLACEMENT_INVALID`) | Done (approved 2026-10-11) | `docs/reports/phase3/PHASE3_STEP3_1_REPORT.md` |
 
-Not yet included (waiting for P3-4 / P3-5): coin prices, unlock levels, shop, decoration inventory.
+| 3.2 Server building (covers plan steps 3.2–3.4, Game Director decision 2026-10-11): pure rules `server/src/building/rules.ts`; schema v3 (`building_state`, `decoration_stock`, `farm_objects`, additive); `decorations` and `objects` in `FarmState`; `POST /api/farm/objects/place`, `/move`, `/rotate`, `/remove` with request IDs; error code `OBJECT_NOT_FOUND` | Done | `docs/reports/phase3/PHASE3_STEP3_2_REPORT.md` |
+
+Not yet included (waiting for P3-4 / P3-5): any way for players to obtain decorations (stock is 0 for everyone), coin prices, unlock levels, shop. Client building UI is Step 3.5.
+
+Tests after Step 3.2: shared 369, server 508, client 121 — 998 passing; `npm run typecheck` clean; client build OK.
 
 Tests after Step 3.1: shared 343, server 414, client 121 — 878 passing; `npm run typecheck` clean.
 
@@ -182,6 +186,7 @@ Phase 0 — Foundation: COMPLETED.
 
 - `vite preview` and HMR through the Codespaces URL — not verified. (The dev game itself was verified through the Codespaces URL on 2026-10-11 with token access; see `PHASE2_STEP2_6_REPORT.md` §6.)
 - Android device testing — deferred by the Game Director.
+- A farming request logged before the schema v3 server upgrade and retried after it replays the old response without `decorations` / `objects`; the client reports an invalid response and the next farm load is correct (`PHASE3_STEP3_2_REPORT.md` §2).
 - Uncommitted Codespaces WebSocket-origin changes (10 files, `server/src/config.ts` etc.; see `docs/reports/phase1/PHASE1_CODESPACES_WS_ORIGIN_FIX_REPORT.md`) are still in the working tree, reviewed but not committed; awaiting a Game Director decision.
 - Real Chrome page zoom was emulated (CSS viewport + devicePixelRatio) in headless Chromium, not tested with the zoom menu in a real browser window.
 - On Codespaces the server runs with `CLIENT_ORIGIN=https://localhost:5173` (observed Origin through port forwarding; not verified for every Codespaces configuration).
@@ -191,7 +196,7 @@ Phase 0 — Foundation: COMPLETED.
 
 # NEXT OBJECTIVE
 
-Game Director: decide P3-4 (coin shop) and P3-5 (prices, levels) in `docs/reports/phase3/PHASE3_BUILDING_PLAN_REPORT.md`; approve the Phase 2 closeout. Then Step 3.2 — pure server rules for place / move / rotate / remove using `checkPlacement`. Android check of Phase 2 when convenient.
+Game Director: decide P3-4 (how decorations are obtained — coin shop or rewards) and P3-5 (prices, levels) in `docs/reports/phase3/PHASE3_BUILDING_PLAN_REPORT.md`; approve the Phase 2 closeout. Next: Step 3.5 — client grid, objects and Edit mode. Android check of Phase 2 when convenient.
 
 ---
 

@@ -45,6 +45,8 @@ import {
   plotUnlockLevel,
   unlocksBetween,
 } from "@farmverse/shared/progression";
+import { DECORATION_IDS } from "@farmverse/shared/building";
+import { assertBuildingData, type BuildingData } from "../building/rules.js";
 import { activeQuest, assertQuestState, type QuestState } from "./quests.js";
 
 /** A plot with a crop. Readiness is derived from plantedAt; it is never stored. */
@@ -352,11 +354,13 @@ export function refillSeeds(farm: FarmData, now: number): RuleResult {
 
 /**
  * Builds the shared FarmState sent to clients, as of server time `now`. Level
- * and quest progress are derived here from the stored XP and quest state.
+ * and quest progress are derived here from the stored XP and quest state;
+ * decorations and objects come from the building state (Phase 3).
  */
-export function toFarmState(farm: FarmData, quests: QuestState, now: number): FarmState {
+export function toFarmState(farm: FarmData, quests: QuestState, building: BuildingData, now: number): FarmState {
   assertFarmData(farm);
   assertQuestState(quests);
+  assertBuildingData(building);
   assertTime(now);
 
   const plots: PlotState[] = farm.plots.map((plot, index) => ({
@@ -398,5 +402,10 @@ export function toFarmState(farm: FarmData, quests: QuestState, now: number): Fa
     xp: farm.xp,
     progression: { ...level, unlockedPlotCount: plotCountForLevel(level.level) },
     quest,
+    decorations: DECORATION_IDS.filter((id) => building.stock[id] > 0).map((id) => ({
+      decorationId: id,
+      quantity: building.stock[id],
+    })),
+    objects: building.objects.map((object) => ({ ...object })),
   };
 }

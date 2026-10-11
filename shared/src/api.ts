@@ -3,6 +3,8 @@
  *
  * Phase 0: health check. Phase 1: guest session and farming endpoints.
  * Phase 2: level progress and the active quest in FarmState; quest claim.
+ * Phase 3: decorations and placed objects in FarmState; place / move /
+ * rotate / remove object endpoints.
  *
  * Validators here only check structure and types. The server still enforces
  * ownership, gameplay rules and stored data; clients never send time,
@@ -19,6 +21,15 @@ import {
   type ProduceItemId,
 } from "./farming.js";
 import { MAX_LEVEL, QUESTS, levelProgress, plotCountForLevel } from "./progression.js";
+import {
+  checkLayout,
+  isDecorationId,
+  isPlacedObject,
+  isRotation,
+  type DecorationId,
+  type PlacedObject,
+  type Rotation,
+} from "./building.js";
 
 export const HEALTH_PATH = "/api/health";
 export const SESSION_PATH = "/api/session";
@@ -27,6 +38,10 @@ export const FARM_PLANT_PATH = "/api/farm/plant";
 export const FARM_HARVEST_PATH = "/api/farm/harvest";
 export const FARM_REFILL_SEEDS_PATH = "/api/farm/refill-seeds";
 export const QUEST_CLAIM_PATH = "/api/quests/claim";
+export const OBJECT_PLACE_PATH = "/api/farm/objects/place";
+export const OBJECT_MOVE_PATH = "/api/farm/objects/move";
+export const OBJECT_ROTATE_PATH = "/api/farm/objects/rotate";
+export const OBJECT_REMOVE_PATH = "/api/farm/objects/remove";
 
 /** Response body of GET /api/health. */
 export interface HealthResponse {
@@ -104,6 +119,12 @@ export interface QuestView {
   reward: QuestReward;
 }
 
+/** Unplaced decorations the player owns. */
+export interface DecorationEntry {
+  decorationId: DecorationId;
+  quantity: number;
+}
+
 /**
  * GET /api/farm (200); also the success body of plant and refill-seeds.
  * A replayed request returns the state saved when it first succeeded.
@@ -124,6 +145,10 @@ export interface FarmState {
   progression: ProgressionState;
   /** The active quest; null once every quest is claimed. */
   quest: QuestView | null;
+  /** Unplaced decorations with quantity > 0, each decoration at most once (Phase 3). */
+  decorations: DecorationEntry[];
+  /** Objects on the farm grid, a valid layout (building.ts checkLayout) (Phase 3). */
+  objects: PlacedObject[];
 }
 
 /** Coins and XP granted by one harvest. */
@@ -147,6 +172,45 @@ export interface HarvestResponse extends FarmState {
 /** POST /api/quests/claim (200): the new state and what was claimed. */
 export interface QuestClaimResponse extends FarmState {
   claimed: { questId: string; reward: QuestReward };
+}
+
+/** Success body of the object endpoints: the new state and the object acted on. */
+export interface ObjectActionResponse extends FarmState {
+  /** The placed / moved / rotated object, or the removed object as it was. */
+  object: PlacedObject;
+}
+
+/**
+ * POST /api/farm/objects/place body. Tile bounds, plots and overlap are game
+ * rules checked by the server (PLACEMENT_INVALID), not by this validator.
+ */
+export interface PlaceObjectRequest {
+  requestId: string;
+  decorationId: DecorationId;
+  x: number;
+  y: number;
+  rotation: Rotation;
+}
+
+/** POST /api/farm/objects/move body: new top-left tile, rotation kept. */
+export interface MoveObjectRequest {
+  requestId: string;
+  objectId: number;
+  x: number;
+  y: number;
+}
+
+/** POST /api/farm/objects/rotate body: new rotation, tile kept. */
+export interface RotateObjectRequest {
+  requestId: string;
+  objectId: number;
+  rotation: Rotation;
+}
+
+/** POST /api/farm/objects/remove body: the object goes back to the decorations. */
+export interface RemoveObjectRequest {
+  requestId: string;
+  objectId: number;
 }
 
 /** POST /api/farm/plant body. */
@@ -310,8 +374,22 @@ export function isFarmState(value: unknown): value is FarmState {
     isNonNegativeInteger(value["coins"]) &&
     isNonNegativeInteger(value["xp"]) &&
     isProgressionStateFor(value["progression"], value["xp"]) &&
-    (value["quest"] === null || isQuestView(value["quest"]))
+    (value["quest"] === null || isQuestView(value["quest"])) &&
+    isDecorationList(value["decorations"]) &&
+    checkLayout(value["objects"]).ok
   );
+}
+
+function isDecorationList(value: unknown): value is DecorationEntry[] {
+  if (!Array.isArray(value)) return false;
+  const valid = value.every(
+    (entry: unknown) => isObject(entry) && isDecorationId(entry["decorationId"]) && isPositiveInteger(entry["quantity"]),
+  );
+  return valid && new Set(value.map((entry: DecorationEntry) => entry.decorationId)).size === value.length;
+}
+
+export function isObjectActionResponse(value: unknown): value is ObjectActionResponse {
+  return isObject(value) && isFarmState(value) && isPlacedObject(value["object"]);
 }
 
 export function isQuestClaimResponse(value: unknown): value is QuestClaimResponse {
@@ -358,4 +436,42 @@ export function isRefillSeedsRequest(value: unknown): value is RefillSeedsReques
 
 export function isQuestClaimRequest(value: unknown): value is QuestClaimRequest {
   return isObject(value) && isRequestId(value["requestId"]);
+}
+
+function isSafeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value);
+}
+
+export function isPlaceObjectRequest(value: unknown): value is PlaceObjectRequest {
+  return (
+    isObject(value) &&
+    isRequestId(value["requestId"]) &&
+    isDecorationId(value["decorationId"]) &&
+    isSafeInteger(value["x"]) &&
+    isSafeInteger(value["y"]) &&
+    isRotation(value["rotation"])
+  );
+}
+
+export function isMoveObjectRequest(value: unknown): value is MoveObjectRequest {
+  return (
+    isObject(value) &&
+    isRequestId(value["requestId"]) &&
+    isPositiveInteger(value["objectId"]) &&
+    isSafeInteger(value["x"]) &&
+    isSafeInteger(value["y"])
+  );
+}
+
+export function isRotateObjectRequest(value: unknown): value is RotateObjectRequest {
+  return (
+    isObject(value) &&
+    isRequestId(value["requestId"]) &&
+    isPositiveInteger(value["objectId"]) &&
+    isRotation(value["rotation"])
+  );
+}
+
+export function isRemoveObjectRequest(value: unknown): value is RemoveObjectRequest {
+  return isObject(value) && isRequestId(value["requestId"]) && isPositiveInteger(value["objectId"]);
 }

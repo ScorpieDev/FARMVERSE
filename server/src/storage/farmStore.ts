@@ -2,14 +2,19 @@
  * Persistence of players, farms and the action log.
  *
  * Every player always has exactly FARM_PLOT_COUNT plot rows, one inventory
- * row per item (quantity 0 included) and one quest_state row (schema v2
- * added the Phase 2 rows for existing players). Missing rows are never filled
+ * row per item (quantity 0 included), one quest_state row (schema v2 added
+ * the Phase 2 rows for existing players), one building_state row and one
+ * decoration_stock row per decoration (schema v3), plus zero or more
+ * farm_objects rows. Missing rows are never filled
  * in: loaded data is checked with assertFarmData / assertQuestState, so
- * corrupted data fails loudly instead of being repaired silently.
+ * corrupted data fails loudly instead of being repaired silently
+ * (assertBuildingData for building state).
  *
  * Writes are expected to run inside `transaction()` from database.ts.
  */
+import { DECORATION_IDS, type DecorationId, type PlacedObject, type Rotation } from "@farmverse/shared/building";
 import { FARM_PLOT_COUNT, ITEM_IDS, type CropId, type ItemId } from "@farmverse/shared/farming";
+import { assertBuildingData, createEmptyBuilding, type BuildingData } from "../building/rules.js";
 import { assertQuestState, startingQuestState, type QuestState } from "../farming/quests.js";
 import { assertFarmData, type FarmData, type FarmPlot } from "../farming/rules.js";
 import type { Database } from "./database.js";
@@ -57,6 +62,18 @@ export function insertPlayer(db: Database, player: NewPlayer, farm: FarmData): v
     quests.index,
     quests.progress,
   );
+
+  const building = createEmptyBuilding();
+  db.prepare("INSERT INTO building_state (player_id, next_object_id) VALUES (?, ?)").run(
+    player.id,
+    building.nextObjectId,
+  );
+  const insertStock = db.prepare(
+    "INSERT INTO decoration_stock (player_id, decoration_id, quantity) VALUES (?, ?, ?)",
+  );
+  for (const decorationId of DECORATION_IDS) {
+    insertStock.run(player.id, decorationId, building.stock[decorationId]);
+  }
 }
 
 export function findPlayerIdByTokenHash(db: Database, tokenHash: string): string | null {
@@ -152,6 +169,73 @@ export function saveQuestState(db: Database, playerId: string, state: QuestState
     .prepare("UPDATE quest_state SET quest_index = ?, progress = ? WHERE player_id = ?")
     .run(state.index, state.progress, playerId);
   if (result.changes !== 1) throw new RangeError(`Invalid farm data: missing quest state for ${playerId}`);
+}
+
+/**
+ * Loads a player's building state (decorations and placed objects), or null
+ * if the player does not exist. Throws RangeError on corrupted data.
+ */
+export function loadBuilding(db: Database, playerId: string): BuildingData | null {
+  const row = db.prepare("SELECT next_object_id FROM building_state WHERE player_id = ?").get(playerId);
+  if (row === undefined) {
+    const player = db.prepare("SELECT 1 FROM players WHERE id = ?").get(playerId);
+    if (player === undefined) return null;
+    throw new RangeError("Invalid farm data: missing building state");
+  }
+
+  const stock: Partial<Record<DecorationId, number>> = {};
+  for (const stockRow of db
+    .prepare("SELECT decoration_id, quantity FROM decoration_stock WHERE player_id = ?")
+    .all(playerId)) {
+    stock[stockRow["decoration_id"] as DecorationId] = Number(stockRow["quantity"]);
+  }
+
+  const objects: PlacedObject[] = db
+    .prepare(
+      "SELECT object_id, decoration_id, x, y, rotation FROM farm_objects WHERE player_id = ? ORDER BY object_id",
+    )
+    .all(playerId)
+    .map((objectRow) => ({
+      objectId: Number(objectRow["object_id"]),
+      decorationId: objectRow["decoration_id"] as DecorationId,
+      x: Number(objectRow["x"]),
+      y: Number(objectRow["y"]),
+      rotation: Number(objectRow["rotation"]) as Rotation,
+    }));
+
+  const building = {
+    stock: stock as Record<DecorationId, number>,
+    objects,
+    nextObjectId: Number(row["next_object_id"]),
+  };
+  assertBuildingData(building);
+  return building;
+}
+
+/** Overwrites a player's building state. The building_state and stock rows must already exist. */
+export function saveBuilding(db: Database, playerId: string, building: BuildingData): void {
+  assertBuildingData(building);
+
+  const state = db
+    .prepare("UPDATE building_state SET next_object_id = ? WHERE player_id = ?")
+    .run(building.nextObjectId, playerId);
+  if (state.changes !== 1) throw new RangeError(`Invalid farm data: missing building state for ${playerId}`);
+
+  const updateStock = db.prepare(
+    "UPDATE decoration_stock SET quantity = ? WHERE player_id = ? AND decoration_id = ?",
+  );
+  for (const decorationId of DECORATION_IDS) {
+    const result = updateStock.run(building.stock[decorationId], playerId, decorationId);
+    if (result.changes !== 1) throw new RangeError(`Invalid farm data: missing decoration ${decorationId}`);
+  }
+
+  db.prepare("DELETE FROM farm_objects WHERE player_id = ?").run(playerId);
+  const insertObject = db.prepare(
+    "INSERT INTO farm_objects (player_id, object_id, decoration_id, x, y, rotation) VALUES (?, ?, ?, ?, ?, ?)",
+  );
+  for (const object of building.objects) {
+    insertObject.run(playerId, object.objectId, object.decorationId, object.x, object.y, object.rotation);
+  }
 }
 
 export function findAction(db: Database, playerId: string, requestId: string): ActionRecord | null {

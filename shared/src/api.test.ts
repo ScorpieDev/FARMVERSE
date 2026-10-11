@@ -4,12 +4,17 @@ import {
   isHarvestRequest,
   isHarvestResponse,
   isHealthResponse,
+  isMoveObjectRequest,
+  isObjectActionResponse,
+  isPlaceObjectRequest,
   isPlantRequest,
   isQuestClaimRequest,
   isQuestClaimResponse,
   isQuestView,
   isRefillSeedsRequest,
+  isRemoveObjectRequest,
   isRequestId,
+  isRotateObjectRequest,
   isSeedRefillState,
   isSessionResponse,
 } from "./api.js";
@@ -79,6 +84,8 @@ function farm(overrides: Record<string, unknown> = {}): Record<string, unknown> 
       complete: false,
       reward: { coins: 10, xp: 5 },
     },
+    decorations: [],
+    objects: [],
     ...overrides,
   };
 }
@@ -377,5 +384,73 @@ describe("quest claim", () => {
     expect(isQuestClaimResponse({ ...farm(), claimed: { ...claimed, questId: "nope" } })).toBe(false);
     expect(isQuestClaimResponse({ ...farm(), claimed: { ...claimed, reward: { coins: 1 } } })).toBe(false);
     expect(isQuestClaimResponse({ ...farm({ xp: 60 }), claimed })).toBe(false);
+  });
+});
+
+describe("building in FarmState (Phase 3)", () => {
+  const tree = { objectId: 1, decorationId: "tree", x: 0, y: 0, rotation: 0 };
+  const fence = { objectId: 2, decorationId: "fence", x: 2, y: 0, rotation: 90 };
+
+  it("accepts decorations and a valid layout", () => {
+    expect(isFarmState(farm({ decorations: [{ decorationId: "bench", quantity: 2 }], objects: [tree, fence] }))).toBe(true);
+  });
+
+  it.each([
+    ["missing decorations", { decorations: undefined }],
+    ["missing objects", { objects: undefined }],
+    ["zero quantity", { decorations: [{ decorationId: "bench", quantity: 0 }] }],
+    ["unknown decoration", { decorations: [{ decorationId: "castle", quantity: 1 }] }],
+    [
+      "duplicate decoration",
+      { decorations: [{ decorationId: "bench", quantity: 1 }, { decorationId: "bench", quantity: 2 }] },
+    ],
+    ["overlapping objects", { objects: [tree, { ...fence, x: 1, y: 1 }] }],
+    ["object on the plots", { objects: [{ ...fence, x: 3, y: 3 }] }],
+    ["object past the edge", { objects: [{ ...tree, x: 7 }] }],
+    ["duplicate object IDs", { objects: [tree, { ...fence, objectId: 1 }] }],
+    ["objects not a list", { objects: {} }],
+  ])("rejects %s", (_label, overrides) => {
+    expect(isFarmState(farm(overrides))).toBe(false);
+  });
+
+  it("checks the object of an object action response", () => {
+    expect(isObjectActionResponse({ ...farm({ objects: [tree] }), object: tree })).toBe(true);
+    expect(isObjectActionResponse({ ...farm(), object: { ...tree, objectId: 0 } })).toBe(false);
+    expect(isObjectActionResponse(farm())).toBe(false);
+  });
+});
+
+describe("object request validators (Phase 3)", () => {
+  const place = { requestId: REQUEST_ID, decorationId: "tree", x: 6, y: 6, rotation: 90 };
+
+  it("accepts well-formed requests; bounds are left to the server rules", () => {
+    expect(isPlaceObjectRequest(place)).toBe(true);
+    expect(isPlaceObjectRequest({ ...place, x: 99, y: -3 })).toBe(true);
+    expect(isMoveObjectRequest({ requestId: REQUEST_ID, objectId: 1, x: 8, y: 0 })).toBe(true);
+    expect(isRotateObjectRequest({ requestId: REQUEST_ID, objectId: 1, rotation: 270 })).toBe(true);
+    expect(isRemoveObjectRequest({ requestId: REQUEST_ID, objectId: 3 })).toBe(true);
+  });
+
+  it.each([
+    ["bad request ID", { ...place, requestId: "x" }],
+    ["unknown decoration", { ...place, decorationId: "castle" }],
+    ["fractional tile", { ...place, x: 1.5 }],
+    ["string tile", { ...place, y: "1" }],
+    ["bad rotation", { ...place, rotation: 45 }],
+    ["missing rotation", { requestId: REQUEST_ID, decorationId: "tree", x: 0, y: 0 }],
+    ["array", [place]],
+  ])("rejects a place request with %s", (_label, value) => {
+    expect(isPlaceObjectRequest(value)).toBe(false);
+  });
+
+  it.each([0, -1, 1.5, "1", null])("rejects object ID %j", (objectId) => {
+    expect(isMoveObjectRequest({ requestId: REQUEST_ID, objectId, x: 0, y: 0 })).toBe(false);
+    expect(isRotateObjectRequest({ requestId: REQUEST_ID, objectId, rotation: 0 })).toBe(false);
+    expect(isRemoveObjectRequest({ requestId: REQUEST_ID, objectId })).toBe(false);
+  });
+
+  it("rejects a move without a tile and a rotate with a bad rotation", () => {
+    expect(isMoveObjectRequest({ requestId: REQUEST_ID, objectId: 1, x: 0 })).toBe(false);
+    expect(isRotateObjectRequest({ requestId: REQUEST_ID, objectId: 1, rotation: 360 })).toBe(false);
   });
 });

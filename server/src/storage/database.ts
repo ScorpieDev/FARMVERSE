@@ -84,6 +84,43 @@ const MIGRATIONS: readonly string[] = [
   INSERT OR IGNORE INTO quest_state (player_id, quest_index, progress)
     SELECT id, 0, 0 FROM players;
   `,
+  // Version 3 (Phase 3 building). Only adds tables and rows; existing rows are
+  // never modified. Decoration IDs are frozen here like the v2 values. Every
+  // player starts with no decorations and no objects.
+  `
+  -- Next object ID to assign; IDs are never reused.
+  CREATE TABLE IF NOT EXISTS building_state (
+    player_id TEXT PRIMARY KEY REFERENCES players (id) ON DELETE CASCADE,
+    next_object_id INTEGER NOT NULL CHECK (next_object_id >= 1)
+  ) STRICT;
+  INSERT OR IGNORE INTO building_state (player_id, next_object_id)
+    SELECT id, 1 FROM players;
+
+  -- Owned decorations that are not placed.
+  CREATE TABLE IF NOT EXISTS decoration_stock (
+    player_id TEXT NOT NULL REFERENCES players (id) ON DELETE CASCADE,
+    decoration_id TEXT NOT NULL,
+    quantity INTEGER NOT NULL CHECK (quantity >= 0),
+    PRIMARY KEY (player_id, decoration_id)
+  ) STRICT;
+  INSERT OR IGNORE INTO decoration_stock (player_id, decoration_id, quantity)
+    SELECT players.id, decoration.id, 0
+    FROM players CROSS JOIN (
+      SELECT 'fence' AS id UNION ALL SELECT 'path' UNION ALL SELECT 'flower_bed' UNION ALL SELECT 'bush'
+      UNION ALL SELECT 'bench' UNION ALL SELECT 'tree' UNION ALL SELECT 'small_house'
+    ) AS decoration;
+
+  -- Objects placed on the farm grid.
+  CREATE TABLE IF NOT EXISTS farm_objects (
+    player_id TEXT NOT NULL REFERENCES players (id) ON DELETE CASCADE,
+    object_id INTEGER NOT NULL CHECK (object_id >= 1),
+    decoration_id TEXT NOT NULL,
+    x INTEGER NOT NULL CHECK (x >= 0),
+    y INTEGER NOT NULL CHECK (y >= 0),
+    rotation INTEGER NOT NULL CHECK (rotation IN (0, 90, 180, 270)),
+    PRIMARY KEY (player_id, object_id)
+  ) STRICT;
+  `,
 ];
 
 /** Exported for migration tests only. */
