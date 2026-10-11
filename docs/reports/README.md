@@ -39,4 +39,11 @@ Steps 1–3 predate the report convention; see their commit messages (`5faeaff`,
 | `PHASE2_PROGRESSION_PLAN_REPORT.md` | Phase 2 draft design (level curve, unlocks, quests, UI) and decisions awaiting the Game Director |
 | `PHASE2_STEP2_1_REPORT.md` … `PHASE2_STEP2_4_REPORT.md` | Steps 2.1–2.4 — shared progression data, server rules, new crops / plots and schema v2, progression API |
 | `PHASE2_STEP2_5_REPORT.md` | Step 2.5 — client progression UI (+ addendum: quest position and reward) |
-| `PHASE2_STEP2_6_REPORT.md` | Step 2.6 — end-to-end browser verification (local); Codespaces check pending |
+| `PHASE2_STEP2_6_REPORT.md` | Step 2.6 — end-to-end browser verification (local and through the Codespaces URL) |
+| `PHASE2_CLOSEOUT_REPORT.md` | Phase 2 closeout: roadmap tasks, evidence, carried-forward items |
+
+## Phase 3 — Building (`phase3/`)
+
+| File | Content |
+|---|---|
+| `PHASE3_BUILDING_PLAN_REPORT.md` | Phase 3 draft design (grid, decorations, shop, edit mode) and decisions awaiting the Game Director |

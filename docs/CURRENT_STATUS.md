@@ -1,14 +1,14 @@
 # FARMVERSE CURRENT STATUS
 
 ## Version
-1.5
+1.6
 
 ## Last Updated
 2026-10-11
 
 ## Project Status
 
-Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: IN PROGRESS (Steps 2.1–2.5 done; Step 2.6 local E2E done, Codespaces check pending).
+Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: ALL STEPS DONE (2.1–2.6), closeout awaiting Game Director approval; Android check deferred. Phase 3 — Building: design draft awaiting review.
 
 ---
 
@@ -125,7 +125,8 @@ Design approved by the Game Director on 2026-10-10 (P2-1…P2-7 as recommended i
 | 2.3 Corn / Strawberry and plots 7–9 in shared data; seeds only for unlocked crops (+5 on unlock); storage schema v2 migration (plots, items, `quest_state`) | Done | `docs/reports/phase2/PHASE2_STEP2_3_REPORT.md` |
 | 2.4 API: `progression` and `quest` in `FarmState`, quest progress saved in the plant / harvest transactions, `POST /api/quests/claim` (request IDs, `QUEST_NOT_COMPLETE`) | Done | `docs/reports/phase2/PHASE2_STEP2_4_REPORT.md` |
 | 2.5 Client: level / XP bar, locked plots (`Level N`), Corn / Strawberry buttons, quest line with Claim, level-up message; 3×3 plots, landscape controls column | Done (+ addendum 2026-10-11: quest position `n/8` and reward shown before Claim) | `docs/reports/phase2/PHASE2_STEP2_5_REPORT.md` |
-| 2.6 E2E | Local headless Chromium E2E done (38/38); Codespaces URL / device check pending the Game Director | `docs/reports/phase2/PHASE2_STEP2_6_REPORT.md` |
+| 2.6 E2E | Done: local headless Chromium (38/38) and real-time playthrough through the Codespaces URL against the dev server and database (2026-10-11, no defects); Android not tested | `docs/reports/phase2/PHASE2_STEP2_6_REPORT.md` |
+| Closeout | Awaiting Game Director approval | `docs/reports/phase2/PHASE2_CLOSEOUT_REPORT.md` |
 
 Tests after Step 2.6: shared 279, server 414, client 121 — 814 passing; `npm run typecheck` clean; client build OK.
 
@@ -155,7 +156,7 @@ Phase 2 — Progression
 
 Status:
 
-IN PROGRESS — Steps 2.1–2.5 done; Step 2.6 local E2E done, Codespaces check pending. The server has 9 plots (7–9 locked by level), Corn / Strawberry (levels 3 / 5), database schema v2, and an API that reports level and quest progress and lets players claim quest rewards. The client shows level, XP bar, locked plots and crops, the active quest (position, progress, reward) with Claim, and level-up messages.
+ALL STEPS DONE — closeout report awaiting Game Director approval; Android device check deferred. The server has 9 plots (7–9 locked by level), Corn / Strawberry (levels 3 / 5), database schema v2, and an API that reports level and quest progress and lets players claim quest rewards. The client shows level, XP bar, locked plots and crops, the active quest (position, progress, reward) with Claim, and level-up messages.
 
 Phase 1 — Farming: COMPLETED.
 
@@ -165,7 +166,7 @@ Phase 0 — Foundation: COMPLETED.
 
 # KNOWN LIMITATIONS AND OPEN ITEMS
 
-- `vite preview` and HMR through the Codespaces URL — not verified (needs an authenticated browser session).
+- `vite preview` and HMR through the Codespaces URL — not verified. (The dev game itself was verified through the Codespaces URL on 2026-10-11 with token access; see `PHASE2_STEP2_6_REPORT.md` §6.)
 - Android device testing — deferred by the Game Director.
 - Uncommitted Codespaces WebSocket-origin changes (10 files, `server/src/config.ts` etc.; see `docs/reports/phase1/PHASE1_CODESPACES_WS_ORIGIN_FIX_REPORT.md`) are still in the working tree, reviewed but not committed; awaiting a Game Director decision.
 - Real Chrome page zoom was emulated (CSS viewport + devicePixelRatio) in headless Chromium, not tested with the zoom menu in a real browser window.
@@ -176,7 +177,7 @@ Phase 0 — Foundation: COMPLETED.
 
 # NEXT OBJECTIVE
 
-Game Director check of the progression UI through the Codespaces URL on a phone (checklist: `docs/reports/phase2/PHASE2_STEP2_6_REPORT.md` §4), then the Phase 2 closeout report. Phase 3 (Building) needs a design plan and Game Director decisions before implementation.
+Game Director: approve the Phase 2 closeout (`docs/reports/phase2/PHASE2_CLOSEOUT_REPORT.md`) and decide P3-1…P3-7 in the Phase 3 design draft (`docs/reports/phase3/PHASE3_BUILDING_PLAN_REPORT.md`). Android check of Phase 2 when convenient (`PHASE2_STEP2_6_REPORT.md` §4). No Phase 3 code until the design is approved.
 
 ---
 

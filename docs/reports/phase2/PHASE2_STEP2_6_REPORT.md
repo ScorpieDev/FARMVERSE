@@ -1,6 +1,6 @@
 # Phase 2 — Step 2.6: end-to-end verification
 
-Date: 2026-10-11 · Builds on `7a97540` (Step 2.5) plus the Step 2.5 addendum (quest position and reward preview). Status: **local browser E2E done; Codespaces URL and real-device check pending the Game Director.** Phase 2 is not closed.
+Date: 2026-10-11 · Builds on `7a97540` (Step 2.5) plus the Step 2.5 addendum (quest position and reward preview). Status: **done** — local browser E2E (§2) and a real-time playthrough through the Codespaces URL against the dev server and database (§6, 2026-10-11). Android device not tested (Game Director, later).
 
 ## 1. Automated checks
 
@@ -38,10 +38,10 @@ Client authority: the client never adds XP, coins or rewards; every number shown
 
 ## 3. Not verified
 
-- Through the Codespaces URL (`https://<codespace>-5173.app.github.dev`) — needs a GitHub-authenticated browser; not possible from this session.
 - On an Android / iOS device, and real browser zoom (deferred, as before).
+- Through the Codespaces URL with a signed-in human browser session: see §6 for how this session reached it.
 
-## 4. For the Game Director to check (Codespaces URL, phone portrait and landscape)
+## 4. For the Game Director to check on an Android phone (Codespaces URL, portrait and landscape)
 
 1. Header shows `Coins · Level · XP` and the XP bar fills as you harvest.
 2. Plots 7–9 show `Locked / Level N`; Corn / Strawberry show `Level 3` / `Level 5`.
@@ -52,4 +52,32 @@ Client authority: the client never adds XP, coins or rewards; every number shown
 
 - No favicon (404 in the console).
 - Large landscape screens leave empty space under the controls column (from Step 2.5).
-- Phase 2 closeout depends on item 4 above.
+- After a reload the selected seed returns to Wheat even when Wheat has 0 seeds, so empty plots say `No Wheat seeds` while other seeds are available (UX only; behaviour from Phase 1).
+- Android device check (§4) is the only remaining Phase 2 verification item.
+
+## 6. Codespaces URL playthrough (2026-10-11)
+
+Target: `https://<codespace>-5173.app.github.dev` (private port) → Vite dev server 5173 → Fastify dev server 3000 → `data/farmverse.db`. The running servers were not restarted, and the database was **not edited, reset or deleted**. One new guest farm was created (persistent headless Chromium profile in the scratchpad, 390×844 touch, then 844×390). Growth ran in real time (Wheat 30 s, Carrot 2 min, Tomato 5 min).
+
+Access method (headless, no human sign-in):
+- Private port reached with the `X-Github-Token` header; the GitHub "development port" warning page answered with **Continue**, as a user would.
+- With token access the tunnel rewrites the WebSocket Origin to `http://localhost:5173` and the server rejects it (403); a signed-in browser arrives as `https://localhost:5173` (captured on the wire on 2026-10-10, see `docs/reports/phase1/PHASE1_CODESPACES_WS_ORIGIN_FIX_REPORT.md`). The test therefore forwarded only the game socket `/ws` through the same tunnel with Origin `https://localhost:5173`. Pages, scripts and every `/api` request went through the tunnel from the browser unchanged. The Origin path itself is covered by the pending WebSocket/Codespaces changes, not by this test.
+
+| Check | Result |
+|---|---|
+| New farm: `Coins 0 · Level 1 · 0/50 XP`, `Quest 1/8: Harvest 3 Wheat (0/3)` / `Reward: +10 coins · +5 XP`; status `Connected` | PASS |
+| Locked plot 7 / Corn explained, no request | PASS |
+| Plant 5 Wheat + 1 Tomato; growing plot shows `Wheat is ready in 13 s.` | PASS |
+| Harvest 5 Wheat → coins 10, XP 5, quest complete, Claim shown | PASS |
+| Claim → `Quest complete! +10 coins · +5 XP`; coins 20, XP 10; header `Coins 20 · Level 1 · 10/50 XP` | PASS |
+| Reload → identical farm (coins, XP, level, quest, plots) | PASS |
+| Plant 5 Carrots → quest 2 complete → claim (coins 30, XP 15) | PASS |
+| Harvest 5 Carrots (coins 60, XP 30) → claim quest 3 (coins 80, XP 40) | PASS |
+| Harvest Tomato → `+1 Tomato · +12 coins · +6 XP`, quest 4 complete | PASS (see note) |
+| After 150 s idle, still `Connected · 138 ms`; Claim → `Quest complete! +20 coins · +10 XP` / `Level 2! Plot 7 unlocked.`; `Coins 112 · Level 2 · 6/100 XP`; `Quest 5/8: Reach level 3 (2/3)` | PASS (screenshot) |
+| Reload → level 2, 7 plots; plot 8 `Plot 8 unlocks at level 4.`; plant Tomato on plot 7 → `Planted Tomato.`, accepted by the server | PASS |
+| Reload → plot 7 crop, level and quest unchanged | PASS |
+| Landscape 844×390: quest text fits (210×34 in 274×40), no overlaps | PASS |
+| Page errors / HTTP errors | None (`/favicon.ico` 404 aside) |
+
+Note: the first script run stopped at the Tomato harvest because it read the state 1.5 s after the tap, before the tunnel round trip had finished. A re-run on the same farm showed the harvest working, and later taps waited for the response. No game defect was found; no code was changed.

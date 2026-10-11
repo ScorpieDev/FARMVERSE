@@ -1,5 +1,25 @@
 # FARMVERSE CHANGELOG
 
+## Phase 2 — Progression (in progress)
+
+Design approved by the Game Director on 2026-10-10 (P2-1…P2-7, `docs/reports/phase2/PHASE2_PROGRESSION_PLAN_REPORT.md`).
+
+### Added
+
+- Shared progression data: XP → level (50 × L per level, max 10), unlock table (plots 7–9 at levels 2 / 4 / 6, Corn level 3, Strawberry level 5), 8-quest tutorial chain; error codes `LEVEL_TOO_LOW`, `QUEST_NOT_COMPLETE` — `f639918`
+- Server rules: unlock checks on planting, level-change detection, quest progress and claim — `aaf92e6`
+- Corn and Strawberry, plots 7–9, seeds only for unlocked crops (+5 on unlock); storage schema v2 migration (`quest_state`) — `9deea48`
+- API: `progression` and `quest` in `FarmState`, quest progress saved in the plant / harvest transactions, `POST /api/quests/claim` with request IDs — `356d3c7`
+- Client: level / XP bar, locked plots and crops, quest row with Claim, level-up messages, 3×3 plots, landscape controls column — `7a97540`
+- Client: quest row shows the position in the chain and the reward before claiming (`Quest 1/8: … (x/y)` / `Reward: …`); quest text shrinks to fit beside Claim — `5329631`
+
+### Verified
+
+- Local headless Chromium, temporary database: 38 / 38 checks (`docs/reports/phase2/PHASE2_STEP2_6_REPORT.md`).
+- Through the Codespaces URL against the dev server and database (2026-10-11): real-time play from a new farm to level 2 — planting, harvest, 4 quest claims, level-up and plot 7 unlock, reloads, landscape; no defects (`docs/reports/phase2/PHASE2_STEP2_6_REPORT.md` §6).
+- Closeout report: `docs/reports/phase2/PHASE2_CLOSEOUT_REPORT.md` (awaiting approval).
+- Not verified: Android device.
+
 ## Phase 1 — Farming (in progress)
 
 ### Added
