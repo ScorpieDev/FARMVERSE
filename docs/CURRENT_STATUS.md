@@ -1,14 +1,14 @@
 # FARMVERSE CURRENT STATUS
 
 ## Version
-1.10
+1.11
 
 ## Last Updated
 2026-10-11
 
 ## Project Status
 
-Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: ALL STEPS DONE (2.1–2.6), closeout awaiting Game Director approval; Android check deferred. Phase 3 — Building: Steps 3.1–3.4 done (shared grid rules; server place / move / rotate / remove API, database schema v3; client Edit farm mode; decoration coin shop, P3-4 / P3-5 decided 2026-10-11). Remaining: Phase 3 end-to-end check and closeout.
+Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: ALL STEPS DONE (2.1–2.6), closeout awaiting Game Director approval; Android check deferred. Phase 3 — Building: Steps 3.1–3.4 done (shared grid rules; server place / move / rotate / remove API, database schema v3; client Edit farm mode; decoration coin shop, P3-4 / P3-5 decided 2026-10-11). End-to-end check through the Codespaces URL passed (24/24, 2026-10-11). Remaining: Phase 3 closeout.
 
 ---
 
@@ -154,6 +154,8 @@ Started 2026-10-11 on the Game Director's directive, using draft options G-A (8�
 
 Decisions taken by Claude under the 2026-10-11 directive (recorded in the Step 3.4 report): one decoration per purchase request; the shop lives in Edit mode (Buy button), no separate shop screen; decorations are shown in Edit mode only, the normal farm screen keeps the Phase 2 layout (revisit with Phase 5 farm visits).
 
+| 3.5 End-to-end through the Codespaces URL (dev server and database; one new guest farm, nothing edited): earn coins, buy, place, rejected placement, move, rotate, remove, reload keeps coins / stock / layout, landscape | Done — 24/24, no defects, no code change | `docs/reports/phase3/PHASE3_STEP3_5_E2E_REPORT.md` |
+
 Tests after Step 3.4: shared 376, server 532, client 186 — 1094 passing; `npm run typecheck` clean; client build OK; headless Chromium shop E2E 19/19 (isolated server and database).
 
 Tests after Step 3.3: shared 369, server 508, client 180 — 1057 passing; `npm run typecheck` clean; client build OK; headless Chromium edit-mode E2E 30/30 (isolated server and database).
@@ -205,7 +207,7 @@ Phase 0 — Foundation: COMPLETED.
 
 # NEXT OBJECTIVE
 
-Phase 3 end-to-end check (Codespaces URL / device: buy, place, move, rotate, remove, reload) and Phase 3 closeout report. Game Director: approve the Phase 2 closeout. Android check of Phase 2 when convenient.
+Phase 3 closeout report for Game Director approval (Android device check deferred, as in Phase 2). Game Director: approve the Phase 2 closeout. Android check of Phase 2 when convenient.
 
 ---
 
