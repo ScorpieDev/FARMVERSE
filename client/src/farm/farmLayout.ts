@@ -130,7 +130,8 @@ function cellRows(count: number, perRow: number, area: Rect, gap: number, maxWid
  * quest line with Claim, seed buttons (two rows), produce and message text.
  */
 function layoutControls(column: Rect, m: Metrics, produceLines: number) {
-  const claimWidth = Math.min(96, column.width / 3);
+  // Narrow enough to leave room for the two quest lines on small landscape screens.
+  const claimWidth = Math.min(84, column.width / 3);
   const questText = {
     x: column.x,
     y: column.y + (m.buttonHeight - 2 * m.lineHeight) / 2,

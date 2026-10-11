@@ -37,3 +37,15 @@ Headless Chromium against a **separate** server (port 3100, temporary database) 
 - On 568×320 the quest text wraps to two lines because space for the Claim button is always reserved.
 - Large landscape screens leave empty space under the controls column (top-aligned).
 - The client accepts `quest: null` (`All quests done!`) but this was only covered by unit tests, not in the browser.
+
+## Addendum 2026-10-11 — quest details
+
+Gap found when re-checking Step 2.5 against the Game Director's checklist: the quest row did not show the reward before claiming or the position in the chain. Client only; no server, shared or API change.
+
+| File | Change |
+|---|---|
+| `client/src/farm/farmView.ts` | `questLine` now returns two lines: `Quest 1/8: Harvest 3 Wheat (1/3)` / `Reward: +10 coins · +5 XP`; when complete `Done 1/8: Harvest 3 Wheat` / `Claim: +10 coins · +5 XP`. Position from `QUESTS` in `shared/progression.ts`; an unknown quest id (newer server) shows the server's text without a position. |
+| `client/src/farm/FarmScene.ts` | Quest text no longer word-wraps; the font shrinks (down to 11) until both lines fit the quest box. Refitted on text or layout change only. Dev-only debug hook `questBounds`. |
+| `client/src/farm/farmLayout.ts` | Claim button 84 design units wide (was 96), so the longest quest line fits on 568×320 / 640×360 / 1280×720. Still ≥ 44 CSS px high. |
+
+This also resolves the Step 2.5 open point "on 568×320 the quest text wraps to two lines". Tests and browser checks: see `PHASE2_STEP2_6_REPORT.md`.

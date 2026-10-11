@@ -160,6 +160,23 @@ describe("computeFarmLayout", () => {
     }
   });
 
+  it("leaves room for the two quest lines beside Claim", () => {
+    // "Quest 7/8: Harvest 20 crops (12/20)" measured 199 design units at the
+    // smallest quest font (11) in headless Chromium; 2 lines need ~28 units.
+    for (const [width, height] of [
+      [320, 568],
+      [568, 320],
+      [640, 360],
+      [844, 390],
+      [1280, 720],
+    ] as const) {
+      const { questText, claimButton } = computeFarmLayout(width, height);
+      expect(questText.width).toBeGreaterThanOrEqual(205);
+      expect(questText.height).toBeGreaterThanOrEqual(36);
+      expect(questText.x + questText.width).toBeLessThanOrEqual(claimButton.x);
+    }
+  });
+
   it("keeps touch targets at least 44 CSS px on common phones, including small ones", () => {
     for (const [width, height] of [
       [320, 568],

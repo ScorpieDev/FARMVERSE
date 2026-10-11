@@ -53,6 +53,8 @@ import { computeFarmLayout, designToScreen, textResolution, type FarmLayout, typ
 export const DISPLAY_KEY = "display";
 
 const FONT = "system-ui, sans-serif";
+/** Smallest font (design units) the quest lines shrink to on narrow screens. */
+const MIN_QUEST_FONT = 11;
 const COLORS = {
   text: "#fef3c7",
   muted: "#d9f99d",
@@ -358,7 +360,11 @@ export class FarmScene extends Scene {
     if (state !== null) this.xpFill.width = this.xpTrack.width * xpFraction(state.progression);
     this.produce.setText(state === null ? "" : produceLine(state));
 
-    this.questText.setText(state === null ? "" : questLine(state.quest));
+    const quest = state === null ? "" : questLine(state.quest);
+    if (quest !== this.questText.text) {
+      this.questText.setText(quest);
+      this.fitQuestText();
+    }
     const claimable = state?.quest?.complete === true;
     this.claimButton.box.setVisible(claimable).setFillStyle(locked ? COLORS.buttonDisabled : COLORS.buttonSelected);
     this.claimButton.label.setVisible(claimable);
@@ -451,10 +457,8 @@ export class FarmScene extends Scene {
     this.stats.setFontSize(fontSize.text).setPosition(layout.stats.x, layout.stats.y);
     this.xpTrack.setSize(layout.xpBar.width, layout.xpBar.height).setPosition(layout.xpBar.x, layout.xpBar.y);
     this.xpFill.setSize(this.xpFill.width, layout.xpBar.height).setPosition(layout.xpBar.x, layout.xpBar.y);
-    this.questText
-      .setFontSize(fontSize.text)
-      .setWordWrapWidth(layout.questText.width)
-      .setPosition(layout.questText.x, layout.questText.y);
+    this.questText.setPosition(layout.questText.x, layout.questText.y);
+    this.fitQuestText();
     this.placeButton(this.claimButton, layout.claimButton, fontSize.text);
 
     this.plots.forEach(({ box, bar, label }, index) => {
@@ -484,6 +488,21 @@ export class FarmScene extends Scene {
   }
 
   // ---------- helpers ----------
+
+  /**
+   * Keeps the two quest lines inside their box (beside Claim) by shrinking the
+   * font, never below MIN_QUEST_FONT, instead of wrapping into a third line.
+   */
+  private fitQuestText(): void {
+    const box = this.currentLayout?.questText;
+    if (box === undefined) return;
+    let size = this.currentLayout!.fontSize.text;
+    this.questText.setFontSize(size);
+    while (size > MIN_QUEST_FONT && (this.questText.width > box.width || this.questText.height > box.height)) {
+      size -= 1;
+      this.questText.setFontSize(size);
+    }
+  }
 
   private addText(text: string, style: Partial<GameObjects.TextStyle> = {}): GameObjects.Text {
     return this.add.text(0, 0, text, { fontFamily: FONT, color: COLORS.text, ...style });
@@ -521,6 +540,12 @@ export class FarmScene extends Scene {
       refillButton: () => center(this.refillButton.box),
       claimButton: () => (this.claimButton.box.visible ? center(this.claimButton.box) : null),
       questText: () => this.questText.text,
+      // Quest text size and font in design units, to check it stays inside layout.questText.
+      questBounds: () => ({
+        width: this.questText.width,
+        height: this.questText.height,
+        fontSize: Number.parseFloat(String(this.questText.style.fontSize)),
+      }),
       stats: () => this.stats.text,
       overlayVisible: () => this.overlay.shade.visible,
       newFarmButton: () => center(this.overlay.button.box),

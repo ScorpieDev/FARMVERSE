@@ -9,7 +9,7 @@
 import type { FarmState, PlotState, ProgressionState, QuestReward, QuestView, SeedRefillState } from "@farmverse/shared/api";
 import type { ErrorCode } from "@farmverse/shared/errors";
 import { CROPS, getCrop, getItem, type CropId, type ItemId } from "@farmverse/shared/farming";
-import { cropUnlockLevel, plotUnlockLevel, unlocksBetween, type Unlock } from "@farmverse/shared/progression";
+import { QUESTS, cropUnlockLevel, plotUnlockLevel, unlocksBetween, type Unlock } from "@farmverse/shared/progression";
 
 /** Converts client time to an estimate of server time. */
 export interface ServerClock {
@@ -116,11 +116,19 @@ export function isCropLocked(state: FarmState, cropId: CropId): boolean {
   return cropUnlockLevel(cropId) > state.progression.level;
 }
 
-/** "Quest: Harvest 3 Wheat (1/3)"; "All quests done!" at the end of the chain. */
+/**
+ * Two lines for the active quest: position in the chain, goal and progress,
+ * then the reward the server will grant on Claim. "All quests done!" at the
+ * end of the chain.
+ *   "Quest 1/8: Harvest 3 Wheat (1/3)" / "Reward: +10 coins · +5 XP"
+ *   "Done 1/8: Harvest 3 Wheat"        / "Claim: +10 coins · +5 XP"
+ */
 export function questLine(quest: QuestView | null): string {
   if (quest === null) return "All quests done!";
-  if (quest.complete) return `Quest done: ${quest.title}`;
-  return `Quest: ${quest.title} (${quest.progress}/${quest.target})`;
+  const index = QUESTS.findIndex((definition) => definition.id === quest.id);
+  const position = index < 0 ? "" : ` ${index + 1}/${QUESTS.length}`;
+  if (quest.complete) return `Done${position}: ${quest.title}\nClaim: ${rewardText(quest.reward)}`;
+  return `Quest${position}: ${quest.title} (${quest.progress}/${quest.target})\nReward: ${rewardText(quest.reward)}`;
 }
 
 /** "+10 coins · +5 XP" */

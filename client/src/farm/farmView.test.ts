@@ -157,8 +157,15 @@ describe("progression", () => {
   });
 
   it("describes the active quest, a completed one and the end of the chain", () => {
-    expect(questLine(STATE.quest)).toBe("Quest: Harvest 3 Wheat (0/3)");
-    expect(questLine({ ...STATE.quest!, progress: 3, complete: true })).toBe("Quest done: Harvest 3 Wheat");
+    expect(questLine(STATE.quest)).toBe("Quest 1/8: Harvest 3 Wheat (0/3)\nReward: +10 coins · +5 XP");
+    expect(questLine({ ...STATE.quest!, progress: 3, complete: true })).toBe(
+      "Done 1/8: Harvest 3 Wheat\nClaim: +10 coins · +5 XP",
+    );
+    expect(
+      questLine({ id: "reach_level_5", title: "Reach level 5", progress: 4, target: 5, complete: false, reward: { coins: 80, xp: 40 } }),
+    ).toBe("Quest 8/8: Reach level 5 (4/5)\nReward: +80 coins · +40 XP");
+    // An id the client does not know (newer server) still shows the server's text.
+    expect(questLine({ ...STATE.quest!, id: "future_quest" })).toBe("Quest: Harvest 3 Wheat (0/3)\nReward: +10 coins · +5 XP");
     expect(questLine(null)).toBe("All quests done!");
     expect(rewardText({ coins: 10, xp: 5 })).toBe("+10 coins · +5 XP");
   });
