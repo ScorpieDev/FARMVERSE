@@ -15,9 +15,13 @@
  *   of the footprint (all Phase 3 decorations are square, so only their
  *   facing changes).
  *
+ * Decorations are bought with coins at fixed prices once the player's level
+ * reaches the decoration's unlock level (P3-4 coin shop, P3-5 prices and
+ * levels, provisional; Step 3.4). Removing a placed object returns it to the
+ * player's stock; there is no resale in Phase 3.
+ *
  * Only definitions and pure calculations live here. The server owns object
- * IDs and stored layouts and runs these checks on every change; prices,
- * unlock levels and the shop are added with the step that implements them.
+ * IDs, stored layouts, coins and levels, and runs these checks on every change.
  */
 import { FARM_PLOT_COUNT } from "./farming.js";
 
@@ -68,16 +72,27 @@ export interface DecorationDefinition {
   category: DecorationCategory;
   /** Footprint at rotation 0. */
   size: GridSize;
+  /** Coins for one, charged by the server (provisional). */
+  price: number;
+  /** Level from which it can be bought (provisional). */
+  unlockLevel: number;
 }
 
 export const DECORATIONS: readonly DecorationDefinition[] = [
-  { id: "fence", name: "Fence", category: "fence", size: { width: 1, height: 1 } },
-  { id: "path", name: "Path", category: "path", size: { width: 1, height: 1 } },
-  { id: "flower_bed", name: "Flower Bed", category: "plant", size: { width: 1, height: 1 } },
-  { id: "bush", name: "Bush", category: "plant", size: { width: 1, height: 1 } },
-  { id: "bench", name: "Bench", category: "furniture", size: { width: 1, height: 1 } },
-  { id: "tree", name: "Tree", category: "plant", size: { width: 2, height: 2 } },
-  { id: "small_house", name: "Small House", category: "building", size: { width: 2, height: 2 } },
+  { id: "fence", name: "Fence", category: "fence", size: { width: 1, height: 1 }, price: 5, unlockLevel: 1 },
+  { id: "path", name: "Path", category: "path", size: { width: 1, height: 1 }, price: 5, unlockLevel: 1 },
+  { id: "flower_bed", name: "Flower Bed", category: "plant", size: { width: 1, height: 1 }, price: 20, unlockLevel: 2 },
+  { id: "bush", name: "Bush", category: "plant", size: { width: 1, height: 1 }, price: 30, unlockLevel: 3 },
+  { id: "bench", name: "Bench", category: "furniture", size: { width: 1, height: 1 }, price: 60, unlockLevel: 4 },
+  { id: "tree", name: "Tree", category: "plant", size: { width: 2, height: 2 }, price: 120, unlockLevel: 5 },
+  {
+    id: "small_house",
+    name: "Small House",
+    category: "building",
+    size: { width: 2, height: 2 },
+    price: 300,
+    unlockLevel: 6,
+  },
 ];
 
 /** An object placed on a farm. `objectId` is assigned by the server. */

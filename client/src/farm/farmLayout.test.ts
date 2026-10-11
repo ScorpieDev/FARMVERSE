@@ -273,7 +273,7 @@ describe("edit mode layout (Phase 3)", () => {
   it.each(VIEWPORTS)("keeps the grid and every control visible and apart at %i×%i", (width, height) => {
     const layout = computeFarmLayout(width, height);
     const { edit } = layout;
-    const controls = [...edit.decorationButtons, edit.rotateButton, edit.removeButton, edit.doneButton];
+    const controls = [...edit.decorationButtons, edit.rotateButton, edit.removeButton, edit.buyButton, edit.doneButton];
     expect(edit.decorationButtons).toHaveLength(7);
     for (const rect of [edit.grid, ...controls]) expect(inside(rect, layout.view)).toBe(true);
     controls.forEach((rect, index) => {
@@ -285,6 +285,9 @@ describe("edit mode layout (Phase 3)", () => {
     expect(edit.message.y).toBeGreaterThanOrEqual(edit.doneButton.y + edit.doneButton.height);
     expect(edit.message.y).toBeLessThan(layout.view.y + layout.view.height);
     expect(edit.fontSize.button).toBeGreaterThanOrEqual(11);
+    expect(edit.fontSize.action).toBeGreaterThanOrEqual(11);
+    // "Remove" in bold is about 4.5 font units wide: it must fit with a margin.
+    expect(edit.fontSize.action * 4.5).toBeLessThanOrEqual(edit.removeButton.width - 8);
   });
 
   it("puts the controls below the grid in portrait and beside it in landscape", () => {

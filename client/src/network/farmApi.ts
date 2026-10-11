@@ -21,11 +21,15 @@ import {
   OBJECT_ROTATE_PATH,
   QUEST_CLAIM_PATH,
   SESSION_PATH,
+  SHOP_BUY_PATH,
+  isBuyDecorationResponse,
   isFarmState,
   isHarvestResponse,
   isObjectActionResponse,
   isQuestClaimResponse,
   isSessionResponse,
+  type BuyDecorationRequest,
+  type BuyDecorationResponse,
   type FarmState,
   type HarvestRequest,
   type HarvestResponse,
@@ -158,6 +162,11 @@ export class FarmApi {
 
   removeObject(body: RemoveObjectRequest): Promise<ActionResult<ObjectActionResponse>> {
     return this.action(OBJECT_REMOVE_PATH, body, isObjectActionResponse);
+  }
+
+  /** Buys one decoration; the server decides the price and checks level and coins. */
+  buyDecoration(body: BuyDecorationRequest): Promise<ActionResult<BuyDecorationResponse>> {
+    return this.action(SHOP_BUY_PATH, body, isBuyDecorationResponse);
   }
 
   private token(): string | null {

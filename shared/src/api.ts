@@ -4,7 +4,7 @@
  * Phase 0: health check. Phase 1: guest session and farming endpoints.
  * Phase 2: level progress and the active quest in FarmState; quest claim.
  * Phase 3: decorations and placed objects in FarmState; place / move /
- * rotate / remove object endpoints.
+ * rotate / remove object endpoints; decoration shop.
  *
  * Validators here only check structure and types. The server still enforces
  * ownership, gameplay rules and stored data; clients never send time,
@@ -42,6 +42,7 @@ export const OBJECT_PLACE_PATH = "/api/farm/objects/place";
 export const OBJECT_MOVE_PATH = "/api/farm/objects/move";
 export const OBJECT_ROTATE_PATH = "/api/farm/objects/rotate";
 export const OBJECT_REMOVE_PATH = "/api/farm/objects/remove";
+export const SHOP_BUY_PATH = "/api/shop/buy";
 
 /** Response body of GET /api/health. */
 export interface HealthResponse {
@@ -178,6 +179,21 @@ export interface QuestClaimResponse extends FarmState {
 export interface ObjectActionResponse extends FarmState {
   /** The placed / moved / rotated object, or the removed object as it was. */
   object: PlacedObject;
+}
+
+/**
+ * POST /api/shop/buy body: buys one decoration. The server decides the price
+ * (building.ts DECORATIONS), checks the level and coins, and adds it to the
+ * player's decorations. The client never sends a price or quantity.
+ */
+export interface BuyDecorationRequest {
+  requestId: string;
+  decorationId: DecorationId;
+}
+
+/** POST /api/shop/buy (200): the new state and what was bought. */
+export interface BuyDecorationResponse extends FarmState {
+  bought: { decorationId: DecorationId; price: number };
 }
 
 /**
@@ -388,6 +404,12 @@ function isDecorationList(value: unknown): value is DecorationEntry[] {
   return valid && new Set(value.map((entry: DecorationEntry) => entry.decorationId)).size === value.length;
 }
 
+export function isBuyDecorationResponse(value: unknown): value is BuyDecorationResponse {
+  if (!isObject(value) || !isFarmState(value)) return false;
+  const bought = value["bought"];
+  return isObject(bought) && isDecorationId(bought["decorationId"]) && isPositiveInteger(bought["price"]);
+}
+
 export function isObjectActionResponse(value: unknown): value is ObjectActionResponse {
   return isObject(value) && isFarmState(value) && isPlacedObject(value["object"]);
 }
@@ -474,4 +496,8 @@ export function isRotateObjectRequest(value: unknown): value is RotateObjectRequ
 
 export function isRemoveObjectRequest(value: unknown): value is RemoveObjectRequest {
   return isObject(value) && isRequestId(value["requestId"]) && isPositiveInteger(value["objectId"]);
+}
+
+export function isBuyDecorationRequest(value: unknown): value is BuyDecorationRequest {
+  return isObject(value) && isRequestId(value["requestId"]) && isDecorationId(value["decorationId"]);
 }

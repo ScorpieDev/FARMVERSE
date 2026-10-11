@@ -4,9 +4,10 @@
  * button, and the live server connection status from Phase 0.
  *
  * Edit mode (Phase 3, "Edit farm"): the whole 8×8 farm grid with the crop
- * plots and placed decorations; select a decoration or object, tap a tile to
- * place or move it, Rotate, Remove, Done. Each change is sent to the server,
- * which decides it; the grid is redrawn from the server's answer.
+ * plots and placed decorations; select a decoration or object, Buy one
+ * (coin shop, Step 3.4), tap a tile to place or move it, Rotate, Remove,
+ * Done. Each change is sent to the server, which decides it (price, level,
+ * coins, placement); the grid is redrawn from the server's answer.
  *
  * The scene only shows server state and sends intentions (plant / harvest /
  * refill with a request ID). It never decides outcomes: after any rejected
@@ -16,7 +17,7 @@
  * shown from the server state; the server enforces them again on every action.
  */
 import { GameObjects, Input, Scale, Scene, type Time } from "phaser";
-import type { FarmState, ObjectActionResponse } from "@farmverse/shared/api";
+import type { BuyDecorationResponse, FarmState, ObjectActionResponse } from "@farmverse/shared/api";
 import { FARM_GRID_HEIGHT, FARM_GRID_WIDTH, footprint, plotTile, type DecorationId } from "@farmverse/shared/building";
 import type { ErrorCode } from "@farmverse/shared/errors";
 import { CROP_IDS, FARM_PLOT_COUNT, getCrop, getItem, type CropId } from "@farmverse/shared/farming";
@@ -56,13 +57,17 @@ import {
 import {
   DECORATION_ORDER,
   NO_SELECTION,
+  buySuccessText,
+  canAfford,
   editErrorText,
   editSuccessText,
   objectLabel,
   reconcileSelection,
   selectionText,
   stockLabel,
+  isDecorationLocked,
   stockOf,
+  tapBuy,
   tapDecoration,
   tapRemove,
   tapRotate,
@@ -91,6 +96,8 @@ const COLORS = {
   button: 0x166534,
   buttonSelected: 0xca8a04,
   buttonDisabled: 0x3f3f46,
+  /** Unlocked decoration with none owned: selectable to buy. */
+  buttonEmpty: 0x365314,
   overlay: 0x052e16,
   xpTrack: 0x052e16,
   grass: 0x3f6212,
@@ -167,6 +174,7 @@ export class FarmScene extends Scene {
   private decorationButtons = new Map<DecorationId, Button>();
   private rotateButton!: Button;
   private removeButton!: Button;
+  private buyButton!: Button;
   private doneButton!: Button;
   private editMessage = "";
   /** Farm-mode message kept while editing. */
@@ -576,6 +584,7 @@ export class FarmScene extends Scene {
     }
     this.rotateButton = this.addButton("Rotate", () => this.state && void this.runIntent(tapRotate(this.state, this.selection)));
     this.removeButton = this.addButton("Remove", () => void this.runIntent(tapRemove(this.selection)));
+    this.buyButton = this.addButton("Buy", () => void this.runIntent(tapBuy(this.selection)));
     this.doneButton = this.addButton("Done", () => this.setMode("farm"));
   }
 
@@ -615,30 +624,38 @@ export class FarmScene extends Scene {
     }
     const requestId = this.actionRequestId();
     if (requestId === null) return;
-    const describe = (state: ObjectActionResponse) => editSuccessText(intent.kind, state.object);
+    const describe = (kind: "place" | "move" | "rotate" | "remove") => (state: ObjectActionResponse) =>
+      editSuccessText(kind, state.object);
     const describeError = (code: ErrorCode) => editErrorText(code) ?? errorText(code);
     switch (intent.kind) {
       case "place": {
         const { decorationId, x, y, rotation } = intent;
-        await this.send(this.api.placeObject({ requestId, decorationId, x, y, rotation }), describe, describeError);
+        await this.send(this.api.placeObject({ requestId, decorationId, x, y, rotation }), describe("place"), describeError);
         break;
       }
       case "move":
         await this.send(
           this.api.moveObject({ requestId, objectId: intent.objectId, x: intent.x, y: intent.y }),
-          describe,
+          describe("move"),
           describeError,
         );
         break;
       case "rotate":
         await this.send(
           this.api.rotateObject({ requestId, objectId: intent.objectId, rotation: intent.rotation }),
-          describe,
+          describe("rotate"),
           describeError,
         );
         break;
       case "remove":
-        await this.send(this.api.removeObject({ requestId, objectId: intent.objectId }), describe, describeError);
+        await this.send(this.api.removeObject({ requestId, objectId: intent.objectId }), describe("remove"), describeError);
+        break;
+      case "buy":
+        await this.send(
+          this.api.buyDecoration({ requestId, decorationId: intent.decorationId }),
+          (state: BuyDecorationResponse) => buySuccessText(state.bought),
+          describeError,
+        );
         break;
     }
   }
@@ -676,18 +693,27 @@ export class FarmScene extends Scene {
     for (const [decorationId, button] of this.decorationButtons) {
       button.label.setText(stockLabel(state, decorationId));
       const chosen = this.selection.kind === "decoration" && this.selection.decorationId === decorationId;
-      button.box.setFillStyle(chosen ? COLORS.buttonSelected : stockOf(state, decorationId) === 0 ? COLORS.buttonDisabled : COLORS.button);
+      const color = chosen
+        ? COLORS.buttonSelected
+        : isDecorationLocked(state, decorationId)
+          ? COLORS.buttonDisabled
+          : stockOf(state, decorationId) === 0
+            ? COLORS.buttonEmpty
+            : COLORS.button;
+      button.box.setFillStyle(color);
     }
     const canChange = !locked && this.selection.kind === "object";
     this.rotateButton.box.setFillStyle(this.selection.kind === "none" || (locked && this.selection.kind === "object") ? COLORS.buttonDisabled : COLORS.button);
     this.removeButton.box.setFillStyle(canChange ? COLORS.button : COLORS.buttonDisabled);
+    this.buyButton.box.setFillStyle(!locked && canAfford(state, this.selection) ? COLORS.buttonSelected : COLORS.buttonDisabled);
     this.message.setVisible(true).setText(this.editMessage === "" ? selectionText(state, this.selection) : `${this.editMessage}\n${selectionText(state, this.selection)}`);
   }
 
   private editWidgetSet(): Set<GameObjects.GameObject> {
     const set = new Set<GameObjects.GameObject>([this.editBackground, ...this.tiles]);
     for (const widget of this.objectWidgets.values()) set.add(widget.box).add(widget.label);
-    for (const button of [...this.decorationButtons.values(), this.rotateButton, this.removeButton, this.doneButton]) {
+    const actions = [this.rotateButton, this.removeButton, this.buyButton, this.doneButton];
+    for (const button of [...this.decorationButtons.values(), ...actions]) {
       set.add(button.box).add(button.label);
     }
     return set;
@@ -748,9 +774,10 @@ export class FarmScene extends Scene {
       const button = this.decorationButtons.get(decorationId);
       if (button !== undefined) this.placeButton(button, edit.decorationButtons[index]!, edit.fontSize.button);
     });
-    this.placeButton(this.rotateButton, edit.rotateButton, layout.fontSize.text);
-    this.placeButton(this.removeButton, edit.removeButton, layout.fontSize.text);
-    this.placeButton(this.doneButton, edit.doneButton, layout.fontSize.text);
+    this.placeButton(this.rotateButton, edit.rotateButton, edit.fontSize.action);
+    this.placeButton(this.removeButton, edit.removeButton, edit.fontSize.action);
+    this.placeButton(this.buyButton, edit.buyButton, edit.fontSize.action);
+    this.placeButton(this.doneButton, edit.doneButton, edit.fontSize.action);
     this.positionStatus(layout);
   }
 
@@ -838,6 +865,7 @@ export class FarmScene extends Scene {
       decorationButton: (id: DecorationId) => center(this.decorationButtons.get(id)!.box),
       rotateButton: () => center(this.rotateButton.box),
       removeButton: () => center(this.removeButton.box),
+      buyButton: () => center(this.buyButton.box),
       doneButton: () => center(this.doneButton.box),
     };
   }

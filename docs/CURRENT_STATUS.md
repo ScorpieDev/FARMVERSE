@@ -1,14 +1,14 @@
 # FARMVERSE CURRENT STATUS
 
 ## Version
-1.9
+1.10
 
 ## Last Updated
 2026-10-11
 
 ## Project Status
 
-Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: ALL STEPS DONE (2.1–2.6), closeout awaiting Game Director approval; Android check deferred. Phase 3 — Building: Steps 3.1–3.3 done (shared grid rules; server place / move / rotate / remove API, database schema v3; client Edit farm mode); P3-4 / P3-5 (how decorations are obtained, prices, levels) still to be decided.
+Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: ALL STEPS DONE (2.1–2.6), closeout awaiting Game Director approval; Android check deferred. Phase 3 — Building: Steps 3.1–3.4 done (shared grid rules; server place / move / rotate / remove API, database schema v3; client Edit farm mode; decoration coin shop, P3-4 / P3-5 decided 2026-10-11). Remaining: Phase 3 end-to-end check and closeout.
 
 ---
 
@@ -150,7 +150,11 @@ Started 2026-10-11 on the Game Director's directive, using draft options G-A (8�
 
 | 3.3 Client (plan step 3.5): **Edit farm** button; full-screen 8×8 grid editor with crop plots, placed decorations, decoration buttons, Rotate / Remove / Done; every change sent to the server, grid redrawn from its answer; tiles ≥ 44 CSS px from 360×640 / 640×360 | Done | `docs/reports/phase3/PHASE3_STEP3_3_REPORT.md` |
 
-Not yet included (waiting for P3-4 / P3-5): any way for players to obtain decorations (stock is 0 for everyone, so Edit mode shows "You have no decorations yet."), coin prices, unlock levels, shop. Decorations are shown in Edit mode only, not on the normal farm screen (open design question, Step 3.3 report §1).
+| 3.4 Decoration coin shop (P3-4 S-A, P3-5 table, Game Director 2026-10-11): fixed prices and unlock levels in `shared/src/building.ts` (Fence / Path 5 coins L1 … Small House 300 coins L6, provisional); `POST /api/shop/buy` (one per request, level then coins checked, request IDs); error code `INSUFFICIENT_CURRENCY`; Buy button, prices and coins in Edit mode; removing returns to stock without refund, no resale | Done | `docs/reports/phase3/PHASE3_STEP3_4_REPORT.md` |
+
+Decisions taken by Claude under the 2026-10-11 directive (recorded in the Step 3.4 report): one decoration per purchase request; the shop lives in Edit mode (Buy button), no separate shop screen; decorations are shown in Edit mode only, the normal farm screen keeps the Phase 2 layout (revisit with Phase 5 farm visits).
+
+Tests after Step 3.4: shared 376, server 532, client 186 — 1094 passing; `npm run typecheck` clean; client build OK; headless Chromium shop E2E 19/19 (isolated server and database).
 
 Tests after Step 3.3: shared 369, server 508, client 180 — 1057 passing; `npm run typecheck` clean; client build OK; headless Chromium edit-mode E2E 30/30 (isolated server and database).
 
@@ -201,7 +205,7 @@ Phase 0 — Foundation: COMPLETED.
 
 # NEXT OBJECTIVE
 
-Game Director: decide P3-4 (how decorations are obtained — coin shop or rewards) and P3-5 (prices, levels) in `docs/reports/phase3/PHASE3_BUILDING_PLAN_REPORT.md`; approve the Phase 2 closeout. Also decide whether decorations should appear on the normal farm screen. Then: Phase 3 end-to-end check (device / Codespaces URL) and closeout. Android check of Phase 2 when convenient.
+Phase 3 end-to-end check (Codespaces URL / device: buy, place, move, rotate, remove, reload) and Phase 3 closeout report. Game Director: approve the Phase 2 closeout. Android check of Phase 2 when convenient.
 
 ---
 

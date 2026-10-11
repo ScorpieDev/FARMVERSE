@@ -69,6 +69,18 @@ describe("grid and catalog (G-A, C-A draft)", () => {
     expect(new Set(DECORATIONS.map((decoration) => decoration.name)).size).toBe(DECORATIONS.length);
   });
 
+  it("prices and unlock levels match the approved provisional table (P3-4, P3-5)", () => {
+    expect(DECORATIONS.map((decoration) => [decoration.id, decoration.price, decoration.unlockLevel])).toEqual([
+      ["fence", 5, 1],
+      ["path", 5, 1],
+      ["flower_bed", 20, 2],
+      ["bush", 30, 3],
+      ["bench", 60, 4],
+      ["tree", 120, 5],
+      ["small_house", 300, 6],
+    ]);
+  });
+
   it("does not share IDs with farming items", async () => {
     const { ITEM_IDS } = await import("./farming.js");
     for (const id of DECORATION_IDS) expect((ITEM_IDS as readonly string[]).includes(id)).toBe(false);

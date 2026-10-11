@@ -7,6 +7,7 @@ import {
   NO_SELECTION,
   editErrorText,
   editSuccessText,
+  isDecorationLocked,
   isPlotTile,
   nextRotation,
   objectAt,
@@ -15,6 +16,9 @@ import {
   selectionText,
   stockLabel,
   stockOf,
+  buySuccessText,
+  canAfford,
+  tapBuy,
   tapDecoration,
   tapRemove,
   tapRotate,
@@ -51,7 +55,9 @@ describe("reading the server state", () => {
   it("counts unplaced decorations from the server", () => {
     expect(stockOf(state(), "fence")).toBe(3);
     expect(stockOf(state(), "bench")).toBe(0);
-    expect(stockLabel(state(), "fence")).toBe("Fence\n×3");
+    expect(stockLabel(state(), "fence")).toBe("Fence\n×3 · 5c");
+    expect(stockLabel(state(), "path")).toBe("Path\n×0 · 5c");
+    expect(stockLabel(state(), "bench")).toBe("Bench\nLevel 4");
   });
 
   it("finds the object covering a tile, including every tile of a 2×2 object", () => {
@@ -101,8 +107,17 @@ describe("tapDecoration", () => {
     expect(tapDecoration(state(), placingFence, "fence")).toEqual({ kind: "select", selection: NO_SELECTION });
   });
 
-  it("explains when none are owned instead of selecting", () => {
-    expect(tapDecoration(state(), NO_SELECTION, "bench")).toEqual({ kind: "message", text: "You have no Bench to place." });
+  it("selects an unlocked decoration with none owned, so it can be bought", () => {
+    expect(tapDecoration(state(), NO_SELECTION, "path")).toEqual({
+      kind: "select",
+      selection: { kind: "decoration", decorationId: "path", rotation: 0 },
+    });
+  });
+
+  it("explains a level-locked decoration instead of selecting it", () => {
+    expect(tapDecoration(state(), NO_SELECTION, "bench")).toEqual({ kind: "message", text: "Bench unlocks at level 4." });
+    expect(isDecorationLocked(state(), "bench")).toBe(true);
+    expect(isDecorationLocked(state({ progression: { level: 4, xpIntoLevel: 0, xpForNextLevel: 200, unlockedPlotCount: 8 } }), "bench")).toBe(false);
   });
 });
 
@@ -172,15 +187,20 @@ describe("following the server state", () => {
     expect(reconcileSelection(state(), treeSelected)).toEqual(treeSelected);
   });
 
-  it("drops a decoration selection when the last one was placed", () => {
-    expect(reconcileSelection(state({ decorations: [] }), placingFence)).toEqual(NO_SELECTION);
-    expect(reconcileSelection(state(), placingFence)).toEqual(placingFence);
+  it("keeps a decoration selected after the last one was placed, so more can be bought", () => {
+    expect(reconcileSelection(state({ decorations: [] }), placingFence)).toEqual(placingFence);
+    expect(reconcileSelection(state(), { kind: "decoration", decorationId: "tree", rotation: 0 })).toEqual(NO_SELECTION);
   });
 
   it("describes the selection", () => {
-    expect(selectionText(state(), placingFence)).toBe("Placing Fence → · tap a free tile");
-    expect(selectionText(state(), treeSelected)).toBe("Tree ↑ selected · tap a tile to move it");
-    expect(selectionText(state({ decorations: [], objects: [] }), NO_SELECTION)).toBe("You have no decorations yet.");
+    expect(selectionText(state({ coins: 42 }), placingFence)).toBe("Coins 42 · Placing Fence → (3 left) · tap a free tile");
+    expect(selectionText(state(), treeSelected)).toBe("Coins 0 · Tree ↑ selected · tap a tile to move it");
+    expect(selectionText(state(), { kind: "decoration", decorationId: "path", rotation: 0 })).toBe(
+      "Coins 0 · Path: 5 coins · tap Buy",
+    );
+    expect(selectionText(state({ decorations: [], objects: [] }), NO_SELECTION)).toBe(
+      "Coins 0 · Pick a decoration to buy or place, or tap an object.",
+    );
   });
 
   it("reports results and errors in words", () => {
@@ -189,6 +209,33 @@ describe("following the server state", () => {
     expect(editErrorText("PLACEMENT_INVALID")).toContain("does not fit");
     expect(editErrorText("OBJECT_NOT_FOUND")).toContain("no longer on your farm");
     expect(editErrorText("ITEM_NOT_OWNED")).toContain("none of that decoration");
+    expect(editErrorText("INSUFFICIENT_CURRENCY")).toContain("Not enough coins");
+    expect(editErrorText("LEVEL_TOO_LOW")).toContain("higher level");
+    expect(buySuccessText({ decorationId: "tree", price: 120 })).toBe("Bought Tree for 120 coins.");
     expect(editErrorText("PLOT_EMPTY")).toBeUndefined();
+  });
+});
+
+describe("buying (Step 3.4)", () => {
+  const placingPath: EditSelection = { kind: "decoration", decorationId: "path", rotation: 0 };
+
+  it("asks the server to buy the selected decoration", () => {
+    expect(tapBuy(placingPath)).toEqual({ kind: "buy", decorationId: "path" });
+    expect(tapBuy(NO_SELECTION).kind).toBe("message");
+    expect(tapBuy(treeSelected).kind).toBe("message");
+  });
+
+  it("asks to buy first instead of placing a decoration with none owned", () => {
+    expect(tapTile(state(), placingPath, { x: 7, y: 7 })).toEqual({
+      kind: "message",
+      text: "You have no Path left. Tap Buy (5 coins).",
+    });
+  });
+
+  it("hints whether the Buy button can succeed (the server decides)", () => {
+    expect(canAfford(state({ coins: 5 }), placingPath)).toBe(true);
+    expect(canAfford(state({ coins: 4 }), placingPath)).toBe(false);
+    expect(canAfford(state({ coins: 999 }), { kind: "decoration", decorationId: "tree", rotation: 0 })).toBe(false);
+    expect(canAfford(state({ coins: 999 }), NO_SELECTION)).toBe(false);
   });
 });

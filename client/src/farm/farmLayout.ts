@@ -80,11 +80,13 @@ export interface EditLayout {
   decorationButtons: Rect[];
   rotateButton: Rect;
   removeButton: Rect;
+  /** Buys one of the selected decoration (Step 3.4 shop). */
+  buyButton: Rect;
   doneButton: Rect;
   /** Selection and result text, wrapped to `wrapWidth`. */
   message: TextSpot;
   wrapWidth: number;
-  fontSize: { button: number; object: number };
+  fontSize: { button: number; action: number; object: number };
 }
 
 /** Smallest frame: always fully visible. */
@@ -224,7 +226,7 @@ function buttonRows(count: number, perRow: number, area: Rect, gap: number, heig
 /**
  * Edit mode: the grid as large as fits (portrait: full width at the top;
  * landscape: full height on the left), then in the remaining column the
- * status line, decoration buttons, Rotate / Remove / Done and the message.
+ * status line, decoration buttons, Rotate / Remove / Buy / Done and the message.
  */
 function layoutEdit(design: Size, orientation: Orientation, m: Metrics): EditLayout {
   const gap = Math.min(m.gap, 8);
@@ -250,13 +252,13 @@ function layoutEdit(design: Size, orientation: Orientation, m: Metrics): EditLay
   const decorationArea = { x: panel.x, y: panel.y + m.lineHeight + gap, width: panel.width, height: 0 };
   const decorationButtons = buttonRows(DECORATION_BUTTONS, perRow, decorationArea, gap, m.buttonHeight);
   const actionsTop = decorationArea.y + decorationRows * (m.buttonHeight + gap);
-  const [rotateButton, removeButton, doneButton] = buttonRows(
-    3,
-    3,
+  const [rotateButton, removeButton, buyButton, doneButton] = buttonRows(
+    4,
+    4,
     { x: panel.x, y: actionsTop, width: panel.width, height: 0 },
     gap,
     m.buttonHeight,
-  ) as [Rect, Rect, Rect];
+  ) as [Rect, Rect, Rect, Rect];
   const tileSize = grid.width / GRID_TILES;
   const buttonWidth = decorationButtons[0]!.width;
   return {
@@ -266,11 +268,17 @@ function layoutEdit(design: Size, orientation: Orientation, m: Metrics): EditLay
     decorationButtons,
     rotateButton,
     removeButton,
+    buyButton,
     doneButton,
     message: { x: status.x, y: actionsTop + m.buttonHeight + gap },
     wrapWidth: panel.width,
     // "Small House" must fit on one line of a decoration button.
-    fontSize: { button: Math.min(m.textSize, Math.floor(buttonWidth / 7)), object: Math.min(12, Math.floor(tileSize / 4)) },
+    fontSize: {
+      button: Math.min(m.textSize, Math.floor(buttonWidth / 7)),
+      // "Remove" (bold, about 4.5 font units wide) must fit on an action button with a margin.
+      action: Math.min(m.textSize - 1, Math.floor((rotateButton.width - 8) / 4.5)),
+      object: Math.min(12, Math.floor(tileSize / 4)),
+    },
   };
 }
 

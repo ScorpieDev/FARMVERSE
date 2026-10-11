@@ -3,9 +3,9 @@
  *
  * Phase 0 defines what the foundation needs (connection, health check,
  * message validation); Phase 1 adds the farming API errors and Phase 2 the
- * progression errors; Phase 3 adds building placement errors. Errors of later
- * features (e.g. INSUFFICIENT_CURRENCY, TECHNICAL_ARCHITECTURE.md §18) are
- * added in the phase that implements them.
+ * progression errors; Phase 3 adds building placement and decoration shop
+ * errors. Errors of later features are added in the phase that implements
+ * them.
  */
 export const ErrorCode = {
   /** Message is not valid JSON or does not match the protocol contract. */
@@ -56,6 +56,8 @@ export const ErrorCode = {
   PLACEMENT_INVALID: "PLACEMENT_INVALID",
   /** No placed object with that ID on the player's own farm. */
   OBJECT_NOT_FOUND: "OBJECT_NOT_FOUND",
+  /** Not enough coins for a purchase (TECHNICAL_ARCHITECTURE.md §18). */
+  INSUFFICIENT_CURRENCY: "INSUFFICIENT_CURRENCY",
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

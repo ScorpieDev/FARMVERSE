@@ -3,6 +3,8 @@ import {
   isFarmState,
   isHarvestRequest,
   isHarvestResponse,
+  isBuyDecorationRequest,
+  isBuyDecorationResponse,
   isHealthResponse,
   isMoveObjectRequest,
   isObjectActionResponse,
@@ -452,5 +454,29 @@ describe("object request validators (Phase 3)", () => {
   it("rejects a move without a tile and a rotate with a bad rotation", () => {
     expect(isMoveObjectRequest({ requestId: REQUEST_ID, objectId: 1, x: 0 })).toBe(false);
     expect(isRotateObjectRequest({ requestId: REQUEST_ID, objectId: 1, rotation: 360 })).toBe(false);
+  });
+});
+
+describe("decoration shop (Phase 3)", () => {
+  it("accepts a buy request with a known decoration; the client sends no price or quantity", () => {
+    expect(isBuyDecorationRequest({ requestId: REQUEST_ID, decorationId: "fence" })).toBe(true);
+    expect(isBuyDecorationRequest({ requestId: REQUEST_ID, decorationId: "fence", price: 0 })).toBe(true);
+  });
+
+  it.each([
+    ["unknown decoration", { requestId: REQUEST_ID, decorationId: "castle" }],
+    ["missing decoration", { requestId: REQUEST_ID }],
+    ["bad request ID", { requestId: "x", decorationId: "fence" }],
+    ["array", [{ requestId: REQUEST_ID, decorationId: "fence" }]],
+  ])("rejects a buy request with %s", (_label, value) => {
+    expect(isBuyDecorationRequest(value)).toBe(false);
+  });
+
+  it("checks what was bought", () => {
+    const state = farm({ decorations: [{ decorationId: "fence", quantity: 1 }] });
+    expect(isBuyDecorationResponse({ ...state, bought: { decorationId: "fence", price: 5 } })).toBe(true);
+    expect(isBuyDecorationResponse({ ...state, bought: { decorationId: "fence", price: 0 } })).toBe(false);
+    expect(isBuyDecorationResponse({ ...state, bought: { decorationId: "castle", price: 5 } })).toBe(false);
+    expect(isBuyDecorationResponse(state)).toBe(false);
   });
 });

@@ -11,6 +11,7 @@
  *   POST /api/farm/objects/move    { requestId, objectId, x, y }
  *   POST /api/farm/objects/rotate  { requestId, objectId, rotation }
  *   POST /api/farm/objects/remove  { requestId, objectId }
+ *   POST /api/shop/buy             { requestId, decorationId }  one decoration, server price
  *
  * The server is authoritative: the player comes from the Bearer token, time
  * from the server clock, and every rule from ./rules.ts, ./progression.ts and
@@ -36,6 +37,8 @@ import {
   OBJECT_ROTATE_PATH,
   QUEST_CLAIM_PATH,
   SESSION_PATH,
+  SHOP_BUY_PATH,
+  isBuyDecorationRequest,
   isHarvestRequest,
   isMoveObjectRequest,
   isPlaceObjectRequest,
@@ -44,6 +47,7 @@ import {
   isRefillSeedsRequest,
   isRemoveObjectRequest,
   isRotateObjectRequest,
+  type BuyDecorationResponse,
   type ObjectActionResponse,
   type QuestClaimResponse,
 } from "@farmverse/shared/api";
@@ -69,6 +73,7 @@ import {
   type BuildingError,
   type BuildingResult,
 } from "../building/rules.js";
+import { buyDecoration, type ShopError } from "../building/shop.js";
 import { claimQuest, type QuestError } from "./progression.js";
 import { recordQuestEvent, type QuestState } from "./quests.js";
 import {
@@ -94,10 +99,11 @@ const HTTP_STATUS: Partial<Record<ErrorCode, number>> = {
   QUEST_NOT_COMPLETE: 409,
   PLACEMENT_INVALID: 409,
   OBJECT_NOT_FOUND: 409,
+  INSUFFICIENT_CURRENCY: 409,
   REQUEST_ID_REUSED: 409,
 };
 
-type ActionError = RuleError | QuestError | BuildingError;
+type ActionError = RuleError | QuestError | BuildingError | ShopError;
 
 const ERROR_MESSAGES: Record<ActionError, string> = {
   PLOT_NOT_EMPTY: "This plot already has a crop",
@@ -109,6 +115,7 @@ const ERROR_MESSAGES: Record<ActionError, string> = {
   QUEST_NOT_COMPLETE: "There is no completed quest to claim",
   PLACEMENT_INVALID: "This object cannot be placed there",
   OBJECT_NOT_FOUND: "There is no such object on your farm",
+  INSUFFICIENT_CURRENCY: "Not enough coins",
 };
 
 /** Small JSON bodies only: the largest valid request is well under 200 bytes. */
@@ -122,7 +129,8 @@ type ActionName =
   | "object-place"
   | "object-move"
   | "object-rotate"
-  | "object-remove";
+  | "object-remove"
+  | "shop-buy";
 
 /** On success, only the parts of the state that are returned are saved. */
 type ActionResult =
@@ -444,6 +452,31 @@ export function registerFarmRoutes(app: FastifyInstance, { db, now }: FarmRoutes
       requestId,
       JSON.stringify({ requestId, objectId }),
       (building) => removeObject(building, objectId),
+    );
+    return reply.code(outcome.status).send(outcome.body);
+  });
+
+  app.post(SHOP_BUY_PATH, { bodyLimit: BODY_LIMIT }, (request, reply) => {
+    const playerId = requirePlayer(request, reply);
+    if (playerId === null) return reply;
+    if (!isBuyDecorationRequest(request.body)) return sendError(reply, "INVALID_REQUEST", "Invalid buy request");
+
+    const { requestId, decorationId } = request.body;
+    const outcome = runAction(
+      request,
+      playerId,
+      "shop-buy",
+      requestId,
+      JSON.stringify({ requestId, decorationId }),
+      ({ farm, quests, building }, time) => {
+        const result = buyDecoration(farm, building, decorationId);
+        if (!result.ok) return result;
+        const body: BuyDecorationResponse = {
+          ...toFarmState(result.farm, quests, result.building, time),
+          bought: { decorationId, price: result.price },
+        };
+        return { ok: true, farm: result.farm, building: result.building, body };
+      },
     );
     return reply.code(outcome.status).send(outcome.body);
   });

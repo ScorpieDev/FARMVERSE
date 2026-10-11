@@ -9,13 +9,17 @@ import {
   OBJECT_REMOVE_PATH,
   OBJECT_ROTATE_PATH,
   SESSION_PATH,
+  SHOP_BUY_PATH,
+  isBuyDecorationResponse,
   isFarmState,
   isObjectActionResponse,
+  type BuyDecorationResponse,
   type FarmState,
   type ObjectActionResponse,
   type SessionResponse,
 } from "@farmverse/shared/api";
 import type { DecorationId } from "@farmverse/shared/building";
+import { totalXpForLevel } from "@farmverse/shared/progression";
 import type { ErrorPayload } from "@farmverse/shared/errors";
 import { registerFarmRoutes } from "../farming/routes.js";
 import { MEMORY_DATABASE, openDatabase, transaction, type Database } from "../storage/database.js";
@@ -312,5 +316,116 @@ describe("move, rotate and remove", () => {
     }
     expect((await getFarm(owner)).objects).toHaveLength(2);
     expect((await getFarm(other)).objects).toEqual([]);
+  });
+});
+
+describe("POST /api/shop/buy (Step 3.4)", () => {
+  /** Sets a player's coins and level directly (tests only). */
+  function setWallet(session: SessionResponse, coins: number, level = 1): void {
+    const playerId = authenticate(db, `Bearer ${session.token}`)!;
+    db.prepare("UPDATE players SET coins = ?, xp = ? WHERE id = ?").run(coins, totalXpForLevel(level), playerId);
+  }
+  const buy = (decorationId: string, requestId: string = randomUUID()) => ({ requestId, decorationId });
+
+  it("charges the server price and adds the decoration, which can then be placed", async () => {
+    const session = await newSession();
+    setWallet(session, 12);
+    const response = await post(session, SHOP_BUY_PATH, buy("fence"));
+    expect(response.statusCode).toBe(200);
+    const body = response.json<BuyDecorationResponse>();
+    expect(isBuyDecorationResponse(body)).toBe(true);
+    expect(body.bought).toEqual({ decorationId: "fence", price: 5 });
+    expect(body.coins).toBe(7);
+    expect(body.decorations).toEqual([{ decorationId: "fence", quantity: 1 }]);
+    expect((await post(session, OBJECT_PLACE_PATH, place("fence", 0, 0))).statusCode).toBe(200);
+    const farm = await getFarm(session);
+    expect(farm.coins).toBe(7);
+    expect(farm.objects).toHaveLength(1);
+    expect(farm.decorations).toEqual([]);
+  });
+
+  it("does not change XP, level, plots, seeds or quests", async () => {
+    const session = await newSession();
+    setWallet(session, 50);
+    const before = await getFarm(session);
+    const body = (await post(session, SHOP_BUY_PATH, buy("path"))).json<BuyDecorationResponse>();
+    expect(body.xp).toBe(before.xp);
+    expect(body.progression).toEqual(before.progression);
+    expect(body.plots).toEqual(before.plots);
+    expect(body.inventory).toEqual(before.inventory);
+    expect(body.quest).toEqual(before.quest);
+  });
+
+  it("rejects a purchase the coins do not cover, without charging", async () => {
+    const session = await newSession();
+    setWallet(session, 4);
+    await expectError(await post(session, SHOP_BUY_PATH, buy("fence")), 409, "INSUFFICIENT_CURRENCY");
+    const farm = await getFarm(session);
+    expect(farm.coins).toBe(4);
+    expect(farm.decorations).toEqual([]);
+  });
+
+  it("rejects a decoration above the player's level", async () => {
+    const session = await newSession();
+    setWallet(session, 1000, 5);
+    await expectError(await post(session, SHOP_BUY_PATH, buy("small_house")), 409, "LEVEL_TOO_LOW");
+    expect((await post(session, SHOP_BUY_PATH, buy("tree"))).statusCode).toBe(200);
+    expect((await getFarm(session)).coins).toBe(880);
+  });
+
+  it.each([
+    ["unknown decoration", { requestId: randomUUID(), decorationId: "castle" }],
+    ["missing request ID", { decorationId: "fence" }],
+    ["missing decoration", { requestId: randomUUID() }],
+  ])("rejects a malformed request (%s) with 400", async (_label, body) => {
+    const session = await newSession();
+    setWallet(session, 100);
+    await expectError(await post(session, SHOP_BUY_PATH, body), 400, "INVALID_REQUEST");
+  });
+
+  it("ignores a client-sent price or quantity", async () => {
+    const session = await newSession();
+    setWallet(session, 100);
+    const body = (await post(session, SHOP_BUY_PATH, { ...buy("fence"), price: 0, quantity: 50 })).json<BuyDecorationResponse>();
+    expect(body.coins).toBe(95);
+    expect(body.decorations).toEqual([{ decorationId: "fence", quantity: 1 }]);
+  });
+
+  it("replays the same request ID without charging twice", async () => {
+    const session = await newSession();
+    setWallet(session, 20);
+    const body = buy("fence");
+    const first = await post(session, SHOP_BUY_PATH, body);
+    const second = await post(session, SHOP_BUY_PATH, body);
+    expect(second.statusCode).toBe(200);
+    expect(second.json()).toEqual(first.json());
+    expect((await getFarm(session)).coins).toBe(15);
+    await expectError(await post(session, SHOP_BUY_PATH, buy("path", body.requestId)), 409, "REQUEST_ID_REUSED");
+  });
+
+  it("charges again for a new request ID", async () => {
+    const session = await newSession();
+    setWallet(session, 20);
+    await post(session, SHOP_BUY_PATH, buy("fence"));
+    await post(session, SHOP_BUY_PATH, buy("fence"));
+    const farm = await getFarm(session);
+    expect(farm.coins).toBe(10);
+    expect(farm.decorations).toEqual([{ decorationId: "fence", quantity: 2 }]);
+  });
+
+  it("requires a session", async () => {
+    const response = await app.inject({ method: "POST", url: SHOP_BUY_PATH, payload: buy("fence") });
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("removing a placed object returns it to the stock without a refund", async () => {
+    const session = await newSession();
+    setWallet(session, 5);
+    await post(session, SHOP_BUY_PATH, buy("fence"));
+    await post(session, OBJECT_PLACE_PATH, place("fence", 0, 0));
+    await post(session, OBJECT_REMOVE_PATH, { requestId: randomUUID(), objectId: 1 });
+    const farm = await getFarm(session);
+    expect(farm.coins).toBe(0);
+    expect(farm.decorations).toEqual([{ decorationId: "fence", quantity: 1 }]);
   });
 });

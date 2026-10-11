@@ -1,11 +1,13 @@
 /**
- * Edit mode helpers for the farm grid (Phase 3). Pure functions.
+ * Edit mode helpers for the farm grid and decoration shop (Phase 3). Pure functions.
  *
- * The client only keeps a UI selection (a decoration to place, or a placed
- * object) and the rotation for the next placement. Every tap that would
- * change the farm becomes an intent for the server (place / move / rotate /
- * remove); ownership, bounds, plots and overlap are decided by the server,
- * and the grid is always drawn from the server's FarmState.
+ * The client only keeps a UI selection (a decoration to buy or place, or a
+ * placed object) and the rotation for the next placement. Every tap that
+ * would change the farm becomes an intent for the server (buy / place / move /
+ * rotate / remove); prices, levels, coins, ownership, bounds, plots and
+ * overlap are decided by the server, and the grid is always drawn from the
+ * server's FarmState. Prices and levels shown here come from the shared
+ * catalog and are only hints.
  */
 import type { DecorationEntry, FarmState } from "@farmverse/shared/api";
 import {
@@ -35,7 +37,13 @@ export type EditIntent =
   | { kind: "move"; objectId: number; x: number; y: number }
   | { kind: "rotate"; objectId: number; rotation: Rotation }
   | { kind: "remove"; objectId: number }
+  | { kind: "buy"; decorationId: DecorationId }
   | { kind: "message"; text: string };
+
+/** True when the player's level is below the decoration's unlock level. */
+export function isDecorationLocked(state: FarmState, decorationId: DecorationId): boolean {
+  return state.progression.level < getDecoration(decorationId).unlockLevel;
+}
 
 export function stockOf(state: FarmState, decorationId: DecorationId): number {
   return state.decorations.find((entry: DecorationEntry) => entry.decorationId === decorationId)?.quantity ?? 0;
@@ -65,33 +73,45 @@ export function objectLabel(object: PlacedObject): string {
   return `${getDecoration(object.decorationId).name} ${rotationArrow(object.rotation)}`;
 }
 
-/** Label of a decoration button: name and how many are owned but not placed. */
+/** Label of a decoration button: name, then owned-but-unplaced count and price, or the unlock level. */
 export function stockLabel(state: FarmState, decorationId: DecorationId): string {
-  return `${getDecoration(decorationId).name}\n×${stockOf(state, decorationId)}`;
+  const { name, price, unlockLevel } = getDecoration(decorationId);
+  if (isDecorationLocked(state, decorationId)) return `${name}\nLevel ${unlockLevel}`;
+  return `${name}\n×${stockOf(state, decorationId)} · ${price}c`;
 }
 
 /**
  * Drops a selection the server state no longer supports: an object that is
- * gone, or a decoration with no stock left.
+ * gone. A decoration stays selected when its last one was placed, so more
+ * can be bought.
  */
 export function reconcileSelection(state: FarmState, selection: EditSelection): EditSelection {
   if (selection.kind === "object") {
     return state.objects.some((object) => object.objectId === selection.objectId) ? selection : NO_SELECTION;
   }
   if (selection.kind === "decoration") {
-    return stockOf(state, selection.decorationId) > 0 ? selection : NO_SELECTION;
+    return isDecorationLocked(state, selection.decorationId) ? NO_SELECTION : selection;
   }
   return selection;
 }
 
-/** Tapping a decoration button: select it (rotation 0), or deselect it if already selected. */
+/**
+ * Tapping a decoration button: select it (rotation 0) to buy or place it, or
+ * deselect it if already selected. Locked decorations show their level.
+ */
 export function tapDecoration(state: FarmState, selection: EditSelection, decorationId: DecorationId): EditIntent {
-  const name = getDecoration(decorationId).name;
+  const { name, unlockLevel } = getDecoration(decorationId);
   if (selection.kind === "decoration" && selection.decorationId === decorationId) {
     return { kind: "select", selection: NO_SELECTION };
   }
-  if (stockOf(state, decorationId) === 0) return { kind: "message", text: `You have no ${name} to place.` };
+  if (isDecorationLocked(state, decorationId)) return { kind: "message", text: `${name} unlocks at level ${unlockLevel}.` };
   return { kind: "select", selection: { kind: "decoration", decorationId, rotation: 0 } };
+}
+
+/** Buy button: asks the server to sell one of the selected decoration. */
+export function tapBuy(selection: EditSelection): EditIntent {
+  if (selection.kind === "decoration") return { kind: "buy", decorationId: selection.decorationId };
+  return { kind: "message", text: "Pick a decoration to buy." };
 }
 
 /**
@@ -111,6 +131,10 @@ export function tapTile(state: FarmState, selection: EditSelection, tile: GridPo
     return { kind: "select", selection: { kind: "object", objectId: object.objectId } };
   }
   if (selection.kind === "decoration") {
+    if (stockOf(state, selection.decorationId) === 0) {
+      const { name, price } = getDecoration(selection.decorationId);
+      return { kind: "message", text: `You have no ${name} left. Tap Buy (${price} coins).` };
+    }
     return { kind: "place", decorationId: selection.decorationId, x: tile.x, y: tile.y, rotation: selection.rotation };
   }
   if (selection.kind === "object") return { kind: "move", objectId: selection.objectId, x: tile.x, y: tile.y };
@@ -136,18 +160,23 @@ export function tapRemove(selection: EditSelection): EditIntent {
   return { kind: "message", text: "Tap a placed object first, then Remove." };
 }
 
-/** Status line for the current selection. */
+/** Status line for the current selection, starting with the coin balance. */
 export function selectionText(state: FarmState, selection: EditSelection): string {
+  return `Coins ${state.coins} · ${selectionHint(state, selection)}`;
+}
+
+function selectionHint(state: FarmState, selection: EditSelection): string {
   if (selection.kind === "decoration") {
-    const name = getDecoration(selection.decorationId).name;
-    return `Placing ${name} ${rotationArrow(selection.rotation)} · tap a free tile`;
+    const { name, price } = getDecoration(selection.decorationId);
+    const owned = stockOf(state, selection.decorationId);
+    if (owned === 0) return `${name}: ${price} coins · tap Buy`;
+    return `Placing ${name} ${rotationArrow(selection.rotation)} (${owned} left) · tap a free tile`;
   }
   if (selection.kind === "object") {
     const object = state.objects.find((entry) => entry.objectId === selection.objectId);
     if (object !== undefined) return `${objectLabel(object)} selected · tap a tile to move it`;
   }
-  if (state.decorations.length === 0 && state.objects.length === 0) return "You have no decorations yet.";
-  return "Pick a decoration, or tap an object.";
+  return "Pick a decoration to buy or place, or tap an object.";
 }
 
 /** Message after the server accepted an edit. */
@@ -158,10 +187,26 @@ export function editSuccessText(kind: "place" | "move" | "rotate" | "remove", ob
   ];
 }
 
+/** Message after the server accepted a purchase. */
+export function buySuccessText(bought: { decorationId: DecorationId; price: number }): string {
+  return `Bought ${getDecoration(bought.decorationId).name} for ${bought.price} coins.`;
+}
+
+/** Hint colour for the Buy button: a decoration is selected, unlocked and affordable (the server decides). */
+export function canAfford(state: FarmState, selection: EditSelection): boolean {
+  return (
+    selection.kind === "decoration" &&
+    !isDecorationLocked(state, selection.decorationId) &&
+    state.coins >= getDecoration(selection.decorationId).price
+  );
+}
+
 const EDIT_ERROR_TEXT: Partial<Record<ErrorCode, string>> = {
   PLACEMENT_INVALID: "It does not fit there: keep it inside the farm, off the crop plots and other objects.",
   OBJECT_NOT_FOUND: "That object is no longer on your farm. Farm refreshed.",
   ITEM_NOT_OWNED: "You have none of that decoration left.",
+  INSUFFICIENT_CURRENCY: "Not enough coins for that. Harvest crops to earn more.",
+  LEVEL_TOO_LOW: "Reach a higher level to buy that.",
 };
 
 /** Error text for a rejected edit, or undefined to use the general farm error text. */

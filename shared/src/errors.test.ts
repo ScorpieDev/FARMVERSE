@@ -27,6 +27,7 @@ describe("isErrorCode", () => {
         "QUEST_NOT_COMPLETE",
         "PLACEMENT_INVALID",
         "OBJECT_NOT_FOUND",
+        "INSUFFICIENT_CURRENCY",
       ].sort(),
     );
   });

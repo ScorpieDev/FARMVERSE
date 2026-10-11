@@ -294,3 +294,22 @@ describe("object actions (Phase 3)", () => {
     );
   });
 });
+
+describe("buyDecoration (Step 3.4)", () => {
+  it("posts only the decoration and returns the server's state", async () => {
+    const response = { ...FARM, coins: 7, decorations: [{ decorationId: "fence", quantity: 1 }], bought: { decorationId: "fence", price: 5 } };
+    const { fetch, calls } = fakeFetch(json(200, response));
+    const body = { requestId: REQUEST_ID, decorationId: "fence" as const };
+    expect(await api(fetch).client.buyDecoration(body)).toEqual({ ok: true, state: response });
+    expect(calls[0]).toMatchObject({ url: "/api/shop/buy", method: "POST", body });
+  });
+
+  it("returns INSUFFICIENT_CURRENCY from the server", async () => {
+    const { fetch } = fakeFetch(json(409, { code: "INSUFFICIENT_CURRENCY", message: "Not enough coins" }));
+    expect(await api(fetch).client.buyDecoration({ requestId: REQUEST_ID, decorationId: "fence" })).toEqual({
+      ok: false,
+      code: "INSUFFICIENT_CURRENCY",
+      message: "Not enough coins",
+    });
+  });
+});

@@ -50,3 +50,4 @@ Steps 1–3 predate the report convention; see their commit messages (`5faeaff`,
 | `PHASE3_STEP3_1_REPORT.md` | Step 3.1: shared farm grid, decoration catalog, rotation and placement / layout checks |
 | `PHASE3_STEP3_2_REPORT.md` | Step 3.2: server building rules, schema v3, object place / move / rotate / remove API |
 | `PHASE3_STEP3_3_REPORT.md` | Step 3.3: client Edit farm mode (grid, decorations, place / move / rotate / remove) and browser check |
+| `PHASE3_STEP3_4_REPORT.md` | Step 3.4: decoration coin shop (P3-4 / P3-5 decisions, buy API, Buy button) and browser check |
