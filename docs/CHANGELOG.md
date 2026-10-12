@@ -1,5 +1,11 @@
 # FARMVERSE CHANGELOG
 
+## Development environment
+
+### Fixed
+
+- Codespaces development origins (Game Director option A, 2026-10-12): the server keeps a list of exact allowed origins (`CLIENT_ORIGIN`, plus this Codespace's forwarded port-5173 origin in Codespaces development only; never in production) for CORS and the WebSocket Origin check; Vite's dev server accepts only this Codespace's exact forwarded host instead of every `*.app.github.dev`; startup fails if Codespaces variables are missing — `37c3994`
+
 ## Phase 4 — Character (conditionally approved 2026-10-12)
 
 Design approved by the Game Director on 2026-10-12 (P4-1…P4-4: R-A shape drawing, C-A catalog, K-A coin shop, D-A Character screen; `docs/reports/phase4/PHASE4_CHARACTER_PLAN_REPORT.md`).

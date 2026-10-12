@@ -116,7 +116,7 @@ Tasks:
 
 Status:
 
-CONDITIONALLY APPROVED (Game Director, 2026-10-12) — dựa trên end-to-end qua URL Codespaces 24/24 và các test đã chạy. Bước 4.1–4.4: `3648a98`, `cd9bed8`, `a5640bd`, `a6fc0e9` (đều có trên `origin/main`). Điều kiện còn mở (chưa xác minh): thiết bị Android/iOS; trình duyệt thật đã đăng nhập GitHub qua URL Codespaces (bài test dùng token + relay `/ws`); bản build production / `vite preview`; code đã commit chạy qua Codespaces khi không có 10 file WebSocket chưa commit. Xem `docs/reports/phase4/PHASE4_STATUS_REVIEW_REPORT.md`.
+CONDITIONALLY APPROVED (Game Director, 2026-10-12) — dựa trên end-to-end qua URL Codespaces 24/24 và các test đã chạy. Bước 4.1–4.4: `3648a98`, `cd9bed8`, `a5640bd`, `a6fc0e9` (đều có trên `origin/main`). Điều kiện còn mở (chưa xác minh): thiết bị Android/iOS; trình duyệt thật đã đăng nhập GitHub qua URL Codespaces (bài test dùng token + relay `/ws`); bản build production / `vite preview`; (điều kiện về 10 file WebSocket đã được giải quyết bằng commit `37c3994`). Xem `docs/reports/phase4/PHASE4_STATUS_REVIEW_REPORT.md`.
 
 Tasks:
 
@@ -268,7 +268,7 @@ Phase 1 — Farming: COMPLETED (2026-10-10).
 
 Phase 0 — Foundation: COMPLETED (2026-10-10).
 
-Phase 5 — Multiplayer: CHƯA BẮT ĐẦU. Trước đó Game Director cần quyết định 10 file WebSocket/Codespaces chưa commit.
+Phase 5 — Multiplayer: CHƯA BẮT ĐẦU — chờ thống nhất báo cáo đóng Phase 2, Phase 3 và đánh giá Phase 4. (Origin Codespaces đã commit: `37c3994`.)
 
 ---
 

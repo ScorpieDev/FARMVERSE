@@ -2,7 +2,9 @@
 
 Date: 2026-10-12. Requested by the Game Director before Phase 5.
 
-Scope: no code was changed and no data was reset. The 10 uncommitted files were not committed, reset or stashed.
+Scope: no code was changed and no data was reset. The 10 uncommitted files were not committed, reset or stashed during the review.
+
+**Update (same day): the Game Director chose option A.** The 10 files were committed as `37c3994` (`fix: support Codespaces development origins`) and pushed to `origin/main` after the extra checks in §5.
 
 ## 1. Phases 2 and 3: reports checked against commits
 
@@ -38,7 +40,7 @@ Recorded as **CONDITIONALLY APPROVED** by the Game Director (2026-10-12).
 1. Android / iOS device (deferred).
 2. A real, GitHub-logged-in browser on the Codespaces URL. The E2E used `X-Github-Token` and a local `/ws` relay that sends Origin `https://localhost:5173`.
 3. The production build served to a browser (`vite preview` or a deployment). Only `vite build` was run.
-4. The committed code on its own (without the 10 uncommitted files) running through Codespaces. The dev server used for every E2E since Phase 1 runs the working tree, which includes them. The committed code alone passes the automated tests (section 4).
+4. ~~The committed code on its own (without the 10 uncommitted files) running through Codespaces.~~ **Resolved by `37c3994`:** those files are now committed, so the code on `origin/main` is the code the Codespaces E2E ran on.
 5. Values (prices, levels, item set) are provisional.
 
 ## 3. The uncommitted WebSocket/Codespaces changes
@@ -99,3 +101,37 @@ Recorded as **CONDITIONALLY APPROVED** by the Game Director (2026-10-12).
 No database was reset or deleted:
 - the tests use in-memory or temporary databases;
 - the dev database `server/data/farmverse.db` (schema v4) was only read.
+
+## 5. Option A: checks before the commit (2026-10-12)
+
+**Diff re-checked:** the same 10 files, 151 insertions(+), 32 deletions(-), unchanged since the review.
+
+**No wildcard, no arbitrary origin.** `loadConfig` and the app were called directly with hostile values:
+
+| Input | Result |
+|---|---|
+| `CLIENT_ORIGIN=*` | Rejected at startup (not an http(s) origin) |
+| `CLIENT_ORIGIN` with a path | Rejected at startup |
+| `CODESPACE_NAME=evil.com/x`, or a forwarding domain `evil.com:443@x` | Rejected at startup |
+| CORS preflight from `https://evil.example`, from another Codespace's `-5173.app.github.dev`, and from `null` | No `Access-Control-Allow-Origin` |
+| CORS preflight from this Codespace's exact forwarded origin | Allowed |
+
+One observation, not changed here:
+- `CLIENT_ORIGIN=https://*.app.github.dev` is accepted at startup. This is the existing `parseOrigin`, which is not part of the diff.
+- It is matched **literally**: an origin such as `https://evil-5173.app.github.dev` gets no CORS header and WebSocket 403, and browsers cannot send a `*` hostname.
+- So it is not a wildcard. Rejecting `*` explicitly would be an optional later hardening.
+
+**Production unaffected:**
+- With `NODE_ENV=production`, the allowed origins are exactly `CLIENT_ORIGIN`, even when Codespaces variables are present.
+- The startup check that requires the Codespaces variables does not run in production.
+
+**Tests:**
+- WebSocket/CORS-related tests (`config`, `app`, `multiplayer`, `farming/routes`): 87 passing.
+- `npm run typecheck`: clean.
+- `npm test`: shared 413, server 568, client 231 — **1212 passing**.
+- Client build: OK.
+
+**Commit and push:**
+- `37c3994 fix: support Codespaces development origins` contains exactly the 10 files.
+- `git push origin main`: `dbbf52a..37c3994`. Afterwards `HEAD` = `origin/main` = `37c39944f65f3a99df457fa946e006f3ec147c84`.
+- The untracked `docs/reports/phase1/PHASE1_CODESPACES_WS_ORIGIN_FIX_REPORT.md` was not included. Some of its sections ("Proposed commit, awaiting decision") are out of date.
