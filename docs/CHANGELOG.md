@@ -1,6 +1,6 @@
 # FARMVERSE CHANGELOG
 
-## Phase 5 — Multiplayer (in progress)
+## Phase 5 — Multiplayer (all steps done, closeout awaiting approval)
 
 Design approved by the Game Director on 2026-10-12 (P5-1 every farm is a room, P5-2 online list + farm code, P5-3 tap-to-move, P5-4 generated names; `docs/reports/phase5/PHASE5_MULTIPLAYER_PLAN_REPORT.md`).
 
@@ -9,7 +9,12 @@ Design approved by the Game Director on 2026-10-12 (P5-1 every farm is a room, P
 - WebSocket protocol 2 and authentication (Step 5.1): `hello` carries the session token (unknown token → `UNAUTHORIZED`, close 4001); `welcome` returns the player's public farm code and name; room messages defined (`join`, `leave`, `move`, `emote` → `room`, `player_joined`, `player_left`, `player_moved`, `player_emote`, `player_updated`) but not handled yet; shared presence rules (farm codes, names, emotes, walkable tiles, entry tile); error codes `ROOM_NOT_FOUND`, `ROOM_FULL`, `NOT_IN_ROOM`, `TILE_BLOCKED`, `RATE_LIMITED`; database schema v5 (`player_profile`, additive, profiles generated for existing players); client sends the token, connects after the session exists and reconnects after "Start a new farm" — `eb51f2a`
 - Realtime connection protection (Step 5.2): server heartbeat (ping every 15 s, terminate after 2 missed pongs), `hello` within 10 s (else close 1008), one connection per player (older one closed with 4002; client shows "Opened in another tab · Tap to play here" and does not reconnect by itself), connection cap (HTTP 503), per-connection message rate limit (`RATE_LIMITED`, close 1008 after sustained flooding); limits provisional — `5751d39`
 - Farm rooms on the server (Step 5.3): in-memory `PresenceHub` — join by farm code (`ROOM_NOT_FOUND`, `ROOM_FULL`), entry tile, snapshot / `player_joined` / `player_left`, server-checked tap-to-move on walkable tiles of the current layout (`NOT_IN_ROOM`, `TILE_BLOCKED`, `RATE_LIMITED`), emotes, `player_updated` after an equip; `GET /api/farms/:farmCode` (visitor view: plots, objects, level, name, appearance — no coins, XP, inventory or quests) and `GET /api/players/online` — `a08c4c7`
-- Client multiplayer (Step 5.4): **Visit** button (header, right) → Visit screen with the own farm code, the online list, Enter code (browser prompt, normalised), Refresh, Back; farm room with the visited farm's grid (view only, reloaded every 10 s), every character in the room ("You" / "#NNNN"), tap-to-move with walk animation after the server confirms, four emotes with plain-character bubbles, Leave; room errors explained; automatic re-join after a reconnect
+- Client multiplayer (Step 5.4): **Visit** button (header, right) → Visit screen with the own farm code, the online list, Enter code (browser prompt, normalised), Refresh, Back; farm room with the visited farm's grid (view only, reloaded every 10 s), every character in the room ("You" / "#NNNN"), tap-to-move with walk animation after the server confirms, four emotes with plain-character bubbles, Leave; room errors explained; automatic re-join after a reconnect — `d2c3151`
+
+### Verified (Phase 5)
+
+- Through the Codespaces URL against the dev server and database (2026-10-12), two independent players: own room, online list, join, move, emote, appearance push, Leave, Enter code, disconnect, landscape — 19/19, no defects (`docs/reports/phase5/PHASE5_STEP5_5_E2E_REPORT.md`). 1388 automated tests passing. Not tested for real: Android / iOS, signed-in browser, mobile network (deferred by the Game Director).
+- Closeout report: `docs/reports/phase5/PHASE5_CLOSEOUT_REPORT.md` (awaiting approval).
 
 ### Fixed
 
