@@ -5,6 +5,9 @@ import {
   isCharacterState,
   isEquipCharacterRequest,
   isFarmState,
+  isOnlinePlayersResponse,
+  isVisitedFarm,
+  visitFarmPath,
   isHarvestRequest,
   isHarvestResponse,
   isBuyDecorationRequest,
@@ -537,5 +540,44 @@ describe("character requests and cosmetic shop (Phase 4)", () => {
     expect(isBuyCosmeticResponse({ ...state, bought: { cosmeticId: "pants_work", price: 0 } })).toBe(false);
     expect(isBuyCosmeticResponse({ ...state, bought: { cosmeticId: "fence", price: 5 } })).toBe(false);
     expect(isBuyCosmeticResponse(state)).toBe(false);
+  });
+});
+
+describe("visitor farm and online list (Phase 5)", () => {
+  const visited = () => {
+    const { plots, objects, serverTime } = farm() as { plots: unknown; objects: unknown; serverTime: number };
+    return { serverTime, farmCode: "ABC234", name: "Farmer 0042", level: 1, plots, objects, appearance: { ...DEFAULT_APPEARANCE } };
+  };
+
+  it("accepts a visitor view", () => {
+    expect(isVisitedFarm(visited())).toBe(true);
+  });
+
+  it.each<[string, Record<string, unknown>]>([
+    ["bad farm code", { farmCode: "abc234" }],
+    ["bad name", { name: "<b>Admin</b>" }],
+    ["level 0", { level: 0 }],
+    ["level above the maximum", { level: 11 }],
+    ["missing plots", { plots: [] }],
+    ["bad appearance", { appearance: { ...DEFAULT_APPEARANCE, skin: "blue" } }],
+    ["overlapping objects", { objects: [
+      { objectId: 1, decorationId: "fence", x: 0, y: 0, rotation: 0 },
+      { objectId: 2, decorationId: "fence", x: 0, y: 0, rotation: 0 },
+    ] }],
+  ])("rejects a visitor view with %s", (_label, change) => {
+    expect(isVisitedFarm({ ...visited(), ...change })).toBe(false);
+  });
+
+  it("validates the online list", () => {
+    expect(isOnlinePlayersResponse({ players: [] })).toBe(true);
+    expect(isOnlinePlayersResponse({ players: [{ farmCode: "ABC234", name: "Farmer 0042" }] })).toBe(true);
+    expect(isOnlinePlayersResponse({ players: [{ farmCode: "ABC234", name: "Farmer 0042" }, { farmCode: "ABC234", name: "Farmer 0043" }] })).toBe(false);
+    expect(isOnlinePlayersResponse({ players: [{ farmCode: "ABC234" }] })).toBe(false);
+    expect(isOnlinePlayersResponse({ players: Array.from({ length: 21 }, (_, i) => ({ farmCode: `ABC${"ABCDEFGHJKLMNPQRSTUVW"[i]}22`, name: "Farmer 0001" })) })).toBe(false);
+  });
+
+  it("builds visit paths with an encoded code", () => {
+    expect(visitFarmPath("ABC234")).toBe("/api/farms/ABC234");
+    expect(visitFarmPath("../x")).toBe("/api/farms/..%2Fx");
   });
 });

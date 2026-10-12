@@ -183,6 +183,8 @@ export interface FarmRoutesOptions {
   db: Database;
   /** Server clock in ms; injectable for tests. */
   now: () => number;
+  /** Called after a successful equip with the stored appearance (Phase 5: pushed to the player's farm room). */
+  onAppearanceChanged?: (playerId: string, appearance: CharacterData["appearance"]) => void;
 }
 
 function sendError(reply: FastifyReply, code: ErrorCode, message: string): FastifyReply {
@@ -190,7 +192,7 @@ function sendError(reply: FastifyReply, code: ErrorCode, message: string): Fasti
   return reply.code(HTTP_STATUS[code] ?? 500).send(body);
 }
 
-export function registerFarmRoutes(app: FastifyInstance, { db, now }: FarmRoutesOptions): void {
+export function registerFarmRoutes(app: FastifyInstance, { db, now, onAppearanceChanged }: FarmRoutesOptions): void {
   /** Resolves the player from the Bearer token, or sends 401. */
   function requirePlayer(request: FastifyRequest, reply: FastifyReply): string | null {
     const playerId = authenticate(db, request.headers.authorization);
@@ -552,6 +554,8 @@ export function registerFarmRoutes(app: FastifyInstance, { db, now }: FarmRoutes
         };
       },
     );
+    // The stored appearance, not the response body: a replayed request returns an older body.
+    if (outcome.ok) onAppearanceChanged?.(playerId, requireCharacter(playerId).appearance);
     return reply.code(outcome.status).send(outcome.body);
   });
 

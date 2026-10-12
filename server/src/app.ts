@@ -9,10 +9,12 @@ import type { ErrorPayload } from "@farmverse/shared/errors";
 import packageJson from "../package.json" with { type: "json" };
 import type { ServerConfig } from "./config.js";
 import { registerFarmRoutes } from "./farming/routes.js";
+import { PresenceHub } from "./multiplayer/hub.js";
+import { registerMultiplayerRoutes } from "./multiplayer/routes.js";
 import { registerWebSocket, type WebSocketLimits } from "./multiplayer/websocket.js";
 import { findPlayerIdByToken } from "./players/session.js";
 import { openDatabase } from "./storage/database.js";
-import { loadProfile } from "./storage/farmStore.js";
+import { findPlayerIdByFarmCode, loadBuilding, loadCharacter, loadProfile } from "./storage/farmStore.js";
 
 export const SERVER_VERSION = packageJson.version;
 
@@ -71,8 +73,25 @@ export function buildApp(config: ServerConfig, options: AppOptions = {}): Fastif
     return reply.code(500).send(body);
   });
 
-  registerFarmRoutes(app, { db, now });
+  const hub = new PresenceHub({
+    findFarmOwner: (farmCode) => findPlayerIdByFarmCode(db, farmCode),
+    loadObjects: (playerId) => {
+      const building = loadBuilding(db, playerId);
+      if (building === null) throw new Error(`No building state for player ${playerId}`);
+      return building.objects;
+    },
+    loadAppearance: (playerId) => {
+      const character = loadCharacter(db, playerId);
+      if (character === null) throw new Error(`No character for player ${playerId}`);
+      return character.appearance;
+    },
+    now,
+  });
+
+  registerFarmRoutes(app, { db, now, onAppearanceChanged: (playerId, appearance) => hub.appearanceChanged(playerId, appearance) });
+  registerMultiplayerRoutes(app, { db, now, hub });
   registerWebSocket(app, config, {
+    hub,
     authenticate: (token) => {
       const playerId = findPlayerIdByToken(db, token);
       const profile = playerId === null ? null : loadProfile(db, playerId);

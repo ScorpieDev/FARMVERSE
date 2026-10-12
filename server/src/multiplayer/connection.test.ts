@@ -110,10 +110,9 @@ describe("handleClientMessage", () => {
     ["leave", { type: "leave" }],
     ["move", { type: "move", x: 1, y: 1 }],
     ["emote", { type: "emote", emote: "wave" }],
-  ])("answers %s with an error until farm rooms exist (Step 5.3)", (_label, message) => {
-    const result = handle(READY, JSON.stringify(message));
-    expect(result.state).toEqual(READY);
-    expect(errorCodes(result)).toEqual(["INVALID_MESSAGE"]);
+  ])("passes %s to the presence hub as a room request, without replies", (_label, message) => {
+    const result = handle(READY, JSON.stringify({ ...message, extra: "ignored" }));
+    expect(result).toEqual({ state: READY, replies: [], room: message });
   });
 
   it.each([

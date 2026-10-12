@@ -28,6 +28,7 @@ import {
   type Authenticate,
   type ConnectionState,
 } from "./connection.js";
+import type { HubConnection, PresenceHub } from "./hub.js";
 import { TokenBucket, type RateLimit } from "./rateLimit.js";
 
 /** Larger messages are rejected by `ws` with close code 1009. */
@@ -86,13 +87,15 @@ function toText(data: RawData): string {
 export interface WebSocketOptions {
   /** Resolves the session token sent in `hello` to its player. */
   authenticate: Authenticate;
+  /** Farm rooms and the online list (Step 5.3). */
+  hub: PresenceHub;
   limits?: Partial<WebSocketLimits>;
 }
 
 export function registerWebSocket(
   app: FastifyInstance,
   config: ServerConfig,
-  { authenticate, limits: overrides = {} }: WebSocketOptions,
+  { authenticate, hub, limits: overrides = {} }: WebSocketOptions,
 ): void {
   const limits: WebSocketLimits = { ...DEFAULT_WEBSOCKET_LIMITS, ...overrides };
   const wss = new WebSocketServer({
@@ -153,6 +156,7 @@ export function registerWebSocket(
     let state: ConnectionState = AWAITING_HELLO;
     const bucket = new TokenBucket(limits.messageRate, Date.now());
     let rateViolations = 0;
+    let hubConnection: HubConnection | undefined;
     log.info({ ip }, "WebSocket connected");
 
     const send = (message: ServerMessage): void => {
@@ -199,9 +203,16 @@ export function registerWebSocket(
           previous.close(CLOSE_REPLACED, "Replaced by a newer connection");
         }
         playerSockets.set(playerId, ws);
+        hubConnection = { playerId, profile: result.state.player.profile, send };
+        hub.connect(hubConnection);
       }
       state = result.state;
       for (const reply of result.replies) send(reply);
+
+      if (result.room !== undefined && hubConnection !== undefined) {
+        const outcome = hub.handle(hubConnection, result.room);
+        if (!outcome.ok) send(errorMessage(outcome.code, outcome.message));
+      }
 
       if (result.close) {
         log.warn({ code: result.close.code }, result.close.reason);
@@ -216,6 +227,7 @@ export function registerWebSocket(
 
     ws.on("close", (code) => {
       clearTimeout(helloTimer);
+      if (hubConnection !== undefined) hub.disconnect(hubConnection);
       if (state.kind === "ready" && playerSockets.get(state.player.playerId) === ws) {
         playerSockets.delete(state.player.playerId);
       }

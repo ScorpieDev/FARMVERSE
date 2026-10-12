@@ -6,8 +6,9 @@
  *
  * `hello` must carry a valid session token: the connection is then bound to
  * that player for its whole life and `welcome` tells the client its public
- * identity. Nothing else is accepted before that. Farm rooms (join, leave,
- * move, emote) are answered with an error until Step 5.3 adds them.
+ * identity. Nothing else is accepted before that. Farm room messages (join,
+ * leave, move, emote) are returned as `room` requests for the presence hub
+ * (hub.ts, Step 5.3), which decides them.
  */
 import type { ErrorCode } from "@farmverse/shared/errors";
 import {
@@ -17,6 +18,7 @@ import {
   type ServerMessage,
 } from "@farmverse/shared/protocol";
 import type { PlayerProfile } from "../players/profile.js";
+import type { RoomRequest } from "./hub.js";
 
 /** The player a connection belongs to (never sent to clients except the profile). */
 export interface ConnectionPlayer {
@@ -38,6 +40,8 @@ export interface MessageResult {
   state: ConnectionState;
   replies: ServerMessage[];
   close?: { code: number; reason: string };
+  /** A farm room request for the presence hub (only when ready). */
+  room?: RoomRequest;
 }
 
 /** Resolves a session token to its player, or null if the token is unknown. */
@@ -105,9 +109,12 @@ export function handleClientMessage(
     case "ping":
       return { state, replies: [{ type: "pong", sentAt: message.sentAt, serverTime: now }] };
     case "join":
+      return { state, replies: [], room: { type: "join", farmCode: message.farmCode } };
     case "leave":
+      return { state, replies: [], room: { type: "leave" } };
     case "move":
+      return { state, replies: [], room: { type: "move", x: message.x, y: message.y } };
     case "emote":
-      return { state, replies: [errorMessage("INVALID_MESSAGE", "Farm rooms are not available yet")] };
+      return { state, replies: [], room: { type: "emote", emote: message.emote } };
   }
 }

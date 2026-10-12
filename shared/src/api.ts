@@ -7,6 +7,7 @@
  * rotate / remove object endpoints; decoration shop.
  * Phase 4: character (appearance and owned cosmetics) in FarmState;
  * character equip; cosmetic shop.
+ * Phase 5: a farm as a visitor sees it (by farm code); the online list.
  *
  * Validators here only check structure and types. The server still enforces
  * ownership, gameplay rules and stored data; clients never send time,
@@ -40,6 +41,7 @@ import {
   type CharacterAppearance,
   type CosmeticId,
 } from "./character.js";
+import { ONLINE_LIST_LIMIT, isDisplayName, isFarmCode } from "./presence.js";
 
 export const HEALTH_PATH = "/api/health";
 export const SESSION_PATH = "/api/session";
@@ -55,6 +57,14 @@ export const OBJECT_REMOVE_PATH = "/api/farm/objects/remove";
 export const SHOP_BUY_PATH = "/api/shop/buy";
 export const CHARACTER_EQUIP_PATH = "/api/character/equip";
 export const SHOP_BUY_COSMETIC_PATH = "/api/shop/buy-cosmetic";
+/** GET: players with a live realtime connection (Phase 5). */
+export const ONLINE_PLAYERS_PATH = "/api/players/online";
+/** GET `${VISIT_FARM_PATH}/:farmCode`: a farm as a visitor sees it (Phase 5). */
+export const VISIT_FARM_PATH = "/api/farms";
+
+export function visitFarmPath(farmCode: string): string {
+  return `${VISIT_FARM_PATH}/${encodeURIComponent(farmCode)}`;
+}
 
 /** Response body of GET /api/health. */
 export interface HealthResponse {
@@ -216,6 +226,33 @@ export interface BuyDecorationRequest {
 /** POST /api/shop/buy (200): the new state and what was bought. */
 export interface BuyDecorationResponse extends FarmState {
   bought: { decorationId: DecorationId; price: number };
+}
+
+/**
+ * GET /api/farms/:farmCode (200): what a visitor may see (P5-1 R-A). No coins,
+ * XP, inventory, quests or unplaced decorations. Unknown code → 404
+ * ROOM_NOT_FOUND.
+ */
+export interface VisitedFarm {
+  serverTime: number;
+  farmCode: string;
+  name: string;
+  level: number;
+  /** Exactly FARM_PLOT_COUNT plots, ordered by index. */
+  plots: PlotState[];
+  objects: PlacedObject[];
+  appearance: CharacterAppearance;
+}
+
+/** A player with a live realtime connection. */
+export interface OnlinePlayer {
+  farmCode: string;
+  name: string;
+}
+
+/** GET /api/players/online (200): most recently connected first, the caller excluded. */
+export interface OnlinePlayersResponse {
+  players: OnlinePlayer[];
 }
 
 /**
@@ -419,15 +456,7 @@ export function isFarmState(value: unknown): value is FarmState {
     return false;
   }
 
-  const plots = value["plots"];
-  if (!Array.isArray(plots) || plots.length !== FARM_PLOT_COUNT) return false;
-  const plotsValid = plots.every(
-    (plot: unknown, index) =>
-      isObject(plot) &&
-      plot["index"] === index &&
-      (plot["crop"] === null || isPlantedCrop(plot["crop"])),
-  );
-  if (!plotsValid) return false;
+  if (!isPlotList(value["plots"])) return false;
 
   const inventory = value["inventory"];
   if (!Array.isArray(inventory) || !inventory.every(isInventoryEntry)) {
@@ -446,6 +475,40 @@ export function isFarmState(value: unknown): value is FarmState {
     checkLayout(value["objects"]).ok &&
     isCharacterState(value["character"])
   );
+}
+
+function isPlotList(plots: unknown): plots is PlotState[] {
+  if (!Array.isArray(plots) || plots.length !== FARM_PLOT_COUNT) return false;
+  return plots.every(
+    (plot: unknown, index) =>
+      isObject(plot) &&
+      plot["index"] === index &&
+      (plot["crop"] === null || isPlantedCrop(plot["crop"])),
+  );
+}
+
+export function isVisitedFarm(value: unknown): value is VisitedFarm {
+  return (
+    isObject(value) &&
+    isNonNegativeInteger(value["serverTime"]) &&
+    isFarmCode(value["farmCode"]) &&
+    isDisplayName(value["name"]) &&
+    isPositiveInteger(value["level"]) &&
+    value["level"] <= MAX_LEVEL &&
+    isPlotList(value["plots"]) &&
+    checkLayout(value["objects"]).ok &&
+    isCharacterAppearance(value["appearance"])
+  );
+}
+
+export function isOnlinePlayersResponse(value: unknown): value is OnlinePlayersResponse {
+  if (!isObject(value)) return false;
+  const players = value["players"];
+  if (!Array.isArray(players) || players.length > ONLINE_LIST_LIMIT) return false;
+  const valid = players.every(
+    (player: unknown) => isObject(player) && isFarmCode(player["farmCode"]) && isDisplayName(player["name"]),
+  );
+  return valid && new Set(players.map((player: OnlinePlayer) => player.farmCode)).size === players.length;
 }
 
 export function isCharacterState(value: unknown): value is CharacterState {
