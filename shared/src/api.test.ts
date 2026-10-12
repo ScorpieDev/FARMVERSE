@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  isBuyCosmeticRequest,
+  isBuyCosmeticResponse,
+  isCharacterState,
+  isEquipCharacterRequest,
   isFarmState,
   isHarvestRequest,
   isHarvestResponse,
@@ -20,6 +24,9 @@ import {
   isSeedRefillState,
   isSessionResponse,
 } from "./api.js";
+import { DEFAULT_APPEARANCE, STARTER_COSMETIC_IDS } from "./character.js";
+
+const STARTER_CHARACTER = { appearance: { ...DEFAULT_APPEARANCE }, owned: [...STARTER_COSMETIC_IDS] };
 
 describe("isHealthResponse", () => {
   it("accepts a valid health response", () => {
@@ -88,6 +95,7 @@ function farm(overrides: Record<string, unknown> = {}): Record<string, unknown> 
     },
     decorations: [],
     objects: [],
+    character: STARTER_CHARACTER,
     ...overrides,
   };
 }
@@ -478,5 +486,56 @@ describe("decoration shop (Phase 3)", () => {
     expect(isBuyDecorationResponse({ ...state, bought: { decorationId: "fence", price: 0 } })).toBe(false);
     expect(isBuyDecorationResponse({ ...state, bought: { decorationId: "castle", price: 5 } })).toBe(false);
     expect(isBuyDecorationResponse(state)).toBe(false);
+  });
+});
+
+describe("character in FarmState (Phase 4)", () => {
+  it("requires a valid character", () => {
+    expect(isFarmState(farm())).toBe(true);
+    const { character: _omitted, ...withoutCharacter } = farm();
+    expect(isFarmState(withoutCharacter)).toBe(false);
+    expect(isFarmState(farm({ character: null }))).toBe(false);
+  });
+
+  it("accepts bought items, worn or not", () => {
+    const owned = [...STARTER_COSMETIC_IDS, "hair_bun_red"];
+    expect(isCharacterState({ appearance: { ...DEFAULT_APPEARANCE, hair: "hair_bun_red" }, owned })).toBe(true);
+    expect(isCharacterState({ appearance: { ...DEFAULT_APPEARANCE }, owned })).toBe(true);
+  });
+
+  it.each<[string, unknown]>([
+    ["worn item not owned", { appearance: { ...DEFAULT_APPEARANCE, shirt: "shirt_plaid" }, owned: [...STARTER_COSMETIC_IDS] }],
+    ["missing starter item", { appearance: { ...DEFAULT_APPEARANCE }, owned: STARTER_COSMETIC_IDS.filter((id) => id !== "pants_brown") }],
+    ["duplicate owned item", { appearance: { ...DEFAULT_APPEARANCE }, owned: [...STARTER_COSMETIC_IDS, "hair_long_black"] }],
+    ["unknown owned item", { appearance: { ...DEFAULT_APPEARANCE }, owned: [...STARTER_COSMETIC_IDS, "cape"] }],
+    ["bad appearance", { appearance: { ...DEFAULT_APPEARANCE, skin: "blue" }, owned: [...STARTER_COSMETIC_IDS] }],
+    ["owned not a list", { appearance: { ...DEFAULT_APPEARANCE }, owned: "all" }],
+  ])("rejects %s", (_label, character) => {
+    expect(isCharacterState(character)).toBe(false);
+  });
+});
+
+describe("character requests and cosmetic shop (Phase 4)", () => {
+  const requestId = "00000000-0000-4000-8000-000000000001";
+
+  it("validates equip requests by shape only (ownership is a server rule)", () => {
+    expect(isEquipCharacterRequest({ requestId, appearance: { ...DEFAULT_APPEARANCE, shirt: "shirt_overalls" } })).toBe(true);
+    expect(isEquipCharacterRequest({ requestId, appearance: { ...DEFAULT_APPEARANCE, shirt: "pants_work" } })).toBe(false);
+    expect(isEquipCharacterRequest({ requestId, appearance: { skin: "light" } })).toBe(false);
+    expect(isEquipCharacterRequest({ requestId: "nope", appearance: { ...DEFAULT_APPEARANCE } })).toBe(false);
+  });
+
+  it("validates cosmetic buy requests", () => {
+    expect(isBuyCosmeticRequest({ requestId, cosmeticId: "pants_work" })).toBe(true);
+    expect(isBuyCosmeticRequest({ requestId, cosmeticId: "fence" })).toBe(false);
+    expect(isBuyCosmeticRequest({ requestId })).toBe(false);
+  });
+
+  it("checks what was bought", () => {
+    const state = farm({ character: { ...STARTER_CHARACTER, owned: [...STARTER_COSMETIC_IDS, "pants_work"] } });
+    expect(isBuyCosmeticResponse({ ...state, bought: { cosmeticId: "pants_work", price: 90 } })).toBe(true);
+    expect(isBuyCosmeticResponse({ ...state, bought: { cosmeticId: "pants_work", price: 0 } })).toBe(false);
+    expect(isBuyCosmeticResponse({ ...state, bought: { cosmeticId: "fence", price: 5 } })).toBe(false);
+    expect(isBuyCosmeticResponse(state)).toBe(false);
   });
 });

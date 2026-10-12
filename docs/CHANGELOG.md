@@ -6,7 +6,8 @@ Design approved by the Game Director on 2026-10-12 (P4-1…P4-4: R-A shape drawi
 
 ### Added
 
-- Shared character data (Step 4.1, provisional): hair / shirt / pants slots with 4 cosmetics each (2 free starters, 2 bought with coins at level 2–5), 4 skin tones, default appearance, shape checks and `checkAppearance` (ownership); error code `ALREADY_OWNED`
+- Shared character data (Step 4.1, provisional): hair / shirt / pants slots with 4 cosmetics each (2 free starters, 2 bought with coins at level 2–5), 4 skin tones, default appearance, shape checks and `checkAppearance` (ownership); error code `ALREADY_OWNED` — `3648a98`
+- Server character (Step 4.2): `character` (appearance, owned cosmetics) in `FarmState`; database schema v4 (`character_appearance`, `cosmetic_inventory`; additive, starter items for existing players); `POST /api/character/equip` (owned items only, `ITEM_NOT_OWNED`) and `POST /api/shop/buy-cosmetic` (`ALREADY_OWNED`, `LEVEL_TOO_LOW`, `INSUFFICIENT_CURRENCY`; server price; buying does not equip) with request IDs and transactions
 
 ## Phase 3 — Building (all steps done, closeout awaiting approval)
 

@@ -46,6 +46,7 @@ import {
   unlocksBetween,
 } from "@farmverse/shared/progression";
 import { DECORATION_IDS } from "@farmverse/shared/building";
+import { toCharacterState, type CharacterData } from "../character/rules.js";
 import { assertBuildingData, type BuildingData } from "../building/rules.js";
 import { activeQuest, assertQuestState, type QuestState } from "./quests.js";
 
@@ -355,9 +356,16 @@ export function refillSeeds(farm: FarmData, now: number): RuleResult {
 /**
  * Builds the shared FarmState sent to clients, as of server time `now`. Level
  * and quest progress are derived here from the stored XP and quest state;
- * decorations and objects come from the building state (Phase 3).
+ * decorations and objects come from the building state (Phase 3); the
+ * character from the character state (Phase 4).
  */
-export function toFarmState(farm: FarmData, quests: QuestState, building: BuildingData, now: number): FarmState {
+export function toFarmState(
+  farm: FarmData,
+  quests: QuestState,
+  building: BuildingData,
+  character: CharacterData,
+  now: number,
+): FarmState {
   assertFarmData(farm);
   assertQuestState(quests);
   assertBuildingData(building);
@@ -407,5 +415,6 @@ export function toFarmState(farm: FarmData, quests: QuestState, building: Buildi
       quantity: building.stock[id],
     })),
     objects: building.objects.map((object) => ({ ...object })),
+    character: toCharacterState(character),
   };
 }

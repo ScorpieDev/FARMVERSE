@@ -6,12 +6,15 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createStarterFarm, harvest, plant } from "../farming/rules.js";
 import { SCHEMA_MIGRATIONS, SCHEMA_VERSION, getSchemaVersion, openDatabase, transaction, type Database } from "./database.js";
 import { createEmptyBuilding, grantDecoration, placeDecoration } from "../building/rules.js";
+import { buyCosmetic, createStarterCharacter, equipAppearance } from "../character/rules.js";
 import {
   insertPlayer,
   loadBuilding,
+  loadCharacter,
   loadFarm,
   loadQuestState,
   saveBuilding,
+  saveCharacter,
   saveFarm,
   saveQuestState,
 } from "./farmStore.js";
@@ -104,8 +107,8 @@ function count(db: Database, sql: string): number {
 }
 
 describe("schema v1 → v2 migration", () => {
-  it("is followed by v3 (Phase 3 building) as the latest version", () => {
-    expect(SCHEMA_VERSION).toBe(3);
+  it("is followed by v3 (Phase 3 building) and v4 (Phase 4 character), the latest version", () => {
+    expect(SCHEMA_VERSION).toBe(4);
   });
 
   it("upgrades a v1 database and keeps every player's Phase 1 data", () => {
@@ -328,7 +331,7 @@ describe("schema v2 → v3 migration (Phase 3 building)", () => {
 
     const db = openDatabase(path);
     try {
-      expect(getSchemaVersion(db)).toBe(3);
+      expect(getSchemaVersion(db)).toBe(SCHEMA_VERSION);
       const after = snapshot(db);
       for (const table of ["players", "plots", "inventory", "quest_state", "action_log"]) {
         expect(after[table]).toEqual(before[table]);
@@ -348,7 +351,7 @@ describe("schema v2 → v3 migration (Phase 3 building)", () => {
     createV2Database([]);
     const db = openDatabase(path);
     try {
-      expect(getSchemaVersion(db)).toBe(3);
+      expect(getSchemaVersion(db)).toBe(SCHEMA_VERSION);
       expect(count(db, "SELECT COUNT(*) AS n FROM building_state")).toBe(0);
     } finally {
       db.close();
@@ -371,7 +374,7 @@ describe("schema v2 → v3 migration (Phase 3 building)", () => {
 
     const again = openDatabase(path);
     try {
-      expect(getSchemaVersion(again)).toBe(3);
+      expect(getSchemaVersion(again)).toBe(SCHEMA_VERSION);
       expect(loadBuilding(again, NEWBIE.id)).toEqual(placed.building);
       expect(count(again, "SELECT COUNT(*) AS n FROM decoration_stock")).toBe(7);
       expect(count(again, "SELECT COUNT(*) AS n FROM building_state")).toBe(1);
@@ -460,6 +463,123 @@ describe("building storage", () => {
     withPlayer((db) => {
       expect(() => db.exec("UPDATE decoration_stock SET quantity = -1")).toThrow();
       expect(() => db.exec(`INSERT INTO farm_objects VALUES ('${ID}', 1, 'tree', 0, 0, 45)`)).toThrow();
+    });
+  });
+});
+
+function createV3Database(players: V1Player[], setup: (db: DatabaseSync) => void = () => {}): void {
+  createV2Database(players);
+  const db = new DatabaseSync(path);
+  db.exec(SCHEMA_MIGRATIONS[2]!);
+  db.exec("UPDATE schema_version SET version = 3");
+  setup(db);
+  db.close();
+}
+
+describe("schema v3 → v4 migration (Phase 4 character)", () => {
+  it("keeps every earlier row unchanged and gives each player the starter character", () => {
+    createV3Database([NEWBIE, LEVEL3, LEVEL5], (db) => {
+      db.exec(`INSERT INTO farm_objects VALUES ('${LEVEL3.id}', 1, 'fence', 0, 0, 90)`);
+      db.exec(`UPDATE building_state SET next_object_id = 2 WHERE player_id = '${LEVEL3.id}'`);
+    });
+    const raw = new DatabaseSync(path);
+    const before = snapshot(raw);
+    const objectsBefore = raw.prepare("SELECT * FROM farm_objects").all();
+    raw.close();
+
+    const db = openDatabase(path);
+    try {
+      expect(getSchemaVersion(db)).toBe(4);
+      const after = snapshot(db);
+      for (const table of ["players", "plots", "inventory", "quest_state", "action_log"]) {
+        expect(after[table]).toEqual(before[table]);
+      }
+      expect(db.prepare("SELECT * FROM farm_objects").all()).toEqual(objectsBefore);
+      for (const player of [NEWBIE, LEVEL3, LEVEL5]) {
+        expect(loadCharacter(db, player.id)).toEqual(createStarterCharacter());
+      }
+      expect(count(db, "SELECT COUNT(*) AS n FROM cosmetic_inventory")).toBe(3 * 6);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("never duplicates rows nor overwrites a changed character if v4 runs again", () => {
+    createV3Database([LEVEL5]);
+    const db = openDatabase(path);
+    const bought = buyCosmetic(loadFarm(db, LEVEL5.id)!, createStarterCharacter(), "shirt_overalls");
+    if (!bought.ok) throw new Error(bought.error);
+    const worn = equipAppearance(bought.character, { skin: "dark", hair: "hair_long_black", shirt: "shirt_overalls", pants: "pants_brown" });
+    if (!worn.ok) throw new Error(worn.error);
+    transaction(db, () => saveCharacter(db, LEVEL5.id, worn.character));
+    db.exec("UPDATE schema_version SET version = 3");
+    db.close();
+
+    const again = openDatabase(path);
+    try {
+      expect(getSchemaVersion(again)).toBe(4);
+      expect(loadCharacter(again, LEVEL5.id)).toEqual(worn.character);
+      expect(count(again, "SELECT COUNT(*) AS n FROM cosmetic_inventory")).toBe(7);
+      expect(count(again, "SELECT COUNT(*) AS n FROM character_appearance")).toBe(1);
+    } finally {
+      again.close();
+    }
+  });
+
+  it("rolls back completely when the upgrade fails, leaving v3 data untouched", () => {
+    createV3Database([NEWBIE], (db) => db.exec("CREATE VIEW cosmetic_inventory AS SELECT 1 AS x"));
+    expect(() => openDatabase(path)).toThrow();
+
+    const raw = new DatabaseSync(path);
+    try {
+      expect(raw.prepare("SELECT version FROM schema_version").get()?.["version"]).toBe(3);
+      expect(raw.prepare("SELECT name FROM sqlite_master WHERE name = 'character_appearance'").get()).toBeUndefined();
+    } finally {
+      raw.close();
+    }
+  });
+});
+
+describe("character storage", () => {
+  const ID = "00000000-0000-4000-8000-0000000000cc";
+
+  function withPlayer(work: (db: Database) => void): void {
+    const db = openDatabase(path);
+    try {
+      transaction(db, () => insertPlayer(db, { id: ID, tokenHash: "f".repeat(64), createdAt: T }, createStarterFarm()));
+      work(db);
+    } finally {
+      db.close();
+    }
+  }
+
+  it("creates new players with the starter character and round-trips a change", () => {
+    withPlayer((db) => {
+      expect(loadCharacter(db, ID)).toEqual(createStarterCharacter());
+      const farm = { ...createStarterFarm(), coins: 100, xp: 50 };
+      const bought = buyCosmetic(farm, createStarterCharacter(), "hair_spiky_blond");
+      if (!bought.ok) throw new Error(bought.error);
+      const worn = equipAppearance(bought.character, { skin: "tan", hair: "hair_spiky_blond", shirt: "shirt_blue_tee", pants: "pants_brown" });
+      if (!worn.ok) throw new Error(worn.error);
+      transaction(db, () => saveCharacter(db, ID, worn.character));
+      expect(loadCharacter(db, ID)).toEqual(worn.character);
+      expect(loadCharacter(db, "no-such-player")).toBeNull();
+    });
+  });
+
+  it("rejects corrupted character rows when loading", () => {
+    withPlayer((db) => {
+      db.exec("UPDATE character_appearance SET hair = 'hair_bun_red'");
+      expect(() => loadCharacter(db, ID)).toThrow(RangeError);
+      db.exec("UPDATE character_appearance SET hair = 'hair_short_brown', skin = 'green'");
+      expect(() => loadCharacter(db, ID)).toThrow(RangeError);
+      db.exec("UPDATE character_appearance SET skin = 'light'");
+      db.exec(`INSERT INTO cosmetic_inventory VALUES ('${ID}', 'cape')`);
+      expect(() => loadCharacter(db, ID)).toThrow(RangeError);
+      db.exec("DELETE FROM cosmetic_inventory WHERE cosmetic_id IN ('cape', 'pants_brown')");
+      expect(() => loadCharacter(db, ID)).toThrow(RangeError);
+      db.exec("DELETE FROM character_appearance");
+      expect(() => loadCharacter(db, ID)).toThrow(RangeError);
     });
   });
 });

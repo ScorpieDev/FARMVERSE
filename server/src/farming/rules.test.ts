@@ -10,6 +10,7 @@ import {
 import { isFarmState, isHarvestResponse } from "@farmverse/shared/api";
 import { levelFromXp, plotCountForLevel } from "@farmverse/shared/progression";
 import { createEmptyBuilding, grantDecoration, placeDecoration } from "../building/rules.js";
+import { createStarterCharacter } from "../character/rules.js";
 import { startingQuestState } from "./quests.js";
 import {
   createStarterFarm,
@@ -30,6 +31,8 @@ const T = 1_700_000_000_000;
 const NEW_QUESTS = startingQuestState();
 /** Building state of a new player (nothing owned or placed). */
 const NO_BUILDING = createEmptyBuilding();
+/** Character of a new player (starter items, default appearance). */
+const NEW_CHARACTER = createStarterCharacter();
 const WHEAT_MS = 30_000;
 const CARROT_MS = 120_000;
 const TOMATO_MS = 300_000;
@@ -82,7 +85,7 @@ function expectInvariants(farm: FarmData, now: number): void {
     expect(Number.isInteger(quantity)).toBe(true);
     expect(quantity).toBeGreaterThanOrEqual(0);
   }
-  expect(isFarmState(toFarmState(farm, NEW_QUESTS, NO_BUILDING, now))).toBe(true);
+  expect(isFarmState(toFarmState(farm, NEW_QUESTS, NO_BUILDING, NEW_CHARACTER, now))).toBe(true);
 }
 
 function seedTotal(farm: FarmData): number {
@@ -108,7 +111,7 @@ describe("createStarterFarm", () => {
   });
 
   it("converts to the shared FarmState contract", () => {
-    expect(toFarmState(createStarterFarm(), NEW_QUESTS, NO_BUILDING, T)).toEqual({
+    expect(toFarmState(createStarterFarm(), NEW_QUESTS, NO_BUILDING, NEW_CHARACTER, T)).toEqual({
       serverTime: T,
       plots: plotsOf().map((_, index) => ({ index, crop: null })),
       inventory: [
@@ -130,6 +133,10 @@ describe("createStarterFarm", () => {
       },
       decorations: [],
       objects: [],
+      character: {
+        appearance: { skin: "light", hair: "hair_short_brown", shirt: "shirt_white_tee", pants: "pants_blue_jeans" },
+        owned: ["hair_short_brown", "hair_long_black", "shirt_white_tee", "shirt_blue_tee", "pants_blue_jeans", "pants_brown"],
+      },
     });
   });
 
@@ -137,7 +144,7 @@ describe("createStarterFarm", () => {
     const owned = grantDecoration(grantDecoration(NO_BUILDING, "tree", 1), "bench", 2);
     const placed = placeDecoration(owned, { decorationId: "tree", x: 0, y: 0, rotation: 90 });
     if (!placed.ok) throw new Error(placed.error);
-    const state = toFarmState(createStarterFarm(), NEW_QUESTS, placed.building, T);
+    const state = toFarmState(createStarterFarm(), NEW_QUESTS, placed.building, NEW_CHARACTER, T);
     expect(state.decorations).toEqual([{ decorationId: "bench", quantity: 2 }]);
     expect(state.objects).toEqual([{ objectId: 1, decorationId: "tree", x: 0, y: 0, rotation: 90 }]);
     expect(isFarmState(state)).toBe(true);
@@ -228,7 +235,7 @@ describe("growth time", () => {
   it("exposes plantedAt and readyAt in the FarmState", () => {
     const farm = expectOk(plant(createStarterFarm(), 3, "tomato", T));
 
-    expect(toFarmState(farm, NEW_QUESTS, NO_BUILDING, T + 5).plots[3]).toEqual({
+    expect(toFarmState(farm, NEW_QUESTS, NO_BUILDING, NEW_CHARACTER, T + 5).plots[3]).toEqual({
       index: 3,
       crop: { cropId: "tomato", plantedAt: T, readyAt: T + TOMATO_MS },
     });
@@ -268,7 +275,7 @@ describe("harvest", () => {
 
     expect(
       isHarvestResponse({
-        ...toFarmState(result.farm, NEW_QUESTS, NO_BUILDING, now),
+        ...toFarmState(result.farm, NEW_QUESTS, NO_BUILDING, NEW_CHARACTER, now),
         harvested: result.harvested,
         reward: result.reward,
       }),
@@ -286,7 +293,7 @@ describe("harvest", () => {
 
     expect(result.reward).toEqual({ coins, xp });
     expect([result.farm.coins, result.farm.xp]).toEqual([10 + coins, 4 + xp]);
-    expect(toFarmState(result.farm, NEW_QUESTS, NO_BUILDING, T + growthMs)).toMatchObject({ coins: 10 + coins, xp: 4 + xp });
+    expect(toFarmState(result.farm, NEW_QUESTS, NO_BUILDING, NEW_CHARACTER, T + growthMs)).toMatchObject({ coins: 10 + coins, xp: 4 + xp });
   });
 
   it("grants no reward when the harvest fails", () => {
@@ -343,7 +350,7 @@ describe("seed refill eligibility", () => {
     const farm = farmWith({ plots: plotsOf(null, null, null, null, null, { cropId: "wheat", plantedAt: T }) });
 
     expect(isSeedRefillEligible(farm)).toBe(false);
-    expect(toFarmState(farm, NEW_QUESTS, NO_BUILDING, T + WHEAT_MS * 2).seedRefill).toEqual({
+    expect(toFarmState(farm, NEW_QUESTS, NO_BUILDING, NEW_CHARACTER, T + WHEAT_MS * 2).seedRefill).toEqual({
       eligible: false,
       availableAt: null,
     });
@@ -365,7 +372,7 @@ describe("seed refill cooldown", () => {
     const farm = expectOk(harvest(lastCrop, 0, H));
 
     expect(farm.seedRefillAvailableAt).toBe(H + SEED_REFILL_COOLDOWN_MS);
-    expect(toFarmState(farm, NEW_QUESTS, NO_BUILDING, H).seedRefill).toEqual({
+    expect(toFarmState(farm, NEW_QUESTS, NO_BUILDING, NEW_CHARACTER, H).seedRefill).toEqual({
       eligible: true,
       availableAt: H + 60_000,
     });
@@ -419,7 +426,7 @@ describe("seed refill cooldown", () => {
     );
     expect([farm.coins, farm.xp]).toEqual([2, 1]);
     expect(farm.seedRefillAvailableAt).toBeNull();
-    expect(toFarmState(farm, NEW_QUESTS, NO_BUILDING, now).seedRefill).toEqual({ eligible: false, availableAt: null });
+    expect(toFarmState(farm, NEW_QUESTS, NO_BUILDING, NEW_CHARACTER, now).seedRefill).toEqual({ eligible: false, availableAt: null });
     expectInvariants(farm, now);
   });
 
@@ -445,7 +452,7 @@ describe("seed refill cooldown", () => {
   it("allows an immediate refill when eligible but no cooldown was recorded (P2-5)", () => {
     const farm = deepFreeze(farmWith({ seedRefillAvailableAt: null }));
 
-    expect(toFarmState(farm, NEW_QUESTS, NO_BUILDING, T).seedRefill).toEqual({ eligible: true, availableAt: T });
+    expect(toFarmState(farm, NEW_QUESTS, NO_BUILDING, NEW_CHARACTER, T).seedRefill).toEqual({ eligible: true, availableAt: T });
     expect(seedTotal(expectOk(refillSeeds(farm, T)))).toBe(15);
   });
 });
@@ -493,7 +500,7 @@ describe("toFarmState", () => {
       inventory: { tomato_produce: 2, wheat_seed: 1, carrot_produce: 0, carrot_seed: 3 },
     });
 
-    expect(toFarmState(farm, NEW_QUESTS, NO_BUILDING, T).inventory).toEqual([
+    expect(toFarmState(farm, NEW_QUESTS, NO_BUILDING, NEW_CHARACTER, T).inventory).toEqual([
       { itemId: "wheat_seed", quantity: 1 },
       { itemId: "carrot_seed", quantity: 3 },
       { itemId: "tomato_produce", quantity: 2 },
@@ -501,7 +508,7 @@ describe("toFarmState", () => {
   });
 
   it("uses now as serverTime", () => {
-    expect(toFarmState(createStarterFarm(), NEW_QUESTS, NO_BUILDING, T + 42).serverTime).toBe(T + 42);
+    expect(toFarmState(createStarterFarm(), NEW_QUESTS, NO_BUILDING, NEW_CHARACTER, T + 42).serverTime).toBe(T + 42);
   });
 });
 
@@ -523,7 +530,7 @@ describe("out-of-range input (P2-2)", () => {
       expect(() => plant(farm, 0, "wheat", now)).toThrow(RangeError);
       expect(() => harvest(farm, 0, now)).toThrow(RangeError);
       expect(() => refillSeeds(farm, now)).toThrow(RangeError);
-      expect(() => toFarmState(farm, NEW_QUESTS, NO_BUILDING, now)).toThrow(RangeError);
+      expect(() => toFarmState(farm, NEW_QUESTS, NO_BUILDING, NEW_CHARACTER, now)).toThrow(RangeError);
       expect(() => isCropReady({ cropId: "wheat", plantedAt: T }, now)).toThrow(RangeError);
     },
   );
@@ -539,7 +546,7 @@ describe("malformed FarmData (RangeError, never a gameplay error)", () => {
     ["plant", (farm) => plant(farm, 0, "wheat", T)],
     ["harvest", (farm) => harvest(farm, 0, T + TOMATO_MS)],
     ["refillSeeds", (farm) => refillSeeds(farm, T)],
-    ["toFarmState", (farm) => toFarmState(farm, NEW_QUESTS, NO_BUILDING, T)],
+    ["toFarmState", (farm) => toFarmState(farm, NEW_QUESTS, NO_BUILDING, NEW_CHARACTER, T)],
     ["isSeedRefillEligible", (farm) => isSeedRefillEligible(farm)],
   ];
 
@@ -615,7 +622,7 @@ describe("malformed FarmData (RangeError, never a gameplay error)", () => {
 
     for (const farm of valid) {
       expect(() => isSeedRefillEligible(farm)).not.toThrow();
-      expect(() => toFarmState(farm, NEW_QUESTS, NO_BUILDING, T)).not.toThrow();
+      expect(() => toFarmState(farm, NEW_QUESTS, NO_BUILDING, NEW_CHARACTER, T)).not.toThrow();
       expect(() => refillSeeds(farm, T + SEED_REFILL_COOLDOWN_MS)).not.toThrow();
       expect(() => plant(farm, 0, "wheat", T)).not.toThrow();
       expect(() => harvest(farm, 0, T + TOMATO_MS)).not.toThrow();
@@ -627,20 +634,20 @@ describe("malformed FarmData (RangeError, never a gameplay error)", () => {
     farm = expectOk(plant(farm, 0, "wheat", T));
     farm = expectOk(harvest(farm, 0, T + WHEAT_MS));
 
-    expect(() => toFarmState(farm, NEW_QUESTS, NO_BUILDING, T + WHEAT_MS)).not.toThrow();
+    expect(() => toFarmState(farm, NEW_QUESTS, NO_BUILDING, NEW_CHARACTER, T + WHEAT_MS)).not.toThrow();
     expect(() => plant(farm, 0, "carrot", T + WHEAT_MS)).not.toThrow();
   });
 });
 
 describe("toFarmState progression and quest (Phase 2)", () => {
   it("derives level progress and usable plots from XP", () => {
-    expect(toFarmState(farmWith({ xp: 190 }), NEW_QUESTS, NO_BUILDING, T).progression).toEqual({
+    expect(toFarmState(farmWith({ xp: 190 }), NEW_QUESTS, NO_BUILDING, NEW_CHARACTER, T).progression).toEqual({
       level: 3,
       xpIntoLevel: 40,
       xpForNextLevel: 150,
       unlockedPlotCount: 7,
     });
-    expect(toFarmState(farmWith({ xp: 5000 }), NEW_QUESTS, NO_BUILDING, T).progression).toEqual({
+    expect(toFarmState(farmWith({ xp: 5000 }), NEW_QUESTS, NO_BUILDING, NEW_CHARACTER, T).progression).toEqual({
       level: 10,
       xpIntoLevel: 2750,
       xpForNextLevel: null,
@@ -649,12 +656,12 @@ describe("toFarmState progression and quest (Phase 2)", () => {
   });
 
   it("shows the active quest's counted progress, or reach-level progress from XP", () => {
-    expect(toFarmState(farmWith({}), { index: 0, progress: 3 }, NO_BUILDING, T).quest).toMatchObject({
+    expect(toFarmState(farmWith({}), { index: 0, progress: 3 }, NO_BUILDING, NEW_CHARACTER, T).quest).toMatchObject({
       id: "harvest_wheat_3",
       progress: 3,
       complete: true,
     });
-    expect(toFarmState(farmWith({ xp: 60 }), { index: 4, progress: 0 }, NO_BUILDING, T).quest).toMatchObject({
+    expect(toFarmState(farmWith({ xp: 60 }), { index: 4, progress: 0 }, NO_BUILDING, NEW_CHARACTER, T).quest).toMatchObject({
       id: "reach_level_3",
       progress: 2,
       target: 3,
@@ -663,15 +670,15 @@ describe("toFarmState progression and quest (Phase 2)", () => {
   });
 
   it("has no quest once the chain is finished, and rejects corrupted quest state", () => {
-    expect(toFarmState(farmWith({}), { index: 8, progress: 0 }, NO_BUILDING, T).quest).toBeNull();
-    expect(() => toFarmState(farmWith({}), { index: 9, progress: 0 }, NO_BUILDING, T)).toThrow(RangeError);
-    expect(() => toFarmState(farmWith({}), { index: 0, progress: -1 }, NO_BUILDING, T)).toThrow(RangeError);
+    expect(toFarmState(farmWith({}), { index: 8, progress: 0 }, NO_BUILDING, NEW_CHARACTER, T).quest).toBeNull();
+    expect(() => toFarmState(farmWith({}), { index: 9, progress: 0 }, NO_BUILDING, NEW_CHARACTER, T)).toThrow(RangeError);
+    expect(() => toFarmState(farmWith({}), { index: 0, progress: -1 }, NO_BUILDING, NEW_CHARACTER, T)).toThrow(RangeError);
   });
 
   it("always produces a FarmState that passes the shared validator", () => {
     for (const xp of [0, 49, 50, 149, 150, 499, 500, 2249, 2250, 9999]) {
       for (let index = 0; index <= 8; index++) {
-        expect(isFarmState(toFarmState(farmWith({ xp }), { index, progress: 0 }, NO_BUILDING, T))).toBe(true);
+        expect(isFarmState(toFarmState(farmWith({ xp }), { index, progress: 0 }, NO_BUILDING, NEW_CHARACTER, T))).toBe(true);
       }
     }
   });

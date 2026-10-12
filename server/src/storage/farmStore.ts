@@ -5,16 +5,20 @@
  * row per item (quantity 0 included), one quest_state row (schema v2 added
  * the Phase 2 rows for existing players), one building_state row and one
  * decoration_stock row per decoration (schema v3), plus zero or more
- * farm_objects rows. Missing rows are never filled
+ * farm_objects rows; one character_appearance row and one cosmetic_inventory
+ * row per owned cosmetic (schema v4). Missing rows are never filled
  * in: loaded data is checked with assertFarmData / assertQuestState, so
  * corrupted data fails loudly instead of being repaired silently
- * (assertBuildingData for building state).
+ * (assertBuildingData for building state, assertCharacterData for the
+ * character).
  *
  * Writes are expected to run inside `transaction()` from database.ts.
  */
 import { DECORATION_IDS, type DecorationId, type PlacedObject, type Rotation } from "@farmverse/shared/building";
 import { FARM_PLOT_COUNT, ITEM_IDS, type CropId, type ItemId } from "@farmverse/shared/farming";
+import { COSMETIC_IDS, type CosmeticId, type SkinTone } from "@farmverse/shared/character";
 import { assertBuildingData, createEmptyBuilding, type BuildingData } from "../building/rules.js";
+import { assertCharacterData, createStarterCharacter, type CharacterData } from "../character/rules.js";
 import { assertQuestState, startingQuestState, type QuestState } from "../farming/quests.js";
 import { assertFarmData, type FarmData, type FarmPlot } from "../farming/rules.js";
 import type { Database } from "./database.js";
@@ -73,6 +77,20 @@ export function insertPlayer(db: Database, player: NewPlayer, farm: FarmData): v
   );
   for (const decorationId of DECORATION_IDS) {
     insertStock.run(player.id, decorationId, building.stock[decorationId]);
+  }
+
+  const character = createStarterCharacter();
+  const { skin, hair, shirt, pants } = character.appearance;
+  db.prepare("INSERT INTO character_appearance (player_id, skin, hair, shirt, pants) VALUES (?, ?, ?, ?, ?)").run(
+    player.id,
+    skin,
+    hair,
+    shirt,
+    pants,
+  );
+  const insertCosmetic = db.prepare("INSERT INTO cosmetic_inventory (player_id, cosmetic_id) VALUES (?, ?)");
+  for (const cosmeticId of character.owned) {
+    insertCosmetic.run(player.id, cosmeticId);
   }
 }
 
@@ -235,6 +253,60 @@ export function saveBuilding(db: Database, playerId: string, building: BuildingD
   );
   for (const object of building.objects) {
     insertObject.run(playerId, object.objectId, object.decorationId, object.x, object.y, object.rotation);
+  }
+}
+
+/**
+ * Loads a player's character (appearance and owned cosmetics), or null if the
+ * player does not exist. Throws RangeError on corrupted data.
+ */
+export function loadCharacter(db: Database, playerId: string): CharacterData | null {
+  const row = db
+    .prepare("SELECT skin, hair, shirt, pants FROM character_appearance WHERE player_id = ?")
+    .get(playerId);
+  if (row === undefined) {
+    const player = db.prepare("SELECT 1 FROM players WHERE id = ?").get(playerId);
+    if (player === undefined) return null;
+    throw new RangeError("Invalid farm data: missing character");
+  }
+
+  const stored = new Set(
+    db
+      .prepare("SELECT cosmetic_id FROM cosmetic_inventory WHERE player_id = ?")
+      .all(playerId)
+      .map((cosmeticRow) => String(cosmeticRow["cosmetic_id"])),
+  );
+  const owned: CosmeticId[] = COSMETIC_IDS.filter((id) => stored.has(id));
+  if (owned.length !== stored.size) throw new RangeError("Invalid farm data: unknown cosmetic");
+
+  const character = {
+    appearance: {
+      skin: row["skin"] as SkinTone,
+      hair: row["hair"] as CosmeticId,
+      shirt: row["shirt"] as CosmeticId,
+      pants: row["pants"] as CosmeticId,
+    },
+    owned,
+  };
+  assertCharacterData(character);
+  return character;
+}
+
+/**
+ * Saves a player's character. The appearance row must already exist. Owned
+ * cosmetics are only ever added (cosmetics are kept forever).
+ */
+export function saveCharacter(db: Database, playerId: string, character: CharacterData): void {
+  assertCharacterData(character);
+  const { skin, hair, shirt, pants } = character.appearance;
+  const result = db
+    .prepare("UPDATE character_appearance SET skin = ?, hair = ?, shirt = ?, pants = ? WHERE player_id = ?")
+    .run(skin, hair, shirt, pants, playerId);
+  if (result.changes !== 1) throw new RangeError(`Invalid farm data: missing character for ${playerId}`);
+
+  const insertCosmetic = db.prepare("INSERT OR IGNORE INTO cosmetic_inventory (player_id, cosmetic_id) VALUES (?, ?)");
+  for (const cosmeticId of character.owned) {
+    insertCosmetic.run(playerId, cosmeticId);
   }
 }
 

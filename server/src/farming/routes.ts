@@ -12,12 +12,15 @@
  *   POST /api/farm/objects/rotate  { requestId, objectId, rotation }
  *   POST /api/farm/objects/remove  { requestId, objectId }
  *   POST /api/shop/buy             { requestId, decorationId }  one decoration, server price
+ *   POST /api/character/equip      { requestId, appearance }  whole new appearance, owned items only
+ *   POST /api/shop/buy-cosmetic    { requestId, cosmeticId }  one cosmetic, server price
  *
  * The server is authoritative: the player comes from the Bearer token, time
  * from the server clock, and every rule from ./rules.ts, ./progression.ts and
- * ../building/rules.ts (object IDs, ownership, bounds, overlap).
+ * ../building/rules.ts (object IDs, ownership, bounds, overlap) and
+ * ../character/rules.ts (owned cosmetics, cosmetic shop).
  * Each state-changing action runs in one transaction: check the action log,
- * load the farm, quest and building state, apply the rule, save what the
+ * load the farm, quest, building and character state, apply the rule, save what the
  * rule changed, record the
  * result. Quest progress from a plant or harvest is saved in that same
  * transaction. Only successful actions are recorded, so replaying the same
@@ -27,6 +30,7 @@
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
+  CHARACTER_EQUIP_PATH,
   FARM_HARVEST_PATH,
   FARM_PATH,
   FARM_PLANT_PATH,
@@ -37,8 +41,11 @@ import {
   OBJECT_ROTATE_PATH,
   QUEST_CLAIM_PATH,
   SESSION_PATH,
+  SHOP_BUY_COSMETIC_PATH,
   SHOP_BUY_PATH,
+  isBuyCosmeticRequest,
   isBuyDecorationRequest,
+  isEquipCharacterRequest,
   isHarvestRequest,
   isMoveObjectRequest,
   isPlaceObjectRequest,
@@ -47,6 +54,7 @@ import {
   isRefillSeedsRequest,
   isRemoveObjectRequest,
   isRotateObjectRequest,
+  type BuyCosmeticResponse,
   type BuyDecorationResponse,
   type ObjectActionResponse,
   type QuestClaimResponse,
@@ -58,9 +66,11 @@ import {
   findAction,
   insertAction,
   loadBuilding,
+  loadCharacter,
   loadFarm,
   loadQuestState,
   saveBuilding,
+  saveCharacter,
   saveFarm,
   saveQuestState,
 } from "../storage/farmStore.js";
@@ -74,6 +84,13 @@ import {
   type BuildingResult,
 } from "../building/rules.js";
 import { buyDecoration, type ShopError } from "../building/shop.js";
+import {
+  buyCosmetic,
+  equipAppearance,
+  type CharacterData,
+  type CosmeticShopError,
+  type EquipError,
+} from "../character/rules.js";
 import { claimQuest, type QuestError } from "./progression.js";
 import { recordQuestEvent, type QuestState } from "./quests.js";
 import {
@@ -100,10 +117,11 @@ const HTTP_STATUS: Partial<Record<ErrorCode, number>> = {
   PLACEMENT_INVALID: 409,
   OBJECT_NOT_FOUND: 409,
   INSUFFICIENT_CURRENCY: 409,
+  ALREADY_OWNED: 409,
   REQUEST_ID_REUSED: 409,
 };
 
-type ActionError = RuleError | QuestError | BuildingError | ShopError;
+type ActionError = RuleError | QuestError | BuildingError | ShopError | EquipError | CosmeticShopError;
 
 const ERROR_MESSAGES: Record<ActionError, string> = {
   PLOT_NOT_EMPTY: "This plot already has a crop",
@@ -116,6 +134,7 @@ const ERROR_MESSAGES: Record<ActionError, string> = {
   PLACEMENT_INVALID: "This object cannot be placed there",
   OBJECT_NOT_FOUND: "There is no such object on your farm",
   INSUFFICIENT_CURRENCY: "Not enough coins",
+  ALREADY_OWNED: "You already own this",
 };
 
 /** Small JSON bodies only: the largest valid request is well under 200 bytes. */
@@ -130,11 +149,20 @@ type ActionName =
   | "object-move"
   | "object-rotate"
   | "object-remove"
-  | "shop-buy";
+  | "shop-buy"
+  | "character-equip"
+  | "shop-buy-cosmetic";
 
 /** On success, only the parts of the state that are returned are saved. */
 type ActionResult =
-  | { ok: true; farm?: FarmData; quests?: QuestState; building?: BuildingData; body: unknown }
+  | {
+      ok: true;
+      farm?: FarmData;
+      quests?: QuestState;
+      building?: BuildingData;
+      character?: CharacterData;
+      body: unknown;
+    }
   | { ok: false; error: ActionError };
 
 /** Loaded state passed to an action. */
@@ -142,6 +170,7 @@ interface PlayerState {
   farm: FarmData;
   quests: QuestState;
   building: BuildingData;
+  character: CharacterData;
 }
 
 interface ActionOutcome {
@@ -192,6 +221,23 @@ export function registerFarmRoutes(app: FastifyInstance, { db, now }: FarmRoutes
     return building;
   }
 
+  /** Loads the authenticated player's character; a missing row is a server fault. */
+  function requireCharacter(playerId: string): CharacterData {
+    const character = loadCharacter(db, playerId);
+    if (character === null) throw new Error(`No character for authenticated player ${playerId}`);
+    return character;
+  }
+
+  /** Loads everything an action or GET /api/farm needs. */
+  function requireState(playerId: string): PlayerState {
+    return {
+      farm: requireFarm(playerId),
+      quests: requireQuests(playerId),
+      building: requireBuilding(playerId),
+      character: requireCharacter(playerId),
+    };
+  }
+
   /**
    * Runs a state-changing action with request-ID idempotency in one transaction.
    * `apply` returns the rule result and, on success, the response body.
@@ -218,8 +264,7 @@ export function registerFarmRoutes(app: FastifyInstance, { db, now }: FarmRoutes
         };
       }
 
-      const state = { farm: requireFarm(playerId), quests: requireQuests(playerId), building: requireBuilding(playerId) };
-      const result = apply(state, time);
+      const result = apply(requireState(playerId), time);
       if (!result.ok) {
         return { ok: false, status: 409, body: { code: result.error, message: ERROR_MESSAGES[result.error] } };
       }
@@ -227,6 +272,7 @@ export function registerFarmRoutes(app: FastifyInstance, { db, now }: FarmRoutes
       if (result.farm !== undefined) saveFarm(db, playerId, result.farm);
       if (result.quests !== undefined) saveQuestState(db, playerId, result.quests);
       if (result.building !== undefined) saveBuilding(db, playerId, result.building);
+      if (result.character !== undefined) saveCharacter(db, playerId, result.character);
       insertAction(
         db,
         playerId,
@@ -252,7 +298,8 @@ export function registerFarmRoutes(app: FastifyInstance, { db, now }: FarmRoutes
   app.get(FARM_PATH, (request, reply) => {
     const playerId = requirePlayer(request, reply);
     if (playerId === null) return reply;
-    return reply.send(toFarmState(requireFarm(playerId), requireQuests(playerId), requireBuilding(playerId), now()));
+    const { farm, quests, building, character } = requireState(playerId);
+    return reply.send(toFarmState(farm, quests, building, character, now()));
   });
 
   app.post(FARM_PLANT_PATH, { bodyLimit: BODY_LIMIT }, (request, reply) => {
@@ -267,7 +314,7 @@ export function registerFarmRoutes(app: FastifyInstance, { db, now }: FarmRoutes
       "plant",
       requestId,
       JSON.stringify({ requestId, plotIndex, cropId }),
-      ({ farm, quests, building }, time) => {
+      ({ farm, quests, building, character }, time) => {
         const result = plant(farm, plotIndex, cropId, time);
         if (!result.ok) return result;
         const nextQuests = recordQuestEvent(quests, { kind: "plant", cropId });
@@ -275,7 +322,7 @@ export function registerFarmRoutes(app: FastifyInstance, { db, now }: FarmRoutes
           ok: true,
           farm: result.farm,
           quests: nextQuests,
-          body: toFarmState(result.farm, nextQuests, building, time),
+          body: toFarmState(result.farm, nextQuests, building, character, time),
         };
       },
     );
@@ -294,7 +341,7 @@ export function registerFarmRoutes(app: FastifyInstance, { db, now }: FarmRoutes
       "harvest",
       requestId,
       JSON.stringify({ requestId, plotIndex }),
-      ({ farm, quests, building }, time) => {
+      ({ farm, quests, building, character }, time) => {
         const cropId = farm.plots[plotIndex]?.cropId;
         const result = harvest(farm, plotIndex, time);
         if (!result.ok) return result;
@@ -305,7 +352,7 @@ export function registerFarmRoutes(app: FastifyInstance, { db, now }: FarmRoutes
           farm: result.farm,
           quests: nextQuests,
           body: {
-            ...toFarmState(result.farm, nextQuests, building, time),
+            ...toFarmState(result.farm, nextQuests, building, character, time),
             harvested: result.harvested,
             reward: result.reward,
           },
@@ -329,14 +376,14 @@ export function registerFarmRoutes(app: FastifyInstance, { db, now }: FarmRoutes
       "refill-seeds",
       requestId,
       JSON.stringify({ requestId }),
-      ({ farm, quests, building }, time) => {
+      ({ farm, quests, building, character }, time) => {
         if (isSeedRefillEligible(farm) && farm.seedRefillAvailableAt === null) {
           // Unexpected data (P2-5): the refill is allowed immediately.
           request.log.warn({ playerId }, "Seed refill eligible without a recorded cooldown");
         }
         const result = refillSeeds(farm, time);
         return result.ok
-          ? { ok: true, farm: result.farm, body: toFarmState(result.farm, quests, building, time) }
+          ? { ok: true, farm: result.farm, body: toFarmState(result.farm, quests, building, character, time) }
           : result;
       },
     );
@@ -355,11 +402,11 @@ export function registerFarmRoutes(app: FastifyInstance, { db, now }: FarmRoutes
       "quest-claim",
       requestId,
       JSON.stringify({ requestId }),
-      ({ farm, quests, building }, time) => {
+      ({ farm, quests, building, character }, time) => {
         const result = claimQuest(farm, quests);
         if (!result.ok) return result;
         const body: QuestClaimResponse = {
-          ...toFarmState(result.farm, result.quests, building, time),
+          ...toFarmState(result.farm, result.quests, building, character, time),
           claimed: { questId: result.quest.id, reward: { ...result.quest.reward } },
         };
         return { ok: true, farm: result.farm, quests: result.quests, body };
@@ -377,11 +424,11 @@ export function registerFarmRoutes(app: FastifyInstance, { db, now }: FarmRoutes
     requestJson: string,
     apply: (building: BuildingData) => BuildingResult<{ object: ObjectActionResponse["object"] }>,
   ): ActionOutcome {
-    return runAction(request, playerId, action, requestId, requestJson, ({ farm, quests, building }, time) => {
+    return runAction(request, playerId, action, requestId, requestJson, ({ farm, quests, building, character }, time) => {
       const result = apply(building);
       if (!result.ok) return result;
       const body: ObjectActionResponse = {
-        ...toFarmState(farm, quests, result.building, time),
+        ...toFarmState(farm, quests, result.building, character, time),
         object: { ...result.object },
       };
       return { ok: true, building: result.building, body };
@@ -468,14 +515,66 @@ export function registerFarmRoutes(app: FastifyInstance, { db, now }: FarmRoutes
       "shop-buy",
       requestId,
       JSON.stringify({ requestId, decorationId }),
-      ({ farm, quests, building }, time) => {
+      ({ farm, quests, building, character }, time) => {
         const result = buyDecoration(farm, building, decorationId);
         if (!result.ok) return result;
         const body: BuyDecorationResponse = {
-          ...toFarmState(result.farm, quests, result.building, time),
+          ...toFarmState(result.farm, quests, result.building, character, time),
           bought: { decorationId, price: result.price },
         };
         return { ok: true, farm: result.farm, building: result.building, body };
+      },
+    );
+    return reply.code(outcome.status).send(outcome.body);
+  });
+
+  app.post(CHARACTER_EQUIP_PATH, { bodyLimit: BODY_LIMIT }, (request, reply) => {
+    const playerId = requirePlayer(request, reply);
+    if (playerId === null) return reply;
+    if (!isEquipCharacterRequest(request.body)) return sendError(reply, "INVALID_REQUEST", "Invalid equip request");
+
+    const { requestId } = request.body;
+    const { skin, hair, shirt, pants } = request.body.appearance;
+    const appearance = { skin, hair, shirt, pants };
+    const outcome = runAction(
+      request,
+      playerId,
+      "character-equip",
+      requestId,
+      JSON.stringify({ requestId, appearance }),
+      ({ farm, quests, building, character }, time) => {
+        const result = equipAppearance(character, appearance);
+        if (!result.ok) return result;
+        return {
+          ok: true,
+          character: result.character,
+          body: toFarmState(farm, quests, building, result.character, time),
+        };
+      },
+    );
+    return reply.code(outcome.status).send(outcome.body);
+  });
+
+  app.post(SHOP_BUY_COSMETIC_PATH, { bodyLimit: BODY_LIMIT }, (request, reply) => {
+    const playerId = requirePlayer(request, reply);
+    if (playerId === null) return reply;
+    if (!isBuyCosmeticRequest(request.body)) return sendError(reply, "INVALID_REQUEST", "Invalid buy request");
+
+    const { requestId, cosmeticId } = request.body;
+    const outcome = runAction(
+      request,
+      playerId,
+      "shop-buy-cosmetic",
+      requestId,
+      JSON.stringify({ requestId, cosmeticId }),
+      ({ farm, quests, building, character }, time) => {
+        const result = buyCosmetic(farm, character, cosmeticId);
+        if (!result.ok) return result;
+        const body: BuyCosmeticResponse = {
+          ...toFarmState(result.farm, quests, building, result.character, time),
+          bought: { cosmeticId, price: result.price },
+        };
+        return { ok: true, farm: result.farm, character: result.character, body };
       },
     );
     return reply.code(outcome.status).send(outcome.body);

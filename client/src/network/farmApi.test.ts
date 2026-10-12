@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { DEFAULT_APPEARANCE, STARTER_COSMETIC_IDS } from "@farmverse/shared/character";
 import type { FarmState } from "@farmverse/shared/api";
 import { FARM_PLOT_COUNT } from "@farmverse/shared/farming";
 import {
@@ -33,6 +34,7 @@ const FARM: FarmState = {
   },
   decorations: [],
   objects: [],
+  character: { appearance: { ...DEFAULT_APPEARANCE }, owned: [...STARTER_COSMETIC_IDS] },
 };
 
 function json(status: number, body: unknown): Response {

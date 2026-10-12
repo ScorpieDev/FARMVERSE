@@ -49,6 +49,8 @@ describe("openDatabase", () => {
     expect(tables).toEqual([
       "action_log",
       "building_state",
+      "character_appearance",
+      "cosmetic_inventory",
       "decoration_stock",
       "farm_objects",
       "inventory",

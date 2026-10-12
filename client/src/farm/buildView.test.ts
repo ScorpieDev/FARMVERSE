@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DEFAULT_APPEARANCE, STARTER_COSMETIC_IDS } from "@farmverse/shared/character";
 import type { FarmState } from "@farmverse/shared/api";
 import type { PlacedObject } from "@farmverse/shared/building";
 import { FARM_PLOT_COUNT } from "@farmverse/shared/farming";
@@ -44,6 +45,7 @@ function state(overrides: Partial<FarmState> = {}): FarmState {
       { decorationId: "tree", quantity: 1 },
     ],
     objects: [TREE, BENCH],
+    character: { appearance: { ...DEFAULT_APPEARANCE }, owned: [...STARTER_COSMETIC_IDS] },
     ...overrides,
   };
 }

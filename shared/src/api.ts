@@ -5,6 +5,8 @@
  * Phase 2: level progress and the active quest in FarmState; quest claim.
  * Phase 3: decorations and placed objects in FarmState; place / move /
  * rotate / remove object endpoints; decoration shop.
+ * Phase 4: character (appearance and owned cosmetics) in FarmState;
+ * character equip; cosmetic shop.
  *
  * Validators here only check structure and types. The server still enforces
  * ownership, gameplay rules and stored data; clients never send time,
@@ -30,6 +32,14 @@ import {
   type PlacedObject,
   type Rotation,
 } from "./building.js";
+import {
+  STARTER_COSMETIC_IDS,
+  checkAppearance,
+  isCharacterAppearance,
+  isCosmeticId,
+  type CharacterAppearance,
+  type CosmeticId,
+} from "./character.js";
 
 export const HEALTH_PATH = "/api/health";
 export const SESSION_PATH = "/api/session";
@@ -43,6 +53,8 @@ export const OBJECT_MOVE_PATH = "/api/farm/objects/move";
 export const OBJECT_ROTATE_PATH = "/api/farm/objects/rotate";
 export const OBJECT_REMOVE_PATH = "/api/farm/objects/remove";
 export const SHOP_BUY_PATH = "/api/shop/buy";
+export const CHARACTER_EQUIP_PATH = "/api/character/equip";
+export const SHOP_BUY_COSMETIC_PATH = "/api/shop/buy-cosmetic";
 
 /** Response body of GET /api/health. */
 export interface HealthResponse {
@@ -126,6 +138,14 @@ export interface DecorationEntry {
   quantity: number;
 }
 
+/** The player's character (Phase 4). */
+export interface CharacterState {
+  /** Skin tone and the item worn in each slot; every worn item is owned. */
+  appearance: CharacterAppearance;
+  /** Owned cosmetics in catalog order, each at most once; always includes the starter items. */
+  owned: CosmeticId[];
+}
+
 /**
  * GET /api/farm (200); also the success body of plant and refill-seeds.
  * A replayed request returns the state saved when it first succeeded.
@@ -150,6 +170,8 @@ export interface FarmState {
   decorations: DecorationEntry[];
   /** Objects on the farm grid, a valid layout (building.ts checkLayout) (Phase 3). */
   objects: PlacedObject[];
+  /** The player's character (Phase 4). */
+  character: CharacterState;
 }
 
 /** Coins and XP granted by one harvest. */
@@ -194,6 +216,30 @@ export interface BuyDecorationRequest {
 /** POST /api/shop/buy (200): the new state and what was bought. */
 export interface BuyDecorationResponse extends FarmState {
   bought: { decorationId: DecorationId; price: number };
+}
+
+/**
+ * POST /api/character/equip body: the whole new appearance. The server checks
+ * that every worn item is owned (ITEM_NOT_OWNED). Success body: FarmState.
+ */
+export interface EquipCharacterRequest {
+  requestId: string;
+  appearance: CharacterAppearance;
+}
+
+/**
+ * POST /api/shop/buy-cosmetic body: buys one cosmetic. The server decides the
+ * price (character.ts COSMETICS) and checks ownership (ALREADY_OWNED), level
+ * and coins. Buying does not change what the character wears.
+ */
+export interface BuyCosmeticRequest {
+  requestId: string;
+  cosmeticId: CosmeticId;
+}
+
+/** POST /api/shop/buy-cosmetic (200): the new state and what was bought. */
+export interface BuyCosmeticResponse extends FarmState {
+  bought: { cosmeticId: CosmeticId; price: number };
 }
 
 /**
@@ -392,8 +438,25 @@ export function isFarmState(value: unknown): value is FarmState {
     isProgressionStateFor(value["progression"], value["xp"]) &&
     (value["quest"] === null || isQuestView(value["quest"])) &&
     isDecorationList(value["decorations"]) &&
-    checkLayout(value["objects"]).ok
+    checkLayout(value["objects"]).ok &&
+    isCharacterState(value["character"])
   );
+}
+
+export function isCharacterState(value: unknown): value is CharacterState {
+  if (!isObject(value)) return false;
+  const owned = value["owned"];
+  if (!Array.isArray(owned) || !owned.every(isCosmeticId)) return false;
+  if (new Set(owned).size !== owned.length) return false;
+  return (
+    STARTER_COSMETIC_IDS.every((id) => owned.includes(id)) && checkAppearance(owned, value["appearance"]).ok
+  );
+}
+
+export function isBuyCosmeticResponse(value: unknown): value is BuyCosmeticResponse {
+  if (!isObject(value) || !isFarmState(value)) return false;
+  const bought = value["bought"];
+  return isObject(bought) && isCosmeticId(bought["cosmeticId"]) && isPositiveInteger(bought["price"]);
 }
 
 function isDecorationList(value: unknown): value is DecorationEntry[] {
@@ -500,4 +563,12 @@ export function isRemoveObjectRequest(value: unknown): value is RemoveObjectRequ
 
 export function isBuyDecorationRequest(value: unknown): value is BuyDecorationRequest {
   return isObject(value) && isRequestId(value["requestId"]) && isDecorationId(value["decorationId"]);
+}
+
+export function isEquipCharacterRequest(value: unknown): value is EquipCharacterRequest {
+  return isObject(value) && isRequestId(value["requestId"]) && isCharacterAppearance(value["appearance"]);
+}
+
+export function isBuyCosmeticRequest(value: unknown): value is BuyCosmeticRequest {
+  return isObject(value) && isRequestId(value["requestId"]) && isCosmeticId(value["cosmeticId"]);
 }

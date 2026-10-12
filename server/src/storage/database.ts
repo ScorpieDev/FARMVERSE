@@ -121,6 +121,36 @@ const MIGRATIONS: readonly string[] = [
     PRIMARY KEY (player_id, object_id)
   ) STRICT;
   `,
+  // Version 4 (Phase 4 character). Only adds tables and rows; existing rows
+  // are never modified. Cosmetic IDs and the default appearance are frozen
+  // here like the v2 / v3 values. Every player gets the 6 starter cosmetics
+  // and wears the default appearance.
+  `
+  -- Skin tone and the cosmetic worn in each slot.
+  CREATE TABLE IF NOT EXISTS character_appearance (
+    player_id TEXT PRIMARY KEY REFERENCES players (id) ON DELETE CASCADE,
+    skin TEXT NOT NULL,
+    hair TEXT NOT NULL,
+    shirt TEXT NOT NULL,
+    pants TEXT NOT NULL
+  ) STRICT;
+  INSERT OR IGNORE INTO character_appearance (player_id, skin, hair, shirt, pants)
+    SELECT id, 'light', 'hair_short_brown', 'shirt_white_tee', 'pants_blue_jeans' FROM players;
+
+  -- Owned cosmetics; kept forever (no resale, never stolen).
+  CREATE TABLE IF NOT EXISTS cosmetic_inventory (
+    player_id TEXT NOT NULL REFERENCES players (id) ON DELETE CASCADE,
+    cosmetic_id TEXT NOT NULL,
+    PRIMARY KEY (player_id, cosmetic_id)
+  ) STRICT;
+  INSERT OR IGNORE INTO cosmetic_inventory (player_id, cosmetic_id)
+    SELECT players.id, starter.id
+    FROM players CROSS JOIN (
+      SELECT 'hair_short_brown' AS id UNION ALL SELECT 'hair_long_black'
+      UNION ALL SELECT 'shirt_white_tee' UNION ALL SELECT 'shirt_blue_tee'
+      UNION ALL SELECT 'pants_blue_jeans' UNION ALL SELECT 'pants_brown'
+    ) AS starter;
+  `,
 ];
 
 /** Exported for migration tests only. */
