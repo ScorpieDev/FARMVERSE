@@ -223,7 +223,7 @@ Phase 0 — Foundation: COMPLETED.
 
 - `vite preview` and HMR through the Codespaces URL — not verified. (The dev game itself was verified through the Codespaces URL on 2026-10-11 with token access; see `PHASE2_STEP2_6_REPORT.md` §6.)
 - Android device testing — deferred by the Game Director.
-- The dev database `server/data/farmverse.db` is at schema v3 — now at v4 (upgraded by the running dev server, verified 2026-10-12) (the running dev server reloaded the Step 3.2 code and applied the additive migration).
+- The dev database `server/data/farmverse.db` is at schema v4 (the running dev server applied the additive v3 and v4 migrations; v4 verified 2026-10-12).
 - A farming request logged before the schema v3 server upgrade and retried after it replays the old response without `decorations` / `objects`; the client reports an invalid response and the next farm load is correct (`PHASE3_STEP3_2_REPORT.md` §2).
 - Uncommitted Codespaces WebSocket-origin changes (10 files, `server/src/config.ts` etc.; see `docs/reports/phase1/PHASE1_CODESPACES_WS_ORIGIN_FIX_REPORT.md`) are still in the working tree, reviewed but not committed; Game Director 2026-10-12: do not commit yet.
 - Real Chrome page zoom was emulated (CSS viewport + devicePixelRatio) in headless Chromium, not tested with the zoom menu in a real browser window.
