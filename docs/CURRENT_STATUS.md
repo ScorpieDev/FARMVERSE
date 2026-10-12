@@ -1,14 +1,14 @@
 # FARMVERSE CURRENT STATUS
 
 ## Version
-1.22
+1.23
 
 ## Last Updated
 2026-10-12
 
 ## Project Status
 
-Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: ALL STEPS DONE (2.1–2.6), closeout awaiting Game Director approval; Android check deferred. Phase 3 — Building: Steps 3.1–3.4 done (shared grid rules; server place / move / rotate / remove API, database schema v3; client Edit farm mode; decoration coin shop, P3-4 / P3-5 decided 2026-10-11). End-to-end check through the Codespaces URL passed (24/24, 2026-10-11, `837bab9`). ALL STEPS DONE; closeout awaiting Game Director approval (`docs/reports/phase3/PHASE3_CLOSEOUT_REPORT.md`); Android check deferred. Phase 4 — Character: design approved 2026-10-12 (P4-1…P4-4); ALL STEPS DONE (4.1–4.4): shared data; server rules, schema v4, equip / buy-cosmetic API; client Character screen and header avatar; end-to-end through the Codespaces URL 24/24 (2026-10-12). CONDITIONALLY APPROVED by the Game Director (2026-10-12). Production build verified through the Codespaces preview URL 12/12 after the `vite preview` host fix `e0c3293`; still open: Android / iOS device, real GitHub-signed-in browser (`docs/reports/phase4/PHASE4_ACCEPTANCE_CONDITIONS.md`). Phases 2 and 3 reviewed: eligible to close, approval not yet recorded. **Game Director 2026-10-12: development first** — device (Android / iOS) and signed-in-browser checks are deferred until the Game Director starts that stage; Claude verifies with automated tests, API / database checks and headless Chromium, and lists what is not tested for real. Phase 5 — Multiplayer: design approved (P5-1…P5-4), Steps 5.1–5.3 done (server side complete; client next). Codespaces development origins committed as `37c3994` (Game Director option A, 2026-10-12). Phase 5 not started.
+Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: ALL STEPS DONE (2.1–2.6), closeout awaiting Game Director approval; Android check deferred. Phase 3 — Building: Steps 3.1–3.4 done (shared grid rules; server place / move / rotate / remove API, database schema v3; client Edit farm mode; decoration coin shop, P3-4 / P3-5 decided 2026-10-11). End-to-end check through the Codespaces URL passed (24/24, 2026-10-11, `837bab9`). ALL STEPS DONE; closeout awaiting Game Director approval (`docs/reports/phase3/PHASE3_CLOSEOUT_REPORT.md`); Android check deferred. Phase 4 — Character: design approved 2026-10-12 (P4-1…P4-4); ALL STEPS DONE (4.1–4.4): shared data; server rules, schema v4, equip / buy-cosmetic API; client Character screen and header avatar; end-to-end through the Codespaces URL 24/24 (2026-10-12). CONDITIONALLY APPROVED by the Game Director (2026-10-12). Production build verified through the Codespaces preview URL 12/12 after the `vite preview` host fix `e0c3293`; still open: Android / iOS device, real GitHub-signed-in browser (`docs/reports/phase4/PHASE4_ACCEPTANCE_CONDITIONS.md`). Phases 2 and 3 reviewed: eligible to close, approval not yet recorded. **Game Director 2026-10-12: development first** — device (Android / iOS) and signed-in-browser checks are deferred until the Game Director starts that stage; Claude verifies with automated tests, API / database checks and headless Chromium, and lists what is not tested for real. Phase 5 — Multiplayer: design approved (P5-1…P5-4), Steps 5.1–5.4 done; Step 5.5 (multi-client E2E and closeout) next. Codespaces development origins committed as `37c3994` (Game Director option A, 2026-10-12). Phase 5 not started.
 
 ---
 
@@ -204,8 +204,10 @@ Design approved by the Game Director on 2026-10-12: P5-1 R-A (every farm is a ro
 | 5.1 Protocol 2 (`shared/src/protocol.ts`, `shared/src/presence.ts`), WebSocket authentication by session token, schema v5 (`player_profile`: farm code, display name) | Done | `docs/reports/phase5/PHASE5_STEP5_1_REPORT.md` |
 | 5.2 Server heartbeat (15 s, 2 misses), hello timeout (10 s), one connection per player (close 4002, client state `replaced`), connection cap (503), message rate limit (`RATE_LIMITED`, close 1008) | Done | `docs/reports/phase5/PHASE5_STEP5_2_REPORT.md` |
 | 5.3 Server farm rooms (`PresenceHub`: join / leave / move / emote, `player_updated` on equip), `GET /api/farms/:farmCode` (visitor view, nothing private), `GET /api/players/online` | Done | `docs/reports/phase5/PHASE5_STEP5_3_REPORT.md` |
-| 5.4 Client: online list / farm code, visitor farm scene, characters on the grid, tap-to-move, emotes | Next | — |
-| 5.5 Multi-client E2E and closeout | Not started | — |
+| 5.4 Client: Visit button and screen (own farm code, online list, Enter code), farm room (view-only grid, characters, tap-to-move, emotes, Leave), rejoin after reconnect | Done | `docs/reports/phase5/PHASE5_STEP5_4_REPORT.md` |
+| 5.5 Multi-client E2E and closeout | Next | — |
+
+Tests run in Step 5.4: client 289; typecheck clean; client build OK; headless Chromium with two independent players (isolated server and database) 18/18, stable over 3 runs. Not yet through the Codespaces URL (Step 5.5).
 
 Tests run in Step 5.3: shared 479, server 620, client 242; typecheck clean; Codespaces API / WebSocket check (2 Node clients) 10/10.
 
@@ -260,7 +262,7 @@ Phase 0 — Foundation: COMPLETED.
 
 # NEXT OBJECTIVE
 
-Phase 5 Step 5.4 — client: online list and farm code, visitor farm scene, characters on the grid, tap-to-move, emotes. (Phase 2 / 3 closeout approvals still pending, not blocking; device checks deferred by the Game Director.) Phase 5 — Multiplayer is not started and waits for that agreement. Android check of Phases 2–4 when convenient.
+Phase 5 Step 5.5 — multi-client end-to-end check (local and through the Codespaces URL) and Phase 5 closeout. (Phase 2 / 3 closeout approvals still pending, not blocking; device checks deferred by the Game Director.) Phase 5 — Multiplayer is not started and waits for that agreement. Android check of Phases 2–4 when convenient.
 
 ---
 

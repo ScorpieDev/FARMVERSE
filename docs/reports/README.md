@@ -81,3 +81,4 @@ Steps 1–3 predate the report convention; see their commit messages (`5faeaff`,
 | `PHASE5_STEP5_1_REPORT.md` | Step 5.1: protocol 2, WebSocket authentication, schema v5 profiles; Codespaces check 9/9 |
 | `PHASE5_STEP5_2_REPORT.md` | Step 5.2: heartbeat, hello timeout, one connection per player, connection and rate limits; browser 8/8 |
 | `PHASE5_STEP5_3_REPORT.md` | Step 5.3: server farm rooms, visitor farm view API, online list; Codespaces API check 10/10 |
+| `PHASE5_STEP5_4_REPORT.md` | Step 5.4: client Visit screen and farm room; two-player browser check 18/18 |
