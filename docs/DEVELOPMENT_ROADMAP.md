@@ -133,7 +133,7 @@ Tasks:
 
 Status:
 
-IN PROGRESS — thiết kế duyệt 2026-10-12 (P5-1 R-A, P5-2 F-A, P5-3 M-A, P5-4 N-A; `docs/reports/phase5/PHASE5_MULTIPLAYER_PLAN_REPORT.md`). Bước 5.1 (protocol 2, xác thực WebSocket, schema v5) xong.
+IN PROGRESS — thiết kế duyệt 2026-10-12 (P5-1 R-A, P5-2 F-A, P5-3 M-A, P5-4 N-A; `docs/reports/phase5/PHASE5_MULTIPLAYER_PLAN_REPORT.md`). Bước 5.1 (protocol 2, xác thực WebSocket, schema v5) và 5.2 (heartbeat, một kết nối mỗi người chơi, giới hạn kết nối và tần suất) xong.
 
 Tasks:
 
@@ -272,7 +272,7 @@ Phase 1 — Farming: COMPLETED (2026-10-10).
 
 Phase 0 — Foundation: COMPLETED (2026-10-10).
 
-Phase 5 — Multiplayer: IN PROGRESS (Bước 5.1 xong). Game Director 2026-10-12: ưu tiên phát triển; kiểm thử thiết bị thật (Android/iOS) và trình duyệt đã đăng nhập hoãn tới khi Game Director bắt đầu giai đoạn đó — không chặn tiến độ, các hạng mục này vẫn ghi là CHƯA KIỂM THỬ.
+Phase 5 — Multiplayer: IN PROGRESS (Bước 5.1–5.2 xong). Game Director 2026-10-12: ưu tiên phát triển; kiểm thử thiết bị thật (Android/iOS) và trình duyệt đã đăng nhập hoãn tới khi Game Director bắt đầu giai đoạn đó — không chặn tiến độ, các hạng mục này vẫn ghi là CHƯA KIỂM THỬ.
 
 ---
 

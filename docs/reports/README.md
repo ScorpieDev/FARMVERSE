@@ -79,3 +79,4 @@ Steps 1–3 predate the report convention; see their commit messages (`5faeaff`,
 |---|---|
 | `PHASE5_MULTIPLAYER_PLAN_REPORT.md` | Phase 5 design (farm rooms, online list + farm code, tap-to-move, generated names, protocol 2, security); P5-1…P5-4 approved 2026-10-12 |
 | `PHASE5_STEP5_1_REPORT.md` | Step 5.1: protocol 2, WebSocket authentication, schema v5 profiles; Codespaces check 9/9 |
+| `PHASE5_STEP5_2_REPORT.md` | Step 5.2: heartbeat, hello timeout, one connection per player, connection and rate limits; browser 8/8 |
