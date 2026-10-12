@@ -19,6 +19,7 @@ import {
   PROTOCOL_VERSION,
   decodeServerMessage,
   type ClientMessage,
+  type ServerMessage,
 } from "@farmverse/shared/protocol";
 import type { ConnectionStatus } from "./connectionStatus.js";
 import type { ServerUrlResult, ServerUrls } from "./serverUrl.js";
@@ -50,6 +51,11 @@ export interface ServerConnectionOptions {
   onStatus: (status: ConnectionStatus) => void;
   /** The guest session token sent in `hello`; null while there is no session. */
   getToken: () => string | null;
+  /**
+   * Receives `welcome` (each time the connection is established) and every
+   * farm room message (`room`, `player_*`) and room `error` (Phase 5).
+   */
+  onMessage?: (message: ServerMessage) => void;
   fetch?: typeof fetch;
   createSocket?: (url: string) => WebSocket;
   /** Returns a number in [0, 1); used for backoff jitter. */
@@ -110,6 +116,17 @@ export class ServerConnection {
     }
     this.retries = 0;
     void this.connect(this.options.urls.urls);
+  }
+
+  /**
+   * Sends a farm room message (join, leave, move, emote). Returns false when
+   * not connected; nothing is queued, because a new connection starts outside
+   * any room.
+   */
+  sendRoomMessage(message: Exclude<ClientMessage, { type: "hello" | "ping" }>): boolean {
+    if (this.status.kind !== "connected") return false;
+    this.send(message);
+    return true;
   }
 
   /** Drops the current connection and starts a new cycle of attempts (e.g. a new session token). */
@@ -230,6 +247,7 @@ export class ServerConnection {
         this.retries = 0;
         this.setStatus({ kind: "connected", serverVersion });
         this.pingTimer = setInterval(() => this.sendPing(), PING_INTERVAL_MS);
+        this.options.onMessage?.(message);
         return;
       }
       case "pong": {
@@ -249,8 +267,12 @@ export class ServerConnection {
           return;
         }
         console.warn(`[network] Server error ${message.error.code}`);
+        this.options.onMessage?.(message);
         return;
       }
+      default:
+        this.options.onMessage?.(message);
+        return;
     }
   }
 

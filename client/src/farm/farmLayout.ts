@@ -71,6 +71,41 @@ export interface FarmLayout {
   avatar: Rect;
   /** Character screen (Phase 4): large preview, tabs, items and actions. */
   character: CharacterLayout;
+  /** Opens the Visit screen (Phase 5): right of the header, mirroring the avatar. */
+  visitButton: Rect;
+  /** Visit screen (Phase 5): own farm code, online list, farm-code entry. */
+  visit: VisitLayout;
+  /** Farm room (Phase 5): the visited farm's grid with characters, emotes and Leave. */
+  room: RoomLayout;
+}
+
+/** Visit screen layout (Phase 5, decision F-A). */
+export interface VisitLayout {
+  status: TextSpot;
+  /** "Your farm code: …" line. */
+  codeLine: TextSpot;
+  /** My farm / Enter code / Refresh / Back. */
+  actionButtons: Rect[];
+  /** One button per listed online player (as many as fit, at most 20). */
+  listButtons: Rect[];
+  message: TextSpot;
+  wrapWidth: number;
+  fontSize: { action: number; list: number };
+}
+
+/** Farm room layout (Phase 5, decisions R-A, M-A): the 8×8 grid and a small panel. */
+export interface RoomLayout {
+  grid: Rect;
+  tileSize: number;
+  status: TextSpot;
+  /** "Farmer 1234's farm (ABC234) · 1 other player here". */
+  title: TextSpot;
+  /** The four emotes then Leave, in one row. */
+  emoteButtons: Rect[];
+  leaveButton: Rect;
+  message: TextSpot;
+  wrapWidth: number;
+  fontSize: { button: number; name: number };
 }
 
 /** Character screen layout (Phase 4, decision D-A). */
@@ -146,6 +181,12 @@ const CHARACTER_OPTIONS = 4;
 const CHARACTER_OPTIONS_PER_ROW = 2;
 /** Header avatar width; tall enough to fill the header beside the title. */
 const AVATAR_WIDTH = 44;
+/** Visit screen: My farm, Enter code, Refresh, Back. */
+const VISIT_ACTIONS = 4;
+/** Most entries in the online list (shared presence.ts ONLINE_LIST_LIMIT). */
+const ONLINE_LIST_LIMIT = 20;
+/** Room panel: four emotes and Leave. */
+const ROOM_BUTTONS = 5;
 const XP_BAR_HEIGHT = 6;
 const MAX_XP_BAR_WIDTH = 240;
 
@@ -364,6 +405,83 @@ function layoutCharacter(design: Size, orientation: Orientation, m: Metrics): Ch
   };
 }
 
+/** Visit screen: header lines, a row of actions, then the online list (two columns in landscape). */
+function layoutVisit(design: Size, orientation: Orientation, m: Metrics): VisitLayout {
+  const gap = Math.min(m.gap, 8);
+  const column = { x: m.margin, width: design.width - 2 * m.margin };
+  const centerX = column.x + column.width / 2;
+  const status = { x: centerX, y: EDIT_MARGIN };
+  const codeLine = { x: centerX, y: status.y + m.lineHeight };
+  const actionsTop = codeLine.y + m.lineHeight + gap;
+  const actionButtons = buttonRows(VISIT_ACTIONS, VISIT_ACTIONS, { x: column.x, y: actionsTop, width: column.width, height: 0 }, gap, m.buttonHeight);
+  const listTop = actionsTop + m.buttonHeight + gap;
+  const messageLines = 2;
+  const listHeight = design.height - EDIT_MARGIN - messageLines * m.lineHeight - listTop;
+  const columns = orientation === "landscape" ? 2 : 1;
+  const rowHeight = Math.max(44, m.buttonHeight - 6);
+  const rows = Math.max(1, Math.floor((listHeight + gap) / (rowHeight + gap)));
+  const listButtons = buttonRows(
+    Math.min(ONLINE_LIST_LIMIT, rows * columns),
+    columns,
+    { x: column.x, y: listTop, width: column.width, height: 0 },
+    gap,
+    rowHeight,
+  );
+  const actionWidth = actionButtons[0]!.width;
+  return {
+    status,
+    codeLine,
+    actionButtons,
+    listButtons,
+    message: { x: centerX, y: listTop + rows * (rowHeight + gap) },
+    wrapWidth: column.width,
+    fontSize: {
+      // "Enter code" in bold is about 6 font units wide.
+      action: Math.min(m.textSize - 1, Math.floor((actionWidth - 8) / 6)),
+      list: m.textSize - 1,
+    },
+  };
+}
+
+/** Farm room: the grid as large as fits (portrait: top; landscape: left) and a small panel. */
+function layoutRoom(design: Size, orientation: Orientation, m: Metrics): RoomLayout {
+  const gap = Math.min(m.gap, 8);
+  const panelHeight = 2 * m.lineHeight + gap + m.buttonHeight + gap + 2 * m.lineHeight;
+  let grid: Rect;
+  let panel: Rect;
+  if (orientation === "portrait") {
+    const size = Math.min(design.width - 2 * EDIT_MARGIN, design.height - 2 * EDIT_MARGIN - gap - panelHeight);
+    grid = { x: (design.width - size) / 2, y: EDIT_MARGIN, width: size, height: size };
+    panel = { x: m.margin, y: grid.y + size + gap, width: design.width - 2 * m.margin, height: panelHeight };
+  } else {
+    const size = Math.min(design.height - 2 * EDIT_MARGIN, design.width * 0.6);
+    grid = { x: EDIT_MARGIN, y: (design.height - size) / 2, width: size, height: size };
+    const left = grid.x + size + gap;
+    panel = { x: left, y: EDIT_MARGIN, width: design.width - left - m.margin, height: panelHeight };
+  }
+  const centerX = panel.x + panel.width / 2;
+  const status = { x: centerX, y: panel.y };
+  const title = { x: centerX, y: panel.y + m.lineHeight };
+  const buttons = buttonRows(ROOM_BUTTONS, ROOM_BUTTONS, { x: panel.x, y: title.y + m.lineHeight + gap, width: panel.width, height: 0 }, gap, m.buttonHeight);
+  const leaveButton = buttons[ROOM_BUTTONS - 1]!;
+  const tileSize = grid.width / GRID_TILES;
+  return {
+    grid,
+    tileSize,
+    status,
+    title,
+    emoteButtons: buttons.slice(0, ROOM_BUTTONS - 1),
+    leaveButton,
+    message: { x: centerX, y: leaveButton.y + m.buttonHeight + gap },
+    wrapWidth: panel.width,
+    fontSize: {
+      // "Laugh" / "Leave" in bold are about 3.2 font units wide.
+      button: Math.min(m.textSize - 1, Math.floor((leaveButton.width - 6) / 3.4)),
+      name: Math.min(11, Math.max(8, Math.floor(tileSize / 5))),
+    },
+  };
+}
+
 /**
  * Lays out the farm for a canvas of `width`×`height` CSS pixels.
  *
@@ -452,6 +570,15 @@ export function computeFarmLayout(width: number, height: number): FarmLayout {
     // Left of the header, beside the centred title / stats / XP bar.
     avatar: { x: m.margin, y: m.margin, width: AVATAR_WIDTH, height: headerBottom - m.gap - m.margin },
     character: layoutCharacter(design, orientation, m),
+    // Right of the header, mirroring the avatar.
+    visitButton: {
+      x: design.width - m.margin - AVATAR_WIDTH,
+      y: m.margin,
+      width: AVATAR_WIDTH,
+      height: headerBottom - m.gap - m.margin,
+    },
+    visit: layoutVisit(design, orientation, m),
+    room: layoutRoom(design, orientation, m),
   };
 }
 

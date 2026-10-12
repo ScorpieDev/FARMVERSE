@@ -349,3 +349,49 @@ describe("character screen layout (Phase 4)", () => {
     expect(landscape.tabButtons[0]!.x).toBeGreaterThan(landscape.preview.x + landscape.preview.width);
   });
 });
+
+describe("multiplayer layouts (Phase 5)", () => {
+  it.each(VIEWPORTS)("keeps the Visit button in the header, clear of the header widgets, at %i×%i", (width, height) => {
+    const layout = computeFarmLayout(width, height);
+    expect(inside(layout.visitButton, layout.view)).toBe(true);
+    expect(overlaps(layout.visitButton, layout.avatar)).toBe(false);
+    expect(overlaps(layout.visitButton, layout.xpBar)).toBe(false);
+    expect(layout.visitButton.x).toBeGreaterThan(layout.xpBar.x + layout.xpBar.width);
+    for (const rect of [...layout.plots, layout.claimButton, ...layout.seedButtons]) expect(overlaps(layout.visitButton, rect)).toBe(false);
+    expect(layout.visitButton.width * layout.zoom).toBeGreaterThanOrEqual(44);
+  });
+
+  it.each(VIEWPORTS)("lays out the Visit screen with at least 4 list rows and no overlaps at %i×%i", (width, height) => {
+    const layout = computeFarmLayout(width, height);
+    const { visit } = layout;
+    const controls = [...visit.actionButtons, ...visit.listButtons];
+    expect(visit.actionButtons).toHaveLength(4);
+    expect(visit.listButtons.length).toBeGreaterThanOrEqual(4);
+    expect(visit.listButtons.length).toBeLessThanOrEqual(20);
+    controls.forEach((rect, index) => {
+      expect(inside(rect, layout.view)).toBe(true);
+      for (const other of controls.slice(index + 1)) expect(overlaps(rect, other)).toBe(false);
+      expect(rect.height * layout.zoom).toBeGreaterThanOrEqual(44);
+    });
+    expect(visit.message.y).toBeLessThan(layout.view.y + layout.view.height);
+    expect(visit.fontSize.action * 6).toBeLessThanOrEqual(visit.actionButtons[0]!.width - 8);
+  });
+
+  it.each(VIEWPORTS)("lays out the farm room with 44 CSS px tiles and a clear panel at %i×%i", (width, height) => {
+    const layout = computeFarmLayout(width, height);
+    const { room } = layout;
+    expect(room.tileSize * 8).toBeCloseTo(room.grid.width, 6);
+    expect(room.tileSize * layout.zoom).toBeGreaterThanOrEqual(44 - 1e-6);
+    const controls = [...room.emoteButtons, room.leaveButton];
+    expect(room.emoteButtons).toHaveLength(4);
+    controls.forEach((rect, index) => {
+      expect(inside(rect, layout.view)).toBe(true);
+      expect(overlaps(rect, room.grid)).toBe(false);
+      for (const other of controls.slice(index + 1)) expect(overlaps(rect, other)).toBe(false);
+      expect(rect.width * layout.zoom).toBeGreaterThanOrEqual(44);
+    });
+    expect(inside(room.grid, layout.view)).toBe(true);
+    expect(room.message.y).toBeLessThan(layout.view.y + layout.view.height);
+    expect(room.fontSize.button).toBeGreaterThanOrEqual(11);
+  });
+});

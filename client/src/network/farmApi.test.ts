@@ -348,3 +348,35 @@ describe("character (Phase 4)", () => {
     });
   });
 });
+
+describe("multiplayer requests (Phase 5)", () => {
+  const VISITED = {
+    serverTime: 1,
+    farmCode: "ABC234",
+    name: "Farmer 0042",
+    level: 1,
+    plots: FARM.plots,
+    objects: [],
+    appearance: { ...DEFAULT_APPEARANCE },
+  };
+
+  it("visitFarm gets the visitor view by encoded farm code, with the token", async () => {
+    const { fetch, calls } = fakeFetch(json(200, VISITED));
+    expect(await api(fetch).client.visitFarm("ABC234")).toEqual(VISITED);
+    expect(calls[0]).toMatchObject({ url: "/api/farms/ABC234", method: "GET", headers: { authorization: `Bearer ${TOKEN}` } });
+  });
+
+  it("visitFarm returns undefined for an unknown farm and rejects a bad body", async () => {
+    expect(await api(fakeFetch(json(404, { code: "ROOM_NOT_FOUND", message: "x" })).fetch).client.visitFarm("ZZZZZZ")).toBeUndefined();
+    await expect(api(fakeFetch(json(200, { ...VISITED, coins: 5, level: 0 })).fetch).client.visitFarm("ABC234")).rejects.toThrow(/Invalid/);
+    await expect(api(fakeFetch(json(401, { code: "UNAUTHORIZED", message: "x" })).fetch).client.visitFarm("ABC234")).rejects.toBeInstanceOf(SessionInvalidError);
+  });
+
+  it("onlinePlayers returns the list", async () => {
+    const players = [{ farmCode: "ABC234", name: "Farmer 0042" }];
+    const { fetch, calls } = fakeFetch(json(200, { players }));
+    expect(await api(fetch).client.onlinePlayers()).toEqual(players);
+    expect(calls[0]).toMatchObject({ url: "/api/players/online", method: "GET" });
+    await expect(api(fakeFetch(json(200, { players: [{ farmCode: "bad" }] })).fetch).client.onlinePlayers()).rejects.toThrow(/Invalid/);
+  });
+});

@@ -9,6 +9,11 @@
  * Done. Each change is sent to the server, which decides it (price, level,
  * coins, placement); the grid is redrawn from the server's answer.
  *
+ * Multiplayer (Phase 5): the Visit button (header, right) opens the Visit
+ * screen (own farm code, online list, farm code entry); a farm room shows the
+ * visited farm with every character in it, tap-to-move and emotes
+ * (multiplayer/MultiplayerUi.ts).
+ *
  * Character (Phase 4): the player's character is drawn small in the header;
  * tapping it opens the Character screen with a large preview, Hair / Shirt /
  * Pants / Skin tabs, Buy / Wear / Done. Items are tried on locally; Buy and
@@ -81,7 +86,7 @@ import {
   type EditIntent,
   type EditSelection,
 } from "./buildView.js";
-import { characterShapes, fitCharacter } from "../character/characterDrawing.js";
+import { paintCharacter } from "../character/paintCharacter.js";
 import {
   CHARACTER_TABS,
   WEAR_SUCCESS_TEXT,
@@ -105,6 +110,7 @@ import {
   type CharacterTab,
 } from "../character/characterView.js";
 import type { DisplaySize } from "../core/display.js";
+import { MultiplayerUi, type MultiplayerHost } from "../multiplayer/MultiplayerUi.js";
 import { computeFarmLayout, designToScreen, textResolution, type FarmLayout, type Rect } from "./farmLayout.js";
 
 /** Registry key of the current DisplaySize (set by main.ts). */
@@ -155,7 +161,7 @@ interface ObjectWidget {
   label: GameObjects.Text;
 }
 
-type Mode = "farm" | "edit" | "character";
+type Mode = "farm" | "edit" | "character" | "visit" | "room";
 
 function safeLocalStorage(): TokenStorage {
   try {
@@ -229,6 +235,12 @@ export class FarmScene extends Scene {
   /** What each character drawing was last drawn for. */
   private drawnKeys = new Map<GameObjects.Graphics, string>();
 
+  // Multiplayer (Phase 5)
+  private visitButton!: Button;
+  private multiplayer!: MultiplayerUi;
+  /** Public identity from the last `welcome`. */
+  private you: { farmCode: string; name: string } | null = null;
+
   constructor() {
     super("FarmScene");
   }
@@ -262,8 +274,11 @@ export class FarmScene extends Scene {
     this.avatarBox = this.add.rectangle(0, 0, 10, 10, COLORS.button).setStrokeStyle(2, COLORS.border, 0.5);
     this.avatarBox.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.setMode("character"));
     this.avatarGraphics = this.add.graphics();
+    this.visitButton = this.addButton("Visit", () => this.setMode("visit"));
     this.createEditWidgets();
     this.createCharacterWidgets();
+    this.multiplayer = new MultiplayerUi(this.multiplayerHost());
+    this.multiplayer.create();
 
     const shade = this.add.rectangle(0, 0, 10, 10, COLORS.overlay, 0.94).setInteractive();
     const text = this.addText("Your farm could not be found on this device.", { align: "center" }).setOrigin(0.5);
@@ -285,6 +300,11 @@ export class FarmScene extends Scene {
       urls,
       getToken: () => this.api.sessionToken(),
       onStatus: (status) => this.onConnectionStatus(status),
+      onMessage: (message) => {
+        if (message.type === "welcome") this.you = { ...message.you };
+        this.multiplayer.onServerMessage(message);
+        this.render();
+      },
     });
 
     this.events.once("shutdown", this.cleanUp, this);
@@ -496,6 +516,9 @@ export class FarmScene extends Scene {
     } else if (this.mode === "character") {
       this.characterMessage = text;
       this.render();
+    } else if (this.mode === "visit" || this.mode === "room") {
+      this.multiplayer.showMessage(text);
+      this.render();
     } else {
       this.message.setText(text);
     }
@@ -507,8 +530,13 @@ export class FarmScene extends Scene {
     const locked = !this.connected || this.busy || this.newRequestId === null;
     this.renderEdit(state, now, locked);
     this.renderCharacter(state, locked);
+    this.multiplayer.render(locked);
+    if (this.mode === "visit" || this.mode === "room") {
+      this.message.setVisible(true).setText(this.multiplayer.messageText());
+    }
     if (this.mode !== "farm") return;
 
+    this.visitButton.box.setFillStyle(state === null ? COLORS.buttonDisabled : COLORS.button);
     this.avatarBox.setFillStyle(state === null ? COLORS.buttonDisabled : COLORS.button);
     if (state === null) {
       this.avatarGraphics.clear();
@@ -640,8 +668,10 @@ export class FarmScene extends Scene {
     this.placeButton(this.refillButton, layout.refillButton, fontSize.text);
     this.placeButton(this.editButton, layout.editButton, fontSize.text);
     this.placeRect(this.avatarBox, layout.avatar);
+    this.placeButton(this.visitButton, layout.visitButton, fontSize.text - 1);
     this.layoutEdit(layout);
     this.layoutCharacter(layout);
+    this.multiplayer.layout(layout);
 
     this.produce.setFontSize(fontSize.text).setWordWrapWidth(layout.wrapWidth).setPosition(layout.produce.x, layout.produce.y);
     this.message.setFontSize(fontSize.text).setWordWrapWidth(layout.wrapWidth).setPosition(layout.message.x, layout.message.y);
@@ -652,6 +682,8 @@ export class FarmScene extends Scene {
       .setWordWrapWidth(layout.wrapWidth)
       .setPosition(layout.overlayText.x, layout.overlayText.y);
     this.placeButton(this.overlay.button, layout.overlayButton, fontSize.text);
+    // Last, so the farm positions set above do not win over the current screen's (edit, character, visit, room).
+    this.positionStatus(layout);
 
     this.render();
   }
@@ -696,6 +728,7 @@ export class FarmScene extends Scene {
     this.characterMessage = "";
     // A look tried on but not worn is dropped when the screen closes.
     this.draft = mode === "character" && this.state !== null ? startDraft(this.state) : null;
+    this.multiplayer.setMode(mode === "visit" || mode === "room" ? mode : "farm");
     if (this.currentLayout !== null) this.positionStatus(this.currentLayout);
     this.render();
   }
@@ -878,7 +911,11 @@ export class FarmScene extends Scene {
 
   /** The status line and the message move into the edit or character panel in those modes. */
   private positionStatus(layout: FarmLayout): void {
-    if (this.mode === "character") {
+    if (this.mode === "visit" || this.mode === "room") {
+      const screen = this.mode === "visit" ? layout.visit : layout.room;
+      this.status.setPosition(screen.status.x, screen.status.y);
+      this.message.setWordWrapWidth(screen.wrapWidth).setPosition(screen.message.x, screen.message.y);
+    } else if (this.mode === "character") {
       const { character } = layout;
       this.status.setPosition(character.status.x, character.status.y);
       this.message.setWordWrapWidth(character.wrapWidth).setPosition(character.message.x, character.message.y);
@@ -889,6 +926,44 @@ export class FarmScene extends Scene {
       this.status.setPosition(layout.status.x, layout.status.y);
       this.message.setWordWrapWidth(layout.wrapWidth).setPosition(layout.message.x, layout.message.y);
     }
+  }
+
+  // ---------- multiplayer (Phase 5) ----------
+
+  private multiplayerHost(): MultiplayerHost {
+    const scene = this;
+    return {
+      scene: this,
+      get api() {
+        return scene.api;
+      },
+      colors: {
+        background: COLORS.editBackground,
+        grass: COLORS.grass,
+        soil: COLORS.soil,
+        growing: COLORS.growing,
+        ready: COLORS.ready,
+        locked: COLORS.locked,
+        object: COLORS.object,
+        building: COLORS.building,
+        border: COLORS.border,
+        button: COLORS.button,
+        buttonSelected: COLORS.buttonSelected,
+        buttonDisabled: COLORS.buttonDisabled,
+        text: COLORS.text,
+      },
+      connection: () => this.connection,
+      isConnected: () => this.connected,
+      you: () => this.you,
+      ownFarm: () => (this.state === null ? null : { plots: this.state.plots, objects: this.state.objects }),
+      serverNow: () => serverNow(this.clock, Date.now()),
+      setMode: (mode) => this.setMode(mode),
+      addText: (text, style) => this.addText(text, style),
+      addButton: (text, onTap) => this.addButton(text, onTap),
+      placeRect: (box, rect) => this.placeRect(box, rect),
+      placeButton: (button, rect, size) => this.placeButton(button, rect, size),
+      textResolution: () => (this.currentLayout === null ? 1 : textResolution(this.currentLayout, this.renderScale())),
+    };
   }
 
   // ---------- character (Phase 4) ----------
@@ -1005,20 +1080,9 @@ export class FarmScene extends Scene {
     const key = JSON.stringify([appearance, rect]);
     if (this.drawnKeys.get(graphics) === key) return;
     this.drawnKeys.set(graphics, key);
-    const { scale, x, y } = fitCharacter(rect);
-    graphics.clear();
-    for (const shape of characterShapes(appearance)) {
-      graphics.fillStyle(shape.color, 1);
-      if (shape.kind === "rect") {
-        graphics.fillRect(x + shape.x * scale, y + shape.y * scale, shape.width * scale, shape.height * scale);
-      } else if (shape.kind === "circle") {
-        graphics.fillCircle(x + shape.x * scale, y + shape.y * scale, shape.radius * scale);
-      } else {
-        const [x1, y1, x2, y2, x3, y3] = shape.points;
-        graphics.fillTriangle(x + x1 * scale, y + y1 * scale, x + x2 * scale, y + y2 * scale, x + x3 * scale, y + y3 * scale);
-      }
-    }
+    paintCharacter(graphics, appearance, rect);
   }
+
 
   // ---------- helpers ----------
 
@@ -1104,6 +1168,10 @@ export class FarmScene extends Scene {
       characterBuyButton: () => center(this.characterBuyButton.box),
       wearButton: () => center(this.wearButton.box),
       characterDoneButton: () => center(this.characterDoneButton.box),
+      // Multiplayer (Phase 5)
+      you: () => this.you,
+      visitButton: () => center(this.visitButton.box),
+      ...this.multiplayer.debugHooks(center),
     };
   }
 

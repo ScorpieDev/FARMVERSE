@@ -13,6 +13,7 @@
 import {
   CHARACTER_EQUIP_PATH,
   FARM_HARVEST_PATH,
+  ONLINE_PLAYERS_PATH,
   FARM_PATH,
   FARM_PLANT_PATH,
   FARM_REFILL_SEEDS_PATH,
@@ -28,6 +29,9 @@ import {
   isBuyDecorationResponse,
   isFarmState,
   isHarvestResponse,
+  isOnlinePlayersResponse,
+  isVisitedFarm,
+  visitFarmPath,
   isObjectActionResponse,
   isQuestClaimResponse,
   isSessionResponse,
@@ -40,6 +44,8 @@ import {
   type HarvestRequest,
   type HarvestResponse,
   type MoveObjectRequest,
+  type OnlinePlayer,
+  type VisitedFarm,
   type ObjectActionResponse,
   type PlaceObjectRequest,
   type PlantRequest,
@@ -124,6 +130,27 @@ export class FarmApi {
   async startNewFarm(): Promise<void> {
     this.storage.removeItem(TOKEN_STORAGE_KEY);
     await this.createSession();
+  }
+
+  /** A farm as a visitor sees it (Phase 5); undefined when the farm code is unknown. */
+  async visitFarm(farmCode: string): Promise<VisitedFarm | undefined> {
+    const response = await this.request("GET", visitFarmPath(farmCode));
+    if (response.status === 401) throw new SessionInvalidError("Session token rejected");
+    if (response.status === 404) return undefined;
+    if (!response.ok) throw new NetworkError(`GET farm ${farmCode} failed with ${response.status}`);
+    const body: unknown = await response.json();
+    if (!isVisitedFarm(body)) throw new Error("Invalid visited farm from server");
+    return body;
+  }
+
+  /** Players with a live connection, newest first, without this player (Phase 5). */
+  async onlinePlayers(): Promise<OnlinePlayer[]> {
+    const response = await this.request("GET", ONLINE_PLAYERS_PATH);
+    if (response.status === 401) throw new SessionInvalidError("Session token rejected");
+    if (!response.ok) throw new NetworkError(`GET ${ONLINE_PLAYERS_PATH} failed with ${response.status}`);
+    const body: unknown = await response.json();
+    if (!isOnlinePlayersResponse(body)) throw new Error("Invalid online list from server");
+    return body.players;
   }
 
   async loadFarm(): Promise<FarmState> {

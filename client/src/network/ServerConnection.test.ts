@@ -90,11 +90,13 @@ let sockets: FakeSocket[];
 let statuses: ConnectionStatus[];
 let connection: ServerConnection | undefined;
 let token: string | null;
+let received: unknown[];
 
 function create(fetchFn: FetchFn, urls: ServerUrlResult = URLS): ServerConnection {
   const created = new ServerConnection({
     urls,
     getToken: () => token,
+    onMessage: (message) => received.push(message),
     fetch: fetchFn,
     createSocket: (url) => {
       const socket = new FakeSocket(url);
@@ -127,6 +129,7 @@ beforeEach(() => {
   vi.spyOn(console, "warn").mockImplementation(() => {});
   sockets = [];
   token = TOKEN;
+  received = [];
   statuses = [];
   connection = undefined;
 });
@@ -381,6 +384,25 @@ describe("ServerConnection reconnect", () => {
       await vi.advanceTimersByTimeAsync(status.retryInMs);
     }
     expect(sockets).toHaveLength(4);
+  });
+});
+
+describe("ServerConnection room messages (Phase 5)", () => {
+  it("passes welcome and room messages on, and sends room requests only while connected", async () => {
+    create(healthy()).start();
+    expect(connection!.sendRoomMessage({ type: "join", farmCode: "ABC234" })).toBe(false);
+    const socket = await completeHandshake();
+    expect(received).toEqual([WELCOME]);
+
+    expect(connection!.sendRoomMessage({ type: "join", farmCode: "ABC234" })).toBe(true);
+    expect(socket.sent.at(-1)).toEqual({ type: "join", farmCode: "ABC234" });
+
+    const room = { type: "room", farmCode: "ABC234", players: [] };
+    socket.serverSend(room);
+    const error = { type: "error", error: { code: "TILE_BLOCKED", message: "x" } };
+    socket.serverSend(error);
+    expect(received).toEqual([WELCOME, room, error]);
+    expect(lastStatus()?.kind).toBe("connected");
   });
 });
 
