@@ -1,8 +1,9 @@
 # FARMVERSE CHANGELOG
 
-## Phase 6 — Economy (plan awaiting approval)
+## Phase 6 — Economy (detailed design awaiting approval)
 
-- Design plan drafted (2026-10-12): `docs/reports/phase6/PHASE6_ECONOMY_PLAN_REPORT.md` (P6-1…P6-6). No code yet.
+- Design plan (2026-10-12): `docs/reports/phase6/PHASE6_ECONOMY_PLAN_REPORT.md` — direction P6-1…P6-6 approved by the Game Director with conditions.
+- Step 6.1 detailed design: `docs/reports/phase6/PHASE6_STEP6_1_DETAILED_DESIGN.md` — invariants, balance choke point and append-only ledger, concurrency, earned vs paid currency, schema v6, flows, migration / rollback, test plan; decisions D6-1…D6-8 awaiting approval. No code yet.
 
 ## Phase 5 — Multiplayer (all steps done, closeout awaiting approval)
 

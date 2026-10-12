@@ -90,4 +90,5 @@ Steps 1–3 predate the report convention; see their commit messages (`5faeaff`,
 
 | File | Content |
 |---|---|
-| `PHASE6_ECONOMY_PLAN_REPORT.md` | Phase 6 draft design (NPC shop, marketplace, direct trades, anti-abuse, ledger); P6-1…P6-6 awaiting approval |
+| `PHASE6_ECONOMY_PLAN_REPORT.md` | Phase 6 design (NPC shop, marketplace, direct trades, anti-abuse, ledger); direction P6-1…P6-6 approved with conditions 2026-10-12 |
+| `PHASE6_STEP6_1_DETAILED_DESIGN.md` | Step 6.1 detailed design: invariants, ledger, concurrency, earned vs paid currency, schema v6, flows, migration / rollback, tests; D6-1…D6-8 awaiting approval |

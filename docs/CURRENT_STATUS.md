@@ -1,14 +1,14 @@
 # FARMVERSE CURRENT STATUS
 
 ## Version
-1.25
+1.26
 
 ## Last Updated
 2026-10-12
 
 ## Project Status
 
-Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: ALL STEPS DONE (2.1–2.6), closeout awaiting Game Director approval; Android check deferred. Phase 3 — Building: Steps 3.1–3.4 done (shared grid rules; server place / move / rotate / remove API, database schema v3; client Edit farm mode; decoration coin shop, P3-4 / P3-5 decided 2026-10-11). End-to-end check through the Codespaces URL passed (24/24, 2026-10-11, `837bab9`). ALL STEPS DONE; closeout awaiting Game Director approval (`docs/reports/phase3/PHASE3_CLOSEOUT_REPORT.md`); Android check deferred. Phase 4 — Character: design approved 2026-10-12 (P4-1…P4-4); ALL STEPS DONE (4.1–4.4): shared data; server rules, schema v4, equip / buy-cosmetic API; client Character screen and header avatar; end-to-end through the Codespaces URL 24/24 (2026-10-12). CONDITIONALLY APPROVED by the Game Director (2026-10-12). Production build verified through the Codespaces preview URL 12/12 after the `vite preview` host fix `e0c3293`; still open: Android / iOS device, real GitHub-signed-in browser (`docs/reports/phase4/PHASE4_ACCEPTANCE_CONDITIONS.md`). Phases 2 and 3 reviewed: eligible to close, approval not yet recorded. **Game Director 2026-10-12: development first** — device (Android / iOS) and signed-in-browser checks are deferred until the Game Director starts that stage; Claude verifies with automated tests, API / database checks and headless Chromium, and lists what is not tested for real. Phase 5 — Multiplayer: design approved (P5-1…P5-4), ALL STEPS DONE (5.1–5.5): two-player E2E through the Codespaces URL 19/19; 1388 tests passing. Closeout awaiting Game Director approval (`docs/reports/phase5/PHASE5_CLOSEOUT_REPORT.md`). Open conditions C1–C5 (devices, signed-in browser, mobile network, load, per-IP limits) listed in `docs/reports/phase5/PHASE5_ACCEPTANCE_CONDITIONS.md` — not tested, deferred, not blocking. Phase 6 — Economy: design plan drafted, **awaiting Game Director approval; no Phase 6 code yet**. Codespaces development origins committed as `37c3994` (Game Director option A, 2026-10-12). Phase 5 not started.
+Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: ALL STEPS DONE (2.1–2.6), closeout awaiting Game Director approval; Android check deferred. Phase 3 — Building: Steps 3.1–3.4 done (shared grid rules; server place / move / rotate / remove API, database schema v3; client Edit farm mode; decoration coin shop, P3-4 / P3-5 decided 2026-10-11). End-to-end check through the Codespaces URL passed (24/24, 2026-10-11, `837bab9`). ALL STEPS DONE; closeout awaiting Game Director approval (`docs/reports/phase3/PHASE3_CLOSEOUT_REPORT.md`); Android check deferred. Phase 4 — Character: design approved 2026-10-12 (P4-1…P4-4); ALL STEPS DONE (4.1–4.4): shared data; server rules, schema v4, equip / buy-cosmetic API; client Character screen and header avatar; end-to-end through the Codespaces URL 24/24 (2026-10-12). CONDITIONALLY APPROVED by the Game Director (2026-10-12). Production build verified through the Codespaces preview URL 12/12 after the `vite preview` host fix `e0c3293`; still open: Android / iOS device, real GitHub-signed-in browser (`docs/reports/phase4/PHASE4_ACCEPTANCE_CONDITIONS.md`). Phases 2 and 3 reviewed: eligible to close, approval not yet recorded. **Game Director 2026-10-12: development first** — device (Android / iOS) and signed-in-browser checks are deferred until the Game Director starts that stage; Claude verifies with automated tests, API / database checks and headless Chromium, and lists what is not tested for real. Phase 5 — Multiplayer: design approved (P5-1…P5-4), ALL STEPS DONE (5.1–5.5): two-player E2E through the Codespaces URL 19/19; 1388 tests passing. Closeout awaiting Game Director approval (`docs/reports/phase5/PHASE5_CLOSEOUT_REPORT.md`). Open conditions C1–C5 (devices, signed-in browser, mobile network, load, per-IP limits) listed in `docs/reports/phase5/PHASE5_ACCEPTANCE_CONDITIONS.md` — not tested, deferred, not blocking. Phase 6 — Economy: design direction approved with conditions (2026-10-12); Step 6.1 detailed design (data schema v6, ledger, concurrency, earned vs paid currency, migration / rollback, test plan) **awaiting approval; no Phase 6 code yet**. Codespaces development origins committed as `37c3994` (Game Director option A, 2026-10-12). Phase 5 not started.
 
 ---
 
@@ -220,9 +220,16 @@ Tests run in Step 5.1: shared 469, server 587, client 240; `npm run typecheck` c
 
 ---
 
-## Phase 6 — Economy (plan awaiting approval)
+## Phase 6 — Economy (detailed design awaiting approval)
 
-Draft plan: `docs/reports/phase6/PHASE6_ECONOMY_PLAN_REPORT.md` — decisions P6-1 tradable items (produce only), P6-2 NPC shop (sell produce, buy seeds), P6-3 fixed-price marketplace with escrow and 5 % fee, P6-4 direct trades (offer + accept, escrow), P6-5 anti-abuse limits, P6-6 append-only economy ledger. **No Phase 6 code until the Game Director approves the plan.**
+Draft plan: `docs/reports/phase6/PHASE6_ECONOMY_PLAN_REPORT.md` — decisions P6-1 tradable items (produce only), P6-2 NPC shop (sell produce, buy seeds), P6-3 fixed-price marketplace with escrow and 5 % fee, P6-4 direct trades (offer + accept, escrow), P6-5 anti-abuse limits, P6-6 append-only economy ledger. Direction approved by the Game Director on 2026-10-12 with conditions (detailed design and data schema first; anti-duplication, replay, balance tampering and concurrency; earned vs paid currency kept apart; Phase 5 data kept with migration and rollback plan).
+
+| Step | Status | Report |
+|---|---|---|
+| 6.1 Detailed design: invariants, single balance write path + append-only ledger, concurrency, earned vs paid currency, schema v6, NPC shop / marketplace / trade flows and state machines, API and protocol 3, migration with automatic backup and down-script rollback, test plan; pending decisions D6-1…D6-8 | Awaiting Game Director approval | `docs/reports/phase6/PHASE6_STEP6_1_DETAILED_DESIGN.md` |
+| 6.2–6.6 Implementation | Not started (waits for 6.1 approval) | — |
+
+**No Phase 6 code until the Game Director approves the detailed design.**
 
 ---
 
@@ -273,7 +280,7 @@ Phase 0 — Foundation: COMPLETED.
 
 # NEXT OBJECTIVE
 
-Game Director: review and approve (or change) the Phase 6 plan decisions P6-1…P6-6; approve the Phase 5 closeout (and the pending Phase 2 / 3 closeouts). Phase 6 implementation starts only after the plan is approved. (Phase 2 / 3 closeout approvals still pending, not blocking; device checks deferred by the Game Director.) Phase 5 — Multiplayer is not started and waits for that agreement. Android check of Phases 2–4 when convenient.
+Game Director: review and approve (or change) the Phase 6 detailed design and its pending decisions D6-1…D6-8 (`docs/reports/phase6/PHASE6_STEP6_1_DETAILED_DESIGN.md` §11). Phase 6 code (Step 6.2) starts only after that approval. Still pending: Phase 5 (and Phase 2 / 3) closeout approvals. (Phase 2 / 3 closeout approvals still pending, not blocking; device checks deferred by the Game Director.) Phase 5 — Multiplayer is not started and waits for that agreement. Android check of Phases 2–4 when convenient.
 
 ---
 

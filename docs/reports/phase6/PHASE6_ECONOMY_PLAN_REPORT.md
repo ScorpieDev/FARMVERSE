@@ -2,11 +2,11 @@
 
 ## Version
 
-1.0 — 2026-10-12 (bản nháp, chờ Game Director duyệt P6-1…P6-6).
+1.1 — 2026-10-12. Game Director **duyệt hướng thiết kế** P6-1…P6-6 ngày 2026-10-12, kèm điều kiện: thiết kế chi tiết và sơ đồ dữ liệu trước khi viết code; chống nhân đôi, phát lại, sửa số dư và giao dịch đồng thời; tách tiền kiếm trong game với tiền nạp; giữ dữ liệu Phase 5 và có kế hoạch migration / rollback.
 
 ## Trạng thái
 
-**Chưa viết code.** Game Director yêu cầu chỉ viết code Phase 6 sau khi kế hoạch này được duyệt. Mọi con số dưới đây là tạm thời.
+**Chưa viết code.** Thiết kế chi tiết (Step 6.1): `PHASE6_STEP6_1_DETAILED_DESIGN.md`, **đang chờ duyệt**. Code chỉ bắt đầu khi bản thiết kế chi tiết được duyệt. Mọi con số là tạm thời.
 
 - **Roadmap** (`DEVELOPMENT_ROADMAP.md`): Coins, Shop, Marketplace, Buying, Selling, Transactions, Economy validation.
 - **Thiết kế:**
@@ -133,6 +133,8 @@ Vấn đề chính: nông sản chất đống vô dụng, và người chơi ch
 | P6-6 | Sổ cái | L-A: bảng `economy_ledger` chỉ thêm, test bất biến bảo toàn |
 
 ## 4. Các bước (sau khi duyệt)
+
+Đánh số lại theo thiết kế chi tiết: 6.1 là bản thiết kế chi tiết; triển khai từ 6.2 (`PHASE6_STEP6_1_DETAILED_DESIGN.md` §12). Bảng dưới là bản gốc.
 
 | Bước | Nội dung |
 |---|---|
