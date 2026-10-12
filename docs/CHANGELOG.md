@@ -1,6 +1,6 @@
 # FARMVERSE CHANGELOG
 
-## Phase 3 — Building (in progress)
+## Phase 3 — Building (all steps done, closeout awaiting approval)
 
 ### Added
 
@@ -12,6 +12,7 @@
 ### Verified (Phase 3)
 
 - Through the Codespaces URL against the dev server and database (2026-10-11): new guest farm earns 20 coins, buys 3 decorations, places, rejected placement on the plots, moves, rotates, removes without refund; reload keeps coins, stock and layout; landscape — 24/24, no defects (`docs/reports/phase3/PHASE3_STEP3_5_E2E_REPORT.md`). Not verified: Android / iOS device
+- Closeout report: `docs/reports/phase3/PHASE3_CLOSEOUT_REPORT.md` (based on `837bab9`, awaiting approval).
 
 ## Phase 2 — Progression (in progress)
 

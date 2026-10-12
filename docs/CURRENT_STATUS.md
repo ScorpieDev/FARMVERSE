@@ -1,14 +1,14 @@
 # FARMVERSE CURRENT STATUS
 
 ## Version
-1.11
+1.12
 
 ## Last Updated
-2026-10-11
+2026-10-12
 
 ## Project Status
 
-Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: ALL STEPS DONE (2.1–2.6), closeout awaiting Game Director approval; Android check deferred. Phase 3 — Building: Steps 3.1–3.4 done (shared grid rules; server place / move / rotate / remove API, database schema v3; client Edit farm mode; decoration coin shop, P3-4 / P3-5 decided 2026-10-11). End-to-end check through the Codespaces URL passed (24/24, 2026-10-11). Remaining: Phase 3 closeout.
+Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: ALL STEPS DONE (2.1–2.6), closeout awaiting Game Director approval; Android check deferred. Phase 3 — Building: Steps 3.1–3.4 done (shared grid rules; server place / move / rotate / remove API, database schema v3; client Edit farm mode; decoration coin shop, P3-4 / P3-5 decided 2026-10-11). End-to-end check through the Codespaces URL passed (24/24, 2026-10-11, `837bab9`). ALL STEPS DONE; closeout awaiting Game Director approval (`docs/reports/phase3/PHASE3_CLOSEOUT_REPORT.md`); Android check deferred.
 
 ---
 
@@ -138,7 +138,7 @@ Tests at Phase 0 closeout: shared 218, server 245, client 44 — 507 passing; `n
 
 ---
 
-## Phase 3 — Building (in progress)
+## Phase 3 — Building (all steps done, closeout awaiting approval)
 
 Started 2026-10-11 on the Game Director's directive, using draft options G-A (8×8 grid, fixed plot block) and C-A (7 decorations, no function) from `docs/reports/phase3/PHASE3_BUILDING_PLAN_REPORT.md`; values provisional.
 
@@ -154,7 +154,8 @@ Started 2026-10-11 on the Game Director's directive, using draft options G-A (8�
 
 Decisions taken by Claude under the 2026-10-11 directive (recorded in the Step 3.4 report): one decoration per purchase request; the shop lives in Edit mode (Buy button), no separate shop screen; decorations are shown in Edit mode only, the normal farm screen keeps the Phase 2 layout (revisit with Phase 5 farm visits).
 
-| 3.5 End-to-end through the Codespaces URL (dev server and database; one new guest farm, nothing edited): earn coins, buy, place, rejected placement, move, rotate, remove, reload keeps coins / stock / layout, landscape | Done — 24/24, no defects, no code change | `docs/reports/phase3/PHASE3_STEP3_5_E2E_REPORT.md` |
+| 3.5 End-to-end through the Codespaces URL (dev server and database; one new guest farm, nothing edited): earn coins, buy, place, rejected placement, move, rotate, remove, reload keeps coins / stock / layout, landscape | Done — 24/24, no defects, no code change (`837bab9`) | `docs/reports/phase3/PHASE3_STEP3_5_E2E_REPORT.md` |
+| Closeout | Awaiting Game Director approval | `docs/reports/phase3/PHASE3_CLOSEOUT_REPORT.md` |
 
 Tests after Step 3.4: shared 376, server 532, client 186 — 1094 passing; `npm run typecheck` clean; client build OK; headless Chromium shop E2E 19/19 (isolated server and database).
 
@@ -180,11 +181,13 @@ Tests after Step 3.1: shared 343, server 414, client 121 — 878 passing; `npm r
 
 # CURRENT PHASE
 
-Phase 2 — Progression
+Phase 3 — Building
 
 Status:
 
-ALL STEPS DONE — closeout report awaiting Game Director approval; Android device check deferred. The server has 9 plots (7–9 locked by level), Corn / Strawberry (levels 3 / 5), database schema v2, and an API that reports level and quest progress and lets players claim quest rewards. The client shows level, XP bar, locked plots and crops, the active quest (position, progress, reward) with Claim, and level-up messages.
+ALL STEPS DONE — closeout report awaiting Game Director approval (`docs/reports/phase3/PHASE3_CLOSEOUT_REPORT.md`); Android device check deferred. The farm has an 8×8 grid with 7 decorations bought in a coin shop and placed, moved, rotated or removed in Edit farm mode; the layout is saved on the server (schema v3).
+
+Phase 2 — Progression: ALL STEPS DONE — closeout report awaiting Game Director approval; Android device check deferred. The server has 9 plots (7–9 locked by level), Corn / Strawberry (levels 3 / 5), database schema v2, and an API that reports level and quest progress and lets players claim quest rewards. The client shows level, XP bar, locked plots and crops, the active quest (position, progress, reward) with Claim, and level-up messages.
 
 Phase 1 — Farming: COMPLETED.
 
@@ -198,7 +201,7 @@ Phase 0 — Foundation: COMPLETED.
 - Android device testing — deferred by the Game Director.
 - The dev database `server/data/farmverse.db` is at schema v3 (the running dev server reloaded the Step 3.2 code and applied the additive migration).
 - A farming request logged before the schema v3 server upgrade and retried after it replays the old response without `decorations` / `objects`; the client reports an invalid response and the next farm load is correct (`PHASE3_STEP3_2_REPORT.md` §2).
-- Uncommitted Codespaces WebSocket-origin changes (10 files, `server/src/config.ts` etc.; see `docs/reports/phase1/PHASE1_CODESPACES_WS_ORIGIN_FIX_REPORT.md`) are still in the working tree, reviewed but not committed; awaiting a Game Director decision.
+- Uncommitted Codespaces WebSocket-origin changes (10 files, `server/src/config.ts` etc.; see `docs/reports/phase1/PHASE1_CODESPACES_WS_ORIGIN_FIX_REPORT.md`) are still in the working tree, reviewed but not committed; Game Director 2026-10-12: do not commit yet.
 - Real Chrome page zoom was emulated (CSS viewport + devicePixelRatio) in headless Chromium, not tested with the zoom menu in a real browser window.
 - On Codespaces the server runs with `CLIENT_ORIGIN=https://localhost:5173` (observed Origin through port forwarding; not verified for every Codespaces configuration).
 - Security work scheduled before multiplayer or public deployment: authentication, connection and rate limits, server-side WebSocket heartbeat, request IDs and action log (see `docs/reports/phase0/PHASE0_CLOSEOUT_AUDIT.md` §6).
@@ -207,7 +210,7 @@ Phase 0 — Foundation: COMPLETED.
 
 # NEXT OBJECTIVE
 
-Phase 3 closeout report for Game Director approval (Android device check deferred, as in Phase 2). Game Director: approve the Phase 2 closeout. Android check of Phase 2 when convenient.
+Game Director: approve the Phase 3 and Phase 2 closeouts; decide on the uncommitted WebSocket-origin changes. Then: Phase 4 — Character design plan. Android check of Phases 2–3 when convenient.
 
 ---
 
