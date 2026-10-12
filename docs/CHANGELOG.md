@@ -1,5 +1,9 @@
 # FARMVERSE CHANGELOG
 
+## Phase 6 — Economy (plan awaiting approval)
+
+- Design plan drafted (2026-10-12): `docs/reports/phase6/PHASE6_ECONOMY_PLAN_REPORT.md` (P6-1…P6-6). No code yet.
+
 ## Phase 5 — Multiplayer (all steps done, closeout awaiting approval)
 
 Design approved by the Game Director on 2026-10-12 (P5-1 every farm is a room, P5-2 online list + farm code, P5-3 tap-to-move, P5-4 generated names; `docs/reports/phase5/PHASE5_MULTIPLAYER_PLAN_REPORT.md`).
@@ -15,6 +19,7 @@ Design approved by the Game Director on 2026-10-12 (P5-1 every farm is a room, P
 
 - Through the Codespaces URL against the dev server and database (2026-10-12), two independent players: own room, online list, join, move, emote, appearance push, Leave, Enter code, disconnect, landscape — 19/19, no defects (`docs/reports/phase5/PHASE5_STEP5_5_E2E_REPORT.md`). 1388 automated tests passing. Not tested for real: Android / iOS, signed-in browser, mobile network (deferred by the Game Director).
 - Closeout report: `docs/reports/phase5/PHASE5_CLOSEOUT_REPORT.md` (awaiting approval).
+- Acceptance conditions: `docs/reports/phase5/PHASE5_ACCEPTANCE_CONDITIONS.md` — C1 Android / iOS, C2 signed-in browser, C3 mobile network, C4 load, C5 per-IP limits: not tested (deferred).
 
 ### Fixed
 

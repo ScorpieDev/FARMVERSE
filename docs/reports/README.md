@@ -84,3 +84,10 @@ Steps 1–3 predate the report convention; see their commit messages (`5faeaff`,
 | `PHASE5_STEP5_4_REPORT.md` | Step 5.4: client Visit screen and farm room; two-player browser check 18/18 |
 | `PHASE5_STEP5_5_E2E_REPORT.md` | Step 5.5: two-player E2E through the Codespaces URL — 19/19 |
 | `PHASE5_CLOSEOUT_REPORT.md` | Phase 5 closeout: roadmap tasks, evidence, carried-forward items |
+| `PHASE5_ACCEPTANCE_CONDITIONS.md` | Phase 5 conditions C1–C5: what was tested where, what is not tested (devices, signed-in browser, mobile network, load, per-IP limits) |
+
+## Phase 6 — Economy (`phase6/`)
+
+| File | Content |
+|---|---|
+| `PHASE6_ECONOMY_PLAN_REPORT.md` | Phase 6 draft design (NPC shop, marketplace, direct trades, anti-abuse, ledger); P6-1…P6-6 awaiting approval |

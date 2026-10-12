@@ -1,7 +1,7 @@
 # FARMVERSE DEVELOPMENT ROADMAP
 
 ## Version
-1.4
+1.5
 
 ---
 
@@ -147,6 +147,10 @@ Tasks:
 
 # PHASE 6 — ECONOMY
 
+Status:
+
+PLAN DRAFTED — chờ Game Director duyệt (`docs/reports/phase6/PHASE6_ECONOMY_PLAN_REPORT.md`, quyết định P6-1…P6-6). Chưa viết code.
+
 Tasks:
 
 - Coins
@@ -272,7 +276,9 @@ Phase 1 — Farming: COMPLETED (2026-10-10).
 
 Phase 0 — Foundation: COMPLETED (2026-10-10).
 
-Phase 5 — Multiplayer: ALL STEPS DONE (5.1–5.5), chờ Game Director duyệt đóng. Game Director 2026-10-12: ưu tiên phát triển; kiểm thử thiết bị thật (Android/iOS) và trình duyệt đã đăng nhập hoãn tới khi Game Director bắt đầu giai đoạn đó — không chặn tiến độ, các hạng mục này vẫn ghi là CHƯA KIỂM THỬ.
+Phase 6 — Economy: KẾ HOẠCH chờ duyệt, chưa viết code.
+
+Phase 5 — Multiplayer: ALL STEPS DONE (5.1–5.5), chờ Game Director duyệt đóng; điều kiện C1–C5 (thiết bị, trình duyệt đã đăng nhập, mạng di động, tải lớn, giới hạn theo IP) CHƯA KIỂM THỬ — `docs/reports/phase5/PHASE5_ACCEPTANCE_CONDITIONS.md`. Game Director 2026-10-12: ưu tiên phát triển; kiểm thử thiết bị thật (Android/iOS) và trình duyệt đã đăng nhập hoãn tới khi Game Director bắt đầu giai đoạn đó — không chặn tiến độ, các hạng mục này vẫn ghi là CHƯA KIỂM THỬ.
 
 ---
 
