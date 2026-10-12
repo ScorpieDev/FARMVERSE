@@ -185,6 +185,11 @@ export class FarmApi {
     return this.action(SHOP_BUY_COSMETIC_PATH, body, isBuyCosmeticResponse);
   }
 
+  /** The stored guest session token, also sent in the WebSocket `hello` (protocol 2). */
+  sessionToken(): string | null {
+    return this.token();
+  }
+
   private token(): string | null {
     return this.storage.getItem(TOKEN_STORAGE_KEY);
   }

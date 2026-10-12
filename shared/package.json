@@ -11,7 +11,8 @@
     "./farming": "./src/farming.ts",
     "./progression": "./src/progression.ts",
     "./building": "./src/building.ts",
-    "./character": "./src/character.ts"
+    "./character": "./src/character.ts",
+    "./presence": "./src/presence.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",

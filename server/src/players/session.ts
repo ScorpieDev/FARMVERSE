@@ -38,9 +38,11 @@ export function createSession(db: Database, now: number): SessionResponse {
  */
 export function authenticate(db: Database, authorization: string | undefined): string | null {
   if (authorization === undefined || !authorization.startsWith(BEARER_PREFIX)) return null;
+  return findPlayerIdByToken(db, authorization.slice(BEARER_PREFIX.length));
+}
 
-  const token = authorization.slice(BEARER_PREFIX.length);
+/** Returns the player ID for a raw session token (WebSocket `hello`), or null. */
+export function findPlayerIdByToken(db: Database, token: string): string | null {
   if (!TOKEN_PATTERN.test(token)) return null;
-
   return findPlayerIdByTokenHash(db, hashToken(token));
 }

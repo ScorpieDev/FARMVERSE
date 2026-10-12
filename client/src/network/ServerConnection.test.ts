@@ -18,7 +18,13 @@ const URLS: ServerUrlResult = {
   urls: { apiOrigin: "", healthUrl: "/api/health", wsUrl: "ws://localhost:5173/ws" },
 };
 const HEALTH = { status: "ok", version: "0.0.0", serverTime: 1 };
-const WELCOME = { type: "welcome", protocolVersion: PROTOCOL_VERSION, serverTime: 1 };
+const WELCOME = {
+  type: "welcome",
+  protocolVersion: PROTOCOL_VERSION,
+  serverTime: 1,
+  you: { farmCode: "ABC234", name: "Farmer 0042" },
+};
+const TOKEN = "A".repeat(40) + "-_9";
 
 /** Test double for the browser WebSocket; the test plays the server side. */
 class FakeSocket {
@@ -83,10 +89,12 @@ function hanging(): FetchFn {
 let sockets: FakeSocket[];
 let statuses: ConnectionStatus[];
 let connection: ServerConnection | undefined;
+let token: string | null;
 
 function create(fetchFn: FetchFn, urls: ServerUrlResult = URLS): ServerConnection {
   const created = new ServerConnection({
     urls,
+    getToken: () => token,
     fetch: fetchFn,
     createSocket: (url) => {
       const socket = new FakeSocket(url);
@@ -118,6 +126,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.spyOn(console, "warn").mockImplementation(() => {});
   sockets = [];
+  token = TOKEN;
   statuses = [];
   connection = undefined;
 });
@@ -152,10 +161,47 @@ describe("ServerConnection handshake", () => {
     expect(socket.url).toBe("ws://localhost:5173/ws");
 
     socket.serverOpen();
-    expect(socket.sent).toEqual([{ type: "hello", protocolVersion: PROTOCOL_VERSION }]);
+    expect(socket.sent).toEqual([{ type: "hello", protocolVersion: PROTOCOL_VERSION, token: TOKEN }]);
 
     socket.serverSend(WELCOME);
     expect(lastStatus()).toEqual({ kind: "connected", serverVersion: "0.0.0" });
+  });
+
+  it("does not open a socket without a session token, and retries", async () => {
+    token = null;
+    create(healthy()).start();
+    await flush();
+    expect(sockets).toHaveLength(0);
+    expect(lastStatus()?.kind).toBe("reconnecting");
+
+    token = TOKEN;
+    await vi.advanceTimersByTimeAsync(1_000);
+    await flush();
+    expect(sockets).toHaveLength(1);
+  });
+
+  it("treats close 4001 (unknown token) as a failed attempt and retries", async () => {
+    create(healthy()).start();
+    await flush();
+    const socket = lastSocket();
+    socket.serverOpen();
+    socket.serverSend({ type: "error", error: { code: "UNAUTHORIZED", message: "Missing or invalid session token" } });
+    socket.serverClose(4001);
+    expect(lastStatus()?.kind).toBe("reconnecting");
+  });
+
+  it("restart() drops the connection and connects again with the current token", async () => {
+    const fetchFn = healthy();
+    create(fetchFn).start();
+    const first = await completeHandshake();
+    token = "B".repeat(43);
+    connection!.restart();
+    await flush();
+    const second = lastSocket();
+    expect(second).not.toBe(first);
+    expect(first.readyState).toBeGreaterThanOrEqual(2);
+    second.serverOpen();
+    expect(second.sent).toEqual([{ type: "hello", protocolVersion: PROTOCOL_VERSION, token: "B".repeat(43) }]);
   });
 
   it("does not open a socket when the URL is misconfigured", async () => {

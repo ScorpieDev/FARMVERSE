@@ -2,11 +2,11 @@ import type { AddressInfo } from "node:net";
 import type { FastifyInstance } from "fastify";
 import { WebSocket } from "ws";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { HEALTH_PATH } from "@farmverse/shared/api";
+import { HEALTH_PATH, SESSION_PATH, type SessionResponse } from "@farmverse/shared/api";
 import { PROTOCOL_VERSION, WS_PATH } from "@farmverse/shared/protocol";
 import { buildApp } from "../app.js";
 import type { ServerConfig } from "../config.js";
-import { CLOSE_UNSUPPORTED_PROTOCOL } from "./connection.js";
+import { CLOSE_UNAUTHORIZED, CLOSE_UNSUPPORTED_PROTOCOL } from "./connection.js";
 import { MAX_MESSAGE_BYTES } from "./websocket.js";
 
 const CLIENT_ORIGIN = "http://localhost:5173";
@@ -88,25 +88,45 @@ async function send(client: WebSocket, message: unknown): Promise<unknown> {
   return reply;
 }
 
+/** A new guest player's session token (POST /api/session). */
+async function newToken(): Promise<string> {
+  const response = await fetch(`http://${baseUrl}${SESSION_PATH}`, { method: "POST" });
+  return (await response.json() as SessionResponse).token;
+}
+
 async function handshake(): Promise<WebSocket> {
   const client = connect();
   await opened(client);
-  await send(client, { type: "hello", protocolVersion: PROTOCOL_VERSION });
+  await send(client, { type: "hello", protocolVersion: PROTOCOL_VERSION, token: await newToken() });
   return client;
 }
 
 describe("WebSocket success", () => {
-  it("answers hello with welcome", async () => {
+  it("answers an authenticated hello with welcome and the player's farm code and name", async () => {
     const client = connect();
     await opened(client);
 
-    const reply = await send(client, { type: "hello", protocolVersion: PROTOCOL_VERSION });
+    const reply = await send(client, { type: "hello", protocolVersion: PROTOCOL_VERSION, token: await newToken() });
 
     expect(reply).toEqual({
       type: "welcome",
       protocolVersion: PROTOCOL_VERSION,
       serverTime: expect.any(Number),
+      you: { farmCode: expect.stringMatching(/^[A-HJ-NP-Z2-9]{6}$/), name: expect.stringMatching(/^Farmer \d{4}$/) },
     });
+  });
+
+  it("gives two players different farm codes", async () => {
+    const codes = new Set<string>();
+    for (let index = 0; index < 2; index++) {
+      const client = connect();
+      await opened(client);
+      const reply = (await send(client, { type: "hello", protocolVersion: PROTOCOL_VERSION, token: await newToken() })) as {
+        you: { farmCode: string };
+      };
+      codes.add(reply.you.farmCode);
+    }
+    expect(codes.size).toBe(2);
   });
 
   it("answers ping with pong echoing sentAt", async () => {
@@ -137,6 +157,7 @@ describe("WebSocket errors", () => {
     const reply = await send(client, {
       type: "hello",
       protocolVersion: PROTOCOL_VERSION + 1,
+      token: "C".repeat(43),
     });
 
     expect(reply).toMatchObject({
@@ -144,6 +165,27 @@ describe("WebSocket errors", () => {
       error: { code: "UNSUPPORTED_PROTOCOL_VERSION" },
     });
     expect((await close).code).toBe(CLOSE_UNSUPPORTED_PROTOCOL);
+  });
+
+  it("sends UNAUTHORIZED then closes with 4001 for an unknown token", async () => {
+    const client = connect();
+    await opened(client);
+    const close = closed(client);
+
+    const reply = await send(client, { type: "hello", protocolVersion: PROTOCOL_VERSION, token: "C".repeat(43) });
+
+    expect(reply).toMatchObject({ type: "error", error: { code: "UNAUTHORIZED" } });
+    expect((await close).code).toBe(CLOSE_UNAUTHORIZED);
+  });
+
+  it("rejects a protocol 1 hello without a token and stays open", async () => {
+    const client = connect();
+    await opened(client);
+
+    const reply = await send(client, { type: "hello", protocolVersion: 1 });
+
+    expect(reply).toMatchObject({ type: "error", error: { code: "INVALID_MESSAGE" } });
+    expect(client.readyState).toBe(WebSocket.OPEN);
   });
 
   it("answers ping before hello with INVALID_MESSAGE and stays open", async () => {

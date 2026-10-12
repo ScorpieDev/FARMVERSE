@@ -10,7 +10,9 @@ import packageJson from "../package.json" with { type: "json" };
 import type { ServerConfig } from "./config.js";
 import { registerFarmRoutes } from "./farming/routes.js";
 import { registerWebSocket } from "./multiplayer/websocket.js";
+import { findPlayerIdByToken } from "./players/session.js";
 import { openDatabase } from "./storage/database.js";
+import { loadProfile } from "./storage/farmStore.js";
 
 export const SERVER_VERSION = packageJson.version;
 
@@ -68,7 +70,13 @@ export function buildApp(config: ServerConfig, options: AppOptions = {}): Fastif
   });
 
   registerFarmRoutes(app, { db, now });
-  registerWebSocket(app, config);
+  registerWebSocket(app, config, {
+    authenticate: (token) => {
+      const playerId = findPlayerIdByToken(db, token);
+      const profile = playerId === null ? null : loadProfile(db, playerId);
+      return playerId === null || profile === null ? null : { playerId, profile };
+    },
+  });
 
   return app;
 }

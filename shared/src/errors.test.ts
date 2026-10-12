@@ -8,7 +8,7 @@ describe("isErrorCode", () => {
     }
   });
 
-  it("defines the Phase 0–4 codes", () => {
+  it("defines the Phase 0–5 codes", () => {
     expect(Object.values(ErrorCode).sort()).toEqual(
       [
         "INVALID_MESSAGE",
@@ -29,6 +29,11 @@ describe("isErrorCode", () => {
         "OBJECT_NOT_FOUND",
         "INSUFFICIENT_CURRENCY",
         "ALREADY_OWNED",
+        "ROOM_NOT_FOUND",
+        "ROOM_FULL",
+        "NOT_IN_ROOM",
+        "TILE_BLOCKED",
+        "RATE_LIMITED",
       ].sort(),
     );
   });

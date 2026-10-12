@@ -10,8 +10,10 @@ import { buyCosmetic, createStarterCharacter, equipAppearance } from "../charact
 import {
   insertPlayer,
   loadBuilding,
+  findPlayerIdByFarmCode,
   loadCharacter,
   loadFarm,
+  loadProfile,
   loadQuestState,
   saveBuilding,
   saveCharacter,
@@ -107,8 +109,8 @@ function count(db: Database, sql: string): number {
 }
 
 describe("schema v1 → v2 migration", () => {
-  it("is followed by v3 (Phase 3 building) and v4 (Phase 4 character), the latest version", () => {
-    expect(SCHEMA_VERSION).toBe(4);
+  it("is followed by v3 (building), v4 (character) and v5 (multiplayer profiles), the latest version", () => {
+    expect(SCHEMA_VERSION).toBe(5);
   });
 
   it("upgrades a v1 database and keeps every player's Phase 1 data", () => {
@@ -489,7 +491,7 @@ describe("schema v3 → v4 migration (Phase 4 character)", () => {
 
     const db = openDatabase(path);
     try {
-      expect(getSchemaVersion(db)).toBe(4);
+      expect(getSchemaVersion(db)).toBe(SCHEMA_VERSION);
       const after = snapshot(db);
       for (const table of ["players", "plots", "inventory", "quest_state", "action_log"]) {
         expect(after[table]).toEqual(before[table]);
@@ -517,7 +519,7 @@ describe("schema v3 → v4 migration (Phase 4 character)", () => {
 
     const again = openDatabase(path);
     try {
-      expect(getSchemaVersion(again)).toBe(4);
+      expect(getSchemaVersion(again)).toBe(SCHEMA_VERSION);
       expect(loadCharacter(again, LEVEL5.id)).toEqual(worn.character);
       expect(count(again, "SELECT COUNT(*) AS n FROM cosmetic_inventory")).toBe(7);
       expect(count(again, "SELECT COUNT(*) AS n FROM character_appearance")).toBe(1);
@@ -581,5 +583,97 @@ describe("character storage", () => {
       db.exec("DELETE FROM character_appearance");
       expect(() => loadCharacter(db, ID)).toThrow(RangeError);
     });
+  });
+});
+
+function createV4Database(players: V1Player[], setup: (db: DatabaseSync) => void = () => {}): void {
+  createV3Database(players);
+  const db = new DatabaseSync(path);
+  db.exec(SCHEMA_MIGRATIONS[3]!);
+  db.exec("UPDATE schema_version SET version = 4");
+  setup(db);
+  db.close();
+}
+
+describe("schema v4 → v5 migration (Phase 5 profiles)", () => {
+  it("keeps every earlier row unchanged and gives each player a unique farm code and a name", () => {
+    createV4Database([NEWBIE, LEVEL3, LEVEL5]);
+    const raw = new DatabaseSync(path);
+    const before = snapshot(raw);
+    const charactersBefore = raw.prepare("SELECT * FROM character_appearance ORDER BY 1").all();
+    raw.close();
+
+    const db = openDatabase(path);
+    try {
+      expect(getSchemaVersion(db)).toBe(5);
+      const after = snapshot(db);
+      for (const table of ["players", "plots", "inventory", "quest_state", "action_log"]) {
+        expect(after[table]).toEqual(before[table]);
+      }
+      expect(db.prepare("SELECT * FROM character_appearance ORDER BY 1").all()).toEqual(charactersBefore);
+      const codes = new Set<string>();
+      for (const player of [NEWBIE, LEVEL3, LEVEL5]) {
+        const profile = loadProfile(db, player.id)!;
+        expect(profile.farmCode).toMatch(/^[A-HJ-NP-Z2-9]{6}$/);
+        expect(profile.name).toMatch(/^Farmer \d{4}$/);
+        expect(findPlayerIdByFarmCode(db, profile.farmCode)).toBe(player.id);
+        codes.add(profile.farmCode);
+      }
+      expect(codes.size).toBe(3);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("keeps existing profiles and adds none twice if v5 runs again", () => {
+    createV4Database([NEWBIE, LEVEL3]);
+    const db = openDatabase(path);
+    const first = loadProfile(db, NEWBIE.id);
+    db.exec("UPDATE schema_version SET version = 4");
+    db.close();
+
+    const again = openDatabase(path);
+    try {
+      expect(getSchemaVersion(again)).toBe(5);
+      expect(loadProfile(again, NEWBIE.id)).toEqual(first);
+      expect(count(again, "SELECT COUNT(*) AS n FROM player_profile")).toBe(2);
+    } finally {
+      again.close();
+    }
+  });
+
+  it("rolls back completely when the upgrade fails, leaving v4 data untouched", () => {
+    createV4Database([NEWBIE], (db) => db.exec("CREATE VIEW player_profile AS SELECT 1 AS x"));
+    expect(() => openDatabase(path)).toThrow();
+
+    const raw = new DatabaseSync(path);
+    try {
+      expect(raw.prepare("SELECT version FROM schema_version").get()?.["version"]).toBe(4);
+      expect(count(raw, "SELECT COUNT(*) AS n FROM cosmetic_inventory")).toBe(6);
+    } finally {
+      raw.close();
+    }
+  });
+});
+
+describe("profile storage", () => {
+  const ID = "00000000-0000-4000-8000-0000000000dd";
+
+  it("creates new players with a profile and rejects corrupted ones", () => {
+    const db = openDatabase(path);
+    try {
+      transaction(db, () => insertPlayer(db, { id: ID, tokenHash: "d".repeat(64), createdAt: T }, createStarterFarm()));
+      const profile = loadProfile(db, ID)!;
+      expect(findPlayerIdByFarmCode(db, profile.farmCode)).toBe(ID);
+      expect(findPlayerIdByFarmCode(db, "ZZZZZZ")).toBeNull();
+      expect(loadProfile(db, "no-such-player")).toBeNull();
+      expect(() => db.exec("UPDATE player_profile SET display_name = 'Admin'")).toThrow();
+      db.exec("UPDATE player_profile SET farm_code = 'abc0o1'");
+      expect(() => loadProfile(db, ID)).toThrow(RangeError);
+      db.exec("DELETE FROM player_profile");
+      expect(() => loadProfile(db, ID)).toThrow(RangeError);
+    } finally {
+      db.close();
+    }
   });
 });

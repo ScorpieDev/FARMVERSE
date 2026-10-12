@@ -3,6 +3,8 @@
  *
  * Upgrades are only accepted on WS_PATH and from the configured client
  * origin, which blocks cross-site WebSocket hijacking from other web pages.
+ * The Origin check is not authentication: each connection is bound to a
+ * player by the session token in its `hello` (protocol 2).
  */
 import type { Duplex } from "node:stream";
 import type { FastifyInstance } from "fastify";
@@ -10,8 +12,10 @@ import { WebSocketServer, type RawData, type WebSocket } from "ws";
 import { WS_PATH, type ServerMessage } from "@farmverse/shared/protocol";
 import type { ServerConfig } from "../config.js";
 import {
+  AWAITING_HELLO,
   errorMessage,
   handleClientMessage,
+  type Authenticate,
   type ConnectionState,
 } from "./connection.js";
 
@@ -42,9 +46,15 @@ function toText(data: RawData): string {
   return data.toString("utf8");
 }
 
+export interface WebSocketOptions {
+  /** Resolves the session token sent in `hello` to its player. */
+  authenticate: Authenticate;
+}
+
 export function registerWebSocket(
   app: FastifyInstance,
   config: ServerConfig,
+  { authenticate }: WebSocketOptions,
 ): void {
   const wss = new WebSocketServer({
     noServer: true,
@@ -77,7 +87,7 @@ export function registerWebSocket(
 
   function handleConnection(ws: WebSocket, ip: string | undefined): void {
     const log = app.log.child({ connectionId: nextConnectionId++ });
-    let state: ConnectionState = "awaiting-hello";
+    let state: ConnectionState = AWAITING_HELLO;
     log.info({ ip }, "WebSocket connected");
 
     const send = (message: ServerMessage): void => {
@@ -91,9 +101,13 @@ export function registerWebSocket(
         return;
       }
 
-      const result = handleClientMessage(state, toText(data), Date.now());
+      const result = handleClientMessage(state, toText(data), Date.now(), authenticate);
       if (result.replies.some((reply) => reply.type === "error")) {
         log.debug("Rejected client message");
+      }
+      if (state.kind !== "ready" && result.state.kind === "ready") {
+        // Player ID only, never the token.
+        log.info({ playerId: result.state.player.playerId }, "WebSocket authenticated");
       }
       state = result.state;
       for (const reply of result.replies) send(reply);

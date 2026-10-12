@@ -280,8 +280,12 @@ export class FarmScene extends Scene {
     const urls = resolveServerUrls(import.meta.env.VITE_SERVER_URL, window.location);
     this.newRequestId = createRequestIdFactory(globalThis.crypto);
     this.api = new FarmApi({ apiOrigin: urls.ok ? urls.urls.apiOrigin : "", storage: safeLocalStorage() });
-    this.connection = new ServerConnection({ urls, onStatus: (status) => this.onConnectionStatus(status) });
-    this.connection.start();
+    // Started once the guest session exists: `hello` carries its token (protocol 2).
+    this.connection = new ServerConnection({
+      urls,
+      getToken: () => this.api.sessionToken(),
+      onStatus: (status) => this.onConnectionStatus(status),
+    });
 
     this.events.once("shutdown", this.cleanUp, this);
     this.events.once("destroy", this.cleanUp, this);
@@ -296,10 +300,18 @@ export class FarmScene extends Scene {
   private async startSession(): Promise<void> {
     try {
       await this.api.ensureSession();
+      this.startConnection();
       await this.reload();
     } catch (error) {
       this.handleError(error);
     }
+  }
+
+  /** Starts the realtime connection the first time, or reconnects with the current token. */
+  private startConnection(): void {
+    if (this.connection === undefined) return;
+    if (this.connection.currentStatus.kind === "closed") this.connection.start();
+    else this.connection.restart();
   }
 
   private async reload(): Promise<void> {
@@ -450,6 +462,7 @@ export class FarmScene extends Scene {
     try {
       await this.api.startNewFarm();
       this.sessionInvalid = false;
+      this.startConnection();
       this.setOverlayVisible(false);
       this.showMessage("New farm created. Tap an empty plot to plant.");
       await this.reload();
@@ -460,7 +473,13 @@ export class FarmScene extends Scene {
 
   /** Taps on empty space retry the connection when it is offline (Phase 0 behaviour). */
   private onBackgroundTap(_pointer: Input.Pointer, over: GameObjects.GameObject[]): void {
-    if (over.length === 0) this.connection?.retry();
+    if (over.length !== 0) return;
+    // No session yet (the server was unreachable at start): try again.
+    if (this.state === null && !this.sessionInvalid && this.connection?.currentStatus.kind === "closed") {
+      void this.startSession();
+      return;
+    }
+    this.connection?.retry();
   }
 
   // ---------- rendering ----------

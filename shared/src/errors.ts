@@ -4,7 +4,8 @@
  * Phase 0 defines what the foundation needs (connection, health check,
  * message validation); Phase 1 adds the farming API errors and Phase 2 the
  * progression errors; Phase 3 adds building placement and decoration shop
- * errors; Phase 4 adds the cosmetic shop error. Errors of later features are added in the phase that implements
+ * errors; Phase 4 adds the cosmetic shop error; Phase 5 adds the multiplayer
+ * room errors. Errors of later features are added in the phase that implements
  * them.
  */
 export const ErrorCode = {
@@ -63,6 +64,19 @@ export const ErrorCode = {
 
   /** Buying a cosmetic the player already owns (cosmetics are kept forever). */
   ALREADY_OWNED: "ALREADY_OWNED",
+
+  // ---------- Phase 5: multiplayer rooms (WebSocket) ----------
+
+  /** No farm with that farm code. */
+  ROOM_NOT_FOUND: "ROOM_NOT_FOUND",
+  /** The farm room already has MAX_ROOM_PLAYERS players. */
+  ROOM_FULL: "ROOM_FULL",
+  /** Move or emote sent while not in a farm room. */
+  NOT_IN_ROOM: "NOT_IN_ROOM",
+  /** The target tile is outside the grid or covered by an object (presence.ts isWalkable). */
+  TILE_BLOCKED: "TILE_BLOCKED",
+  /** Too many messages of that kind; the message was ignored. */
+  RATE_LIMITED: "RATE_LIMITED",
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

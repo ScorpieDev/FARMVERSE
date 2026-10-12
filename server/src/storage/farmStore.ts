@@ -10,7 +10,7 @@
  * in: loaded data is checked with assertFarmData / assertQuestState, so
  * corrupted data fails loudly instead of being repaired silently
  * (assertBuildingData for building state, assertCharacterData for the
- * character).
+ * character); one player_profile row (schema v5: farm code, display name).
  *
  * Writes are expected to run inside `transaction()` from database.ts.
  */
@@ -19,6 +19,7 @@ import { FARM_PLOT_COUNT, ITEM_IDS, type CropId, type ItemId } from "@farmverse/
 import { COSMETIC_IDS, type CosmeticId, type SkinTone } from "@farmverse/shared/character";
 import { assertBuildingData, createEmptyBuilding, type BuildingData } from "../building/rules.js";
 import { assertCharacterData, createStarterCharacter, type CharacterData } from "../character/rules.js";
+import { assertPlayerProfile, newProfile, type PlayerProfile } from "../players/profile.js";
 import { assertQuestState, startingQuestState, type QuestState } from "../farming/quests.js";
 import { assertFarmData, type FarmData, type FarmPlot } from "../farming/rules.js";
 import type { Database } from "./database.js";
@@ -92,6 +93,35 @@ export function insertPlayer(db: Database, player: NewPlayer, farm: FarmData): v
   for (const cosmeticId of character.owned) {
     insertCosmetic.run(player.id, cosmeticId);
   }
+
+  const profile = newProfile((farmCode) => findPlayerIdByFarmCode(db, farmCode) !== null);
+  db.prepare("INSERT INTO player_profile (player_id, display_name, farm_code) VALUES (?, ?, ?)").run(
+    player.id,
+    profile.name,
+    profile.farmCode,
+  );
+}
+
+/** The player whose public farm code is `farmCode`, or null. */
+export function findPlayerIdByFarmCode(db: Database, farmCode: string): string | null {
+  const row = db.prepare("SELECT player_id FROM player_profile WHERE farm_code = ?").get(farmCode);
+  return row === undefined ? null : String(row["player_id"]);
+}
+
+/**
+ * Loads a player's public profile, or null if the player does not exist.
+ * Throws RangeError on corrupted data.
+ */
+export function loadProfile(db: Database, playerId: string): PlayerProfile | null {
+  const row = db.prepare("SELECT display_name, farm_code FROM player_profile WHERE player_id = ?").get(playerId);
+  if (row === undefined) {
+    const player = db.prepare("SELECT 1 FROM players WHERE id = ?").get(playerId);
+    if (player === undefined) return null;
+    throw new RangeError("Invalid farm data: missing profile");
+  }
+  const profile = { farmCode: String(row["farm_code"]), name: String(row["display_name"]) };
+  assertPlayerProfile(profile);
+  return profile;
 }
 
 export function findPlayerIdByTokenHash(db: Database, tokenHash: string): string | null {

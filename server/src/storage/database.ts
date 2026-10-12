@@ -10,6 +10,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { newProfile } from "../players/profile.js";
 
 export type Database = DatabaseSync;
 
@@ -151,7 +152,37 @@ const MIGRATIONS: readonly string[] = [
       UNION ALL SELECT 'pants_blue_jeans' UNION ALL SELECT 'pants_brown'
     ) AS starter;
   `,
+  // Version 5 (Phase 5 multiplayer). Only adds a table; existing rows are
+  // never modified. Each player's public farm code and generated display name
+  // are random, so they are filled in by fillMissingProfiles (TypeScript)
+  // right after this SQL, in the same transaction.
+  `
+  CREATE TABLE IF NOT EXISTS player_profile (
+    player_id TEXT PRIMARY KEY REFERENCES players (id) ON DELETE CASCADE,
+    display_name TEXT NOT NULL CHECK (display_name GLOB 'Farmer [0-9][0-9][0-9][0-9]'),
+    farm_code TEXT NOT NULL UNIQUE CHECK (length(farm_code) = 6)
+  ) STRICT;
+  `,
 ];
+
+/** Extra steps run after a version's SQL, inside its transaction. */
+const MIGRATION_STEPS: Readonly<Record<number, (db: Database) => void>> = {
+  5: fillMissingProfiles,
+};
+
+/** Gives every player without a profile a new farm code and display name (v5). */
+function fillMissingProfiles(db: Database): void {
+  const isTaken = (farmCode: string) =>
+    db.prepare("SELECT 1 FROM player_profile WHERE farm_code = ?").get(farmCode) !== undefined;
+  const insert = db.prepare("INSERT INTO player_profile (player_id, display_name, farm_code) VALUES (?, ?, ?)");
+  const missing = db
+    .prepare("SELECT id FROM players WHERE id NOT IN (SELECT player_id FROM player_profile) ORDER BY created_at, id")
+    .all();
+  for (const row of missing) {
+    const profile = newProfile(isTaken);
+    insert.run(String(row["id"]), profile.name, profile.farmCode);
+  }
+}
 
 /** Exported for migration tests only. */
 export const SCHEMA_MIGRATIONS = MIGRATIONS;
@@ -198,6 +229,7 @@ function migrate(db: Database): void {
   for (let version = current + 1; version <= SCHEMA_VERSION; version++) {
     transaction(db, () => {
       db.exec(MIGRATIONS[version - 1] ?? "");
+      MIGRATION_STEPS[version]?.(db);
       db.exec("DELETE FROM schema_version");
       db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(version);
     });

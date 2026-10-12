@@ -1,8 +1,11 @@
 /**
- * Client side of the Phase 0 connection: health check, WebSocket handshake,
+ * Client side of the realtime connection: health check, WebSocket handshake,
  * heartbeat and bounded reconnect.
  *
- * Each attempt: GET /api/health → open /ws → send hello → wait for welcome.
+ * Each attempt: GET /api/health → open /ws → send hello with the session
+ * token (protocol 2) → wait for welcome. Without a token no socket is opened;
+ * an unknown token is rejected by the server (UNAUTHORIZED, close 4001) and
+ * counts as a failed attempt.
  * While connected the client pings every 15 s and treats a missing pong as a
  * lost connection. Failed attempts are retried with exponential backoff, at
  * most MAX_RETRIES times in a row; after that the status is "offline" until
@@ -43,6 +46,8 @@ type Timer = ReturnType<typeof setTimeout>;
 export interface ServerConnectionOptions {
   urls: ServerUrlResult;
   onStatus: (status: ConnectionStatus) => void;
+  /** The guest session token sent in `hello`; null while there is no session. */
+  getToken: () => string | null;
   fetch?: typeof fetch;
   createSocket?: (url: string) => WebSocket;
   /** Returns a number in [0, 1); used for backoff jitter. */
@@ -105,6 +110,13 @@ export class ServerConnection {
     void this.connect(this.options.urls.urls);
   }
 
+  /** Drops the current connection and starts a new cycle of attempts (e.g. a new session token). */
+  restart(): void {
+    if (this.disposed || !this.options.urls.ok) return;
+    this.retries = 0;
+    void this.connect(this.options.urls.urls);
+  }
+
   /** Stops everything. No callbacks, timers or reconnects happen afterwards. */
   dispose(): void {
     if (this.disposed) return;
@@ -152,6 +164,12 @@ export class ServerConnection {
   }
 
   private openSocket(url: string, serverVersion: string, id: number): void {
+    const token = this.options.getToken();
+    if (token === null) {
+      console.warn("[network] No session token yet");
+      this.fail();
+      return;
+    }
     const socket = this.createSocket(url);
     this.socket = socket;
 
@@ -162,7 +180,7 @@ export class ServerConnection {
 
     socket.onopen = () => {
       if (id !== this.attemptId) return;
-      this.send({ type: "hello", protocolVersion: PROTOCOL_VERSION });
+      this.send({ type: "hello", protocolVersion: PROTOCOL_VERSION, token });
     };
 
     socket.onmessage = (event: MessageEvent) => {

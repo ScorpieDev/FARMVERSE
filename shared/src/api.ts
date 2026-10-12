@@ -320,6 +320,11 @@ const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f
 /** 32 random bytes encoded as base64url without padding. */
 const SESSION_TOKEN = /^[A-Za-z0-9_-]{43}$/;
 
+/** True for a session token as returned by POST /api/session (32 bytes, base64url). */
+export function isSessionToken(value: unknown): value is string {
+  return typeof value === "string" && SESSION_TOKEN.test(value);
+}
+
 /** Checks that a value is a well-formed health response. Extra fields are ignored. */
 export function isHealthResponse(value: unknown): value is HealthResponse {
   if (!isObject(value)) return false;

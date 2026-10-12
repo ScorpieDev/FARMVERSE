@@ -54,6 +54,7 @@ describe("openDatabase", () => {
       "decoration_stock",
       "farm_objects",
       "inventory",
+      "player_profile",
       "players",
       "plots",
       "quest_state",
