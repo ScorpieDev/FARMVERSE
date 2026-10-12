@@ -14,7 +14,7 @@ const CLIENT_ORIGIN = "http://localhost:5173";
 const config: ServerConfig = {
   host: "127.0.0.1",
   port: 0,
-  clientOrigin: CLIENT_ORIGIN,
+  clientOrigins: [CLIENT_ORIGIN, "https://bright-farm-123-5173.app.github.dev"],
   logLevel: "silent",
   databasePath: ":memory:",
 };
@@ -204,6 +204,11 @@ describe("WebSocket upgrade checks", () => {
 
   it("rejects other origins with 403", async () => {
     expect(await rejectedStatus(connect({ origin: "https://evil.example.com" }))).toBe(403);
+  });
+
+  it("accepts this Codespace's forwarded client origin", async () => {
+    const client = connect({ origin: "https://bright-farm-123-5173.app.github.dev" });
+    await expect(opened(client)).resolves.toBeUndefined();
   });
 
   it("rejects connections without an Origin header with 403", async () => {

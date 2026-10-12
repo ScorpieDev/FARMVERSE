@@ -64,7 +64,7 @@ export function registerWebSocket(
 
     // Browsers always send Origin; a missing one is rejected as well.
     const origin = request.headers.origin;
-    if (origin !== config.clientOrigin) {
+    if (!origin || !config.clientOrigins.includes(origin)) {
       app.log.warn({ origin }, "WebSocket upgrade rejected: origin not allowed");
       rejectUpgrade(socket, 403);
       return;

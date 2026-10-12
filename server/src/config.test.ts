@@ -6,7 +6,7 @@ describe("loadConfig", () => {
     expect(loadConfig({})).toEqual({
       host: "0.0.0.0",
       port: 3000,
-      clientOrigin: "http://localhost:5173",
+      clientOrigins: ["http://localhost:5173"],
       logLevel: "info",
       databasePath: "data/farmverse.db",
     });
@@ -17,6 +17,44 @@ describe("loadConfig", () => {
       host: "0.0.0.0",
       port: 3000,
     });
+  });
+
+  it("allows only this Codespace's forwarded client origin in Codespaces", () => {
+    expect(
+      loadConfig({
+        CODESPACES: "true",
+        CODESPACE_NAME: "bright-farm-123",
+        GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN: "app.github.dev",
+      }).clientOrigins,
+    ).toEqual([
+      "http://localhost:5173",
+      "https://bright-farm-123-5173.app.github.dev",
+    ]);
+  });
+
+  it("does not add a Codespaces origin outside Codespaces", () => {
+    expect(
+      loadConfig({
+        CODESPACE_NAME: "bright-farm-123",
+        GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN: "app.github.dev",
+      }).clientOrigins,
+    ).toEqual(["http://localhost:5173"]);
+  });
+
+  it("does not derive a Codespaces origin in production", () => {
+    expect(
+      loadConfig({
+        NODE_ENV: "production",
+        CODESPACES: "true",
+        CODESPACE_NAME: "bright-farm-123",
+        GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN: "app.github.dev",
+        CLIENT_ORIGIN: "https://farm.example.com",
+      }).clientOrigins,
+    ).toEqual(["https://farm.example.com"]);
+  });
+
+  it("rejects incomplete Codespaces forwarding configuration", () => {
+    expect(() => loadConfig({ CODESPACES: "true" })).toThrow(/CODESPACES/);
   });
 
   it("reads valid values", () => {
@@ -31,7 +69,7 @@ describe("loadConfig", () => {
     ).toEqual({
       host: "127.0.0.1",
       port: 8080,
-      clientOrigin: "https://farm.example.com",
+      clientOrigins: ["https://farm.example.com"],
       logLevel: "debug",
       databasePath: ":memory:",
     });

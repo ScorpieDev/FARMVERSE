@@ -8,7 +8,10 @@ import type { ServerConfig } from "./config.js";
 const config: ServerConfig = {
   host: "127.0.0.1",
   port: 0,
-  clientOrigin: "http://localhost:5173",
+  clientOrigins: [
+    "http://localhost:5173",
+    "https://bright-farm-123-5173.app.github.dev",
+  ],
   logLevel: "silent",
   databasePath: ":memory:",
 };
@@ -123,6 +126,18 @@ describe("CORS", () => {
     expect(response.statusCode).toBe(204);
     expect(response.headers["access-control-allow-origin"]).toBe(
       "http://localhost:5173",
+    );
+  });
+
+  it("allows HTTP requests from the exact forwarded Codespaces client origin", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: HEALTH_PATH,
+      headers: { origin: "https://bright-farm-123-5173.app.github.dev" },
+    });
+
+    expect(response.headers["access-control-allow-origin"]).toBe(
+      "https://bright-farm-123-5173.app.github.dev",
     );
   });
 

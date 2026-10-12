@@ -28,7 +28,7 @@ export function buildApp(config: ServerConfig, options: AppOptions = {}): Fastif
     db.close();
   });
 
-  void app.register(cors, { origin: config.clientOrigin });
+  void app.register(cors, { origin: config.clientOrigins });
 
   app.get(HEALTH_PATH, (): HealthResponse => {
     return { status: "ok", version: SERVER_VERSION, serverTime: now() };

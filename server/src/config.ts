@@ -19,8 +19,8 @@ export type LogLevel = (typeof LOG_LEVELS)[number];
 export interface ServerConfig {
   host: string;
   port: number;
-  /** Only this origin may call the API from a browser (CORS). */
-  clientOrigin: string;
+  /** Exact browser origins allowed by both CORS and the WebSocket check. */
+  clientOrigins: string[];
   logLevel: LogLevel;
   /**
    * SQLite database file, relative to the server's working directory, or
@@ -58,6 +58,26 @@ function parseOrigin(value: string): string | undefined {
   }
 }
 
+function parseCodespacesClientOrigin(
+  env: Record<string, string | undefined>,
+): string | undefined {
+  if (env.CODESPACES !== "true" || env.NODE_ENV === "production") {
+    return undefined;
+  }
+
+  const name = env.CODESPACE_NAME?.trim();
+  const forwardingDomain = env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN?.trim();
+  const validName = name !== undefined && /^[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(name);
+  const validDomain =
+    forwardingDomain !== undefined &&
+    /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(
+      forwardingDomain,
+    );
+
+  if (!validName || !validDomain) return undefined;
+  return `https://${name}-5173.${forwardingDomain}`;
+}
+
 function isLogLevel(value: string): value is LogLevel {
   return (LOG_LEVELS as readonly string[]).includes(value);
 }
@@ -89,14 +109,36 @@ export function loadConfig(
     );
   }
 
+  const codespacesClientOrigin = parseCodespacesClientOrigin(env);
+  const isCodespacesDevelopment =
+    env.CODESPACES === "true" && env.NODE_ENV !== "production";
+  if (isCodespacesDevelopment && codespacesClientOrigin === undefined) {
+    problems.push(
+      "CODESPACES=true requires a valid CODESPACE_NAME and GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN",
+    );
+  }
+
   const logLevel = read("LOG_LEVEL");
   if (!isLogLevel(logLevel)) {
     problems.push(`LOG_LEVEL must be one of ${LOG_LEVELS.join(", ")} (got "${logLevel}")`);
   }
 
-  if (port === undefined || clientOrigin === undefined || !isLogLevel(logLevel)) {
+  if (
+    port === undefined ||
+    clientOrigin === undefined ||
+    !isLogLevel(logLevel) ||
+    (isCodespacesDevelopment && codespacesClientOrigin === undefined)
+  ) {
     throw new ConfigError(`Invalid server configuration:\n- ${problems.join("\n- ")}`);
   }
 
-  return { host, port, clientOrigin, logLevel, databasePath: read("DATABASE_PATH") };
+  return {
+    host,
+    port,
+    clientOrigins: codespacesClientOrigin
+      ? [clientOrigin, codespacesClientOrigin]
+      : [clientOrigin],
+    logLevel,
+    databasePath: read("DATABASE_PATH"),
+  };
 }

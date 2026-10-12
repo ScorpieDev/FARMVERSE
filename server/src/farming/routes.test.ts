@@ -34,7 +34,7 @@ function config(): ServerConfig {
   return {
     host: "127.0.0.1",
     port: 0,
-    clientOrigin: "http://localhost:5173",
+    clientOrigins: ["http://localhost:5173"],
     logLevel: "silent",
     databasePath: dbPath,
   };

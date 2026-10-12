@@ -66,13 +66,13 @@ Then open port **5173** from the **Ports** tab
 opened; the proxy reaches the server inside the codespace, so port 3000 can
 stay private.
 
-Why `https://localhost:5173`: the server only accepts WebSocket connections
-whose `Origin` header equals `CLIENT_ORIGIN`. Codespaces port forwarding
-rewrites the browser's `Origin` (`https://<codespace-name>-5173.app.github.dev`)
-to `https://localhost:5173` before the request reaches the server. If the
-WebSocket is still rejected, the server log shows the origin it received
-(`WebSocket upgrade rejected: origin not allowed`); set `CLIENT_ORIGIN` to
-exactly that value.
+Set `CLIENT_ORIGIN=https://localhost:5173` (in `.env` or the shell).
+Codespaces port forwarding rewrites the browser's same-origin `Origin`
+(`https://<codespace-name>-5173.app.github.dev`) to `https://localhost:5173`
+before the request reaches Vite; Vite's proxy passes it on unchanged. The
+server also allows this workspace's exact forwarded origin, derived from the
+Codespaces environment, in case it arrives unrewritten. Requests from other
+sites keep their own `Origin` and are rejected. Port 3000 stays private.
 
 ## Configuration
 
@@ -84,7 +84,7 @@ file in the repository root (copy [`.env.example`](.env.example)). Never commit
 |---|---|---|---|
 | `HOST` | server | `0.0.0.0` | Address the server listens on |
 | `PORT` | server, Vite proxy | `3000` | Server port |
-| `CLIENT_ORIGIN` | server | `http://localhost:5173` | The only origin allowed by CORS and the WebSocket `Origin` check. Must match exactly, without a trailing slash |
+| `CLIENT_ORIGIN` | server | `http://localhost:5173` | Exact local/deployment origin allowed by CORS and WebSocket checks. Codespaces adds only this workspace's forwarded port 5173 origin. |
 | `LOG_LEVEL` | server | `info` | `fatal`, `error`, `warn`, `info`, `debug`, `trace` or `silent` |
 | `DATABASE_PATH` | server | `data/farmverse.db` | SQLite file, relative to `server/` when started with the npm scripts (`:memory:` = temporary). The `server/data/` folder and `*.db` files are git-ignored |
 | `VITE_SERVER_URL` | client | empty | Leave empty in development (same origin through the Vite proxy). Set to the server origin, e.g. `https://api.example.com`, only when the deployed client and server have different origins. `ws://`/`wss://` is derived from it |
@@ -144,10 +144,12 @@ The server owns all game state; the client only sends intentions. Every farm req
 
 - **Status stays at `Reconnecting…` / `Offline` but `/api/health` works** —
   the WebSocket was rejected. Check the server log for
-  `origin not allowed` and set `CLIENT_ORIGIN` to the logged origin.
+  `origin not allowed`; the log shows the origin received. In Codespaces,
+  make sure `CLIENT_ORIGIN` equals the logged origin (normally
+  `https://localhost:5173`), that the client is opened from this workspace's
+  forwarded port 5173, and restart the server after changing `.env`.
 - **Vite shows `Blocked request. This host (…) is not allowed`** — the host is not
-  in `server.allowedHosts` in `client/vite.config.ts` (`*.app.github.dev` is
-  allowed).
+  the exact forwarded hostname for this Codespace's port 5173.
 - **The first load in dev mode is slow** — the dev server serves Phaser
   unminified (about 20 MB). For a faster load, run
   `npm run build && npm run preview -w client`. The preview server uses the
