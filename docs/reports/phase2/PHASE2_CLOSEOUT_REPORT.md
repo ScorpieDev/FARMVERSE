@@ -34,3 +34,16 @@ Design decisions P2-1…P2-7 were applied as approved (`PHASE2_PROGRESSION_PLAN_
 ## 4. Decision requested
 
 Close Phase 2 and start Phase 3 design review (`docs/reports/phase3/PHASE3_BUILDING_PLAN_REPORT.md`).
+
+## 5. Review (2026-10-12)
+
+The review checked the roadmap tasks, git history and test evidence again.
+
+- **Commits:** all on `origin/main` — `f639918`, `aaf92e6`, `9deea48`, `356d3c7`, `7a97540`, `5329631`, plus docs `c06d936`. Every roadmap task in §1 has a commit and test evidence.
+- **Evidence still valid:**
+  - local browser 38/38 and the Codespaces real-time playthrough (`PHASE2_STEP2_6_REPORT.md` §2, §6);
+  - the Phase 2 automated tests are part of the suite that passed on 2026-10-12 (1212 passing).
+- **Carried-forward items:**
+  - the "10 uncommitted WebSocket files" item is resolved by `37c3994` (2026-10-12);
+  - the UX items and provisional values are still open (not blocking).
+- **Assessment: eligible to close.** Every roadmap task is delivered and verified in Codespaces. The Android check is deferred by the Game Director. No closeout approval is recorded yet.

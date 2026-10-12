@@ -40,7 +40,7 @@ Steps 1–3 predate the report convention; see their commit messages (`5faeaff`,
 | `PHASE2_STEP2_1_REPORT.md` … `PHASE2_STEP2_4_REPORT.md` | Steps 2.1–2.4 — shared progression data, server rules, new crops / plots and schema v2, progression API |
 | `PHASE2_STEP2_5_REPORT.md` | Step 2.5 — client progression UI (+ addendum: quest position and reward) |
 | `PHASE2_STEP2_6_REPORT.md` | Step 2.6 — end-to-end browser verification (local and through the Codespaces URL) |
-| `PHASE2_CLOSEOUT_REPORT.md` | Phase 2 closeout: roadmap tasks, evidence, carried-forward items |
+| `PHASE2_CLOSEOUT_REPORT.md` | Phase 2 closeout: roadmap tasks, evidence, carried-forward items (+ §5 review 2026-10-12) |
 
 ## Phase 3 — Building (`phase3/`)
 
@@ -52,7 +52,7 @@ Steps 1–3 predate the report convention; see their commit messages (`5faeaff`,
 | `PHASE3_STEP3_3_REPORT.md` | Step 3.3: client Edit farm mode (grid, decorations, place / move / rotate / remove) and browser check |
 | `PHASE3_STEP3_4_REPORT.md` | Step 3.4: decoration coin shop (P3-4 / P3-5 decisions, buy API, Buy button) and browser check |
 | `PHASE3_STEP3_5_E2E_REPORT.md` | Step 3.5: end-to-end check through the Codespaces URL (buy, place, move, rotate, remove, reload) — 24/24 |
-| `PHASE3_CLOSEOUT_REPORT.md` | Phase 3 closeout: roadmap tasks, evidence, carried-forward items |
+| `PHASE3_CLOSEOUT_REPORT.md` | Phase 3 closeout: roadmap tasks, evidence, carried-forward items (+ §5 review 2026-10-12) |
 
 ## Phase 4 — Character (`phase4/`)
 
@@ -65,3 +65,10 @@ Steps 1–3 predate the report convention; see their commit messages (`5faeaff`,
 | `PHASE4_STEP4_4_E2E_REPORT.md` | Step 4.4: end-to-end check through the Codespaces URL (create, wear, buy, reload) — 24/24 |
 | `PHASE4_CLOSEOUT_REPORT.md` | Phase 4 closeout: roadmap tasks, evidence, carried-forward items |
 | `PHASE4_STATUS_REVIEW_REPORT.md` | Status review 2026-10-12: Phases 2–3 checked against commits, Phase 4 conditional approval, risk review of the uncommitted WebSocket/Codespaces changes |
+| `PHASE4_ACCEPTANCE_CONDITIONS.md` | Phase 4 conditions C1–C4: how to check, actual results (production build through Codespaces 12/12; Android / signed-in browser open) |
+
+## Project status
+
+| File | Content |
+|---|---|
+| `PROJECT_STATUS_SUMMARY.md` | Status of every phase, open issues and the conditions to start Phase 5 |

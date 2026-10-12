@@ -39,3 +39,16 @@ Based on commit `837bab9` (Step 3.5 end-to-end report). This closeout changes do
 1. Close Phase 3. The Phase 2 closeout is also still awaiting approval.
 2. Decide what to do with the uncommitted WebSocket-origin changes.
 3. Approve starting the Phase 4 (Character) design plan.
+
+## 5. Review (2026-10-12)
+
+The review checked the roadmap tasks, git history and test evidence again.
+
+- **Commits:** all on `origin/main` — `fbc1c46`, `86030dd`, `fa7d119`, `6bc909f`, `837bab9`, `0e393dd`.
+- **Evidence still valid:**
+  - Codespaces E2E 24/24 (`PHASE3_STEP3_5_E2E_REPORT.md`);
+  - local edit-mode 30/30 and shop 19/19;
+  - the Phase 3 automated tests are part of the suite that passed on 2026-10-12 (1212 passing).
+- **Roadmap note:** "Buildings" is delivered as a decoration (Small House, no function, decision C-A). Functional buildings are not part of Phase 3.
+- **Carried-forward items:** the "10 uncommitted WebSocket files" item is resolved by `37c3994`. The other items in §3 are still open (not blocking).
+- **Assessment: eligible to close.** Every roadmap task is delivered and verified in Codespaces. The Android check is deferred by the Game Director. No closeout approval is recorded yet.

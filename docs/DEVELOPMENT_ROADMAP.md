@@ -83,7 +83,7 @@ Plant
 
 Status:
 
-ALL STEPS DONE — chờ Game Director duyệt đóng (`docs/reports/phase2/PHASE2_CLOSEOUT_REPORT.md`). Bước 2.1–2.6: `f639918`, `aaf92e6`, `9deea48`, `356d3c7`, `7a97540`, `5329631`, `c06d936` (đều có trên `origin/main`). Kiểm tra: headless Chromium 38/38, chơi thật qua URL Codespaces. Chưa xác minh: thiết bị Android.
+ALL STEPS DONE — đủ điều kiện đóng theo rà soát 2026-10-12, chờ Game Director duyệt (`docs/reports/phase2/PHASE2_CLOSEOUT_REPORT.md` §5). Bước 2.1–2.6: `f639918`, `aaf92e6`, `9deea48`, `356d3c7`, `7a97540`, `5329631`, `c06d936` (đều có trên `origin/main`). Kiểm tra: headless Chromium 38/38, chơi thật qua URL Codespaces. Chưa xác minh: thiết bị Android.
 
 Tasks:
 
@@ -99,7 +99,7 @@ Tasks:
 
 Status:
 
-ALL STEPS DONE — chờ Game Director duyệt đóng (`docs/reports/phase3/PHASE3_CLOSEOUT_REPORT.md`). Bước 3.1–3.5: `fbc1c46`, `86030dd`, `fa7d119`, `6bc909f`, `837bab9`, `0e393dd` (đều có trên `origin/main`). Kiểm tra: end-to-end qua URL Codespaces 24/24. "Buildings" được làm dưới dạng trang trí (Small House, không chức năng — quyết định C-A). Chưa xác minh: thiết bị Android.
+ALL STEPS DONE — đủ điều kiện đóng theo rà soát 2026-10-12, chờ Game Director duyệt (`docs/reports/phase3/PHASE3_CLOSEOUT_REPORT.md` §5). Bước 3.1–3.5: `fbc1c46`, `86030dd`, `fa7d119`, `6bc909f`, `837bab9`, `0e393dd` (đều có trên `origin/main`). Kiểm tra: end-to-end qua URL Codespaces 24/24. "Buildings" được làm dưới dạng trang trí (Small House, không chức năng — quyết định C-A). Chưa xác minh: thiết bị Android.
 
 Tasks:
 
@@ -116,7 +116,7 @@ Tasks:
 
 Status:
 
-CONDITIONALLY APPROVED (Game Director, 2026-10-12) — dựa trên end-to-end qua URL Codespaces 24/24 và các test đã chạy. Bước 4.1–4.4: `3648a98`, `cd9bed8`, `a5640bd`, `a6fc0e9` (đều có trên `origin/main`). Điều kiện còn mở (chưa xác minh): thiết bị Android/iOS; trình duyệt thật đã đăng nhập GitHub qua URL Codespaces (bài test dùng token + relay `/ws`); bản build production / `vite preview`; (điều kiện về 10 file WebSocket đã được giải quyết bằng commit `37c3994`). Xem `docs/reports/phase4/PHASE4_STATUS_REVIEW_REPORT.md`.
+CONDITIONALLY APPROVED (Game Director, 2026-10-12) — dựa trên end-to-end qua URL Codespaces 24/24 và các test đã chạy. Bước 4.1–4.4: `3648a98`, `cd9bed8`, `a5640bd`, `a6fc0e9` (đều có trên `origin/main`). Điều kiện (`docs/reports/phase4/PHASE4_ACCEPTANCE_CONDITIONS.md`): C1 thiết bị Android/iOS — CHƯA KIỂM TRA; C2 trình duyệt thật đã đăng nhập GitHub qua URL Codespaces — CHƯA KIỂM TRA (bài test dùng token + relay `/ws`); C3 bản build production — ĐẠT qua URL Codespaces preview 12/12 sau khi sửa host `vite preview` (`e0c3293`), chưa có môi trường deploy thật; C4 code đã commit = code đã kiểm thử — ĐẠT (`37c3994`).
 
 Tasks:
 
@@ -258,11 +258,11 @@ Sau khi phase ổn định mới chuyển phase tiếp theo.
 
 # CURRENT PHASE
 
-Phase 4 — Character: CONDITIONALLY APPROVED (2026-10-12); điều kiện còn mở như trên.
+Phase 4 — Character: CONDITIONALLY APPROVED (2026-10-12); còn mở C1 (Android/iOS) và C2 (trình duyệt thật đã đăng nhập).
 
-Phase 3 — Building: ALL STEPS DONE, chờ duyệt đóng.
+Phase 3 — Building: ALL STEPS DONE, đủ điều kiện đóng, chờ Game Director duyệt.
 
-Phase 2 — Progression: ALL STEPS DONE, chờ duyệt đóng.
+Phase 2 — Progression: ALL STEPS DONE, đủ điều kiện đóng, chờ Game Director duyệt.
 
 Phase 1 — Farming: COMPLETED (2026-10-10).
 
