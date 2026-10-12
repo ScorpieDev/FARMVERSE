@@ -367,7 +367,11 @@ export class FarmScene extends Scene {
       return null;
     }
     if (!this.connected) {
-      this.showMessage("You are offline. Actions are paused until the connection is back.");
+      this.showMessage(
+        this.connection?.currentStatus.kind === "replaced"
+          ? "Your farm is open in another tab. Tap the background to play here."
+          : "You are offline. Actions are paused until the connection is back.",
+      );
       return null;
     }
     return this.newRequestId();

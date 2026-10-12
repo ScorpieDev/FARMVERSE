@@ -384,6 +384,23 @@ describe("ServerConnection reconnect", () => {
   });
 });
 
+describe("ServerConnection replaced by another tab", () => {
+  it("stops on close 4002 without retrying, and retry() reconnects", async () => {
+    create(healthy()).start();
+    const socket = await completeHandshake();
+    socket.serverClose(4002);
+    expect(lastStatus()).toEqual({ kind: "replaced" });
+
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(sockets).toHaveLength(1);
+
+    connection!.retry();
+    await completeHandshake();
+    expect(lastStatus()?.kind).toBe("connected");
+    expect(sockets).toHaveLength(2);
+  });
+});
+
 describe("ServerConnection protocol mismatch", () => {
   it("stops on UNSUPPORTED_PROTOCOL_VERSION without retrying", async () => {
     const fetchFn = healthy();

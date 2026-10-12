@@ -35,6 +35,8 @@ export const MAX_RETRIES = 5;
 
 /** Close code the server uses after UNSUPPORTED_PROTOCOL_VERSION. */
 const CLOSE_UNSUPPORTED_PROTOCOL = 4000;
+/** Close code the server uses when a newer connection of the same player replaces this one. */
+const CLOSE_REPLACED = 4002;
 const CLOSE_NORMAL = 1000;
 
 // WebSocket.readyState values (also used by the test double).
@@ -101,9 +103,9 @@ export class ServerConnection {
     void this.connect(this.options.urls.urls);
   }
 
-  /** Starts a new cycle of attempts. Only has an effect while offline. */
+  /** Starts a new cycle of attempts. Only has an effect while offline or replaced. */
   retry(): void {
-    if (this.disposed || this.status.kind !== "offline" || !this.options.urls.ok) {
+    if (this.disposed || (this.status.kind !== "offline" && this.status.kind !== "replaced") || !this.options.urls.ok) {
       return;
     }
     this.retries = 0;
@@ -192,6 +194,13 @@ export class ServerConnection {
       if (id !== this.attemptId) return;
       if (event.code === CLOSE_UNSUPPORTED_PROTOCOL) {
         this.giveUpIncompatible();
+        return;
+      }
+      if (event.code === CLOSE_REPLACED) {
+        // Reconnecting automatically would take the connection back from the
+        // other tab, which would do the same: wait for the player instead.
+        this.endAttempt();
+        this.setStatus({ kind: "replaced" });
         return;
       }
       console.warn(`[network] Connection closed (code ${event.code})`);

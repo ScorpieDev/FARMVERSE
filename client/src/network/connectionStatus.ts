@@ -7,6 +7,8 @@ export type ConnectionStatus =
   | { kind: "connected"; serverVersion: string; rttMs?: number }
   | { kind: "reconnecting"; attempt: number; maxAttempts: number; retryInMs: number }
   | { kind: "offline" }
+  /** The same player connected from another tab or device (close 4002); not retried automatically. */
+  | { kind: "replaced" }
   | { kind: "incompatible" }
   | { kind: "misconfigured"; reason: string }
   | { kind: "closed" };
@@ -36,6 +38,8 @@ export function formatStatus(status: ConnectionStatus): StatusDisplay {
     }
     case "offline":
       return { text: "Offline · Tap to retry", tone: "error" };
+    case "replaced":
+      return { text: "Opened in another tab · Tap to play here", tone: "error" };
     case "incompatible":
       return { text: "Please reload the game (version mismatch)", tone: "error" };
     case "misconfigured":

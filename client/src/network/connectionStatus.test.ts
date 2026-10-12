@@ -21,6 +21,7 @@ describe("formatStatus", () => {
       "pending",
     ],
     [{ kind: "offline" }, "Offline · Tap to retry", "error"],
+    [{ kind: "replaced" }, "Opened in another tab · Tap to play here", "error"],
     [{ kind: "incompatible" }, "Please reload the game (version mismatch)", "error"],
     [
       { kind: "misconfigured", reason: "bad" },
