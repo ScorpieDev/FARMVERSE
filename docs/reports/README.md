@@ -62,3 +62,5 @@ Steps 1–3 predate the report convention; see their commit messages (`5faeaff`,
 | `PHASE4_STEP4_1_REPORT.md` | Step 4.1: shared cosmetic catalog, skin tones, appearance checks, `ALREADY_OWNED` |
 | `PHASE4_STEP4_2_REPORT.md` | Step 4.2: server character rules, schema v4, equip and cosmetic shop API |
 | `PHASE4_STEP4_3_REPORT.md` | Step 4.3: client character drawing, Character screen, header avatar; browser smoke test 13/13 |
+| `PHASE4_STEP4_4_E2E_REPORT.md` | Step 4.4: end-to-end check through the Codespaces URL (create, wear, buy, reload) — 24/24 |
+| `PHASE4_CLOSEOUT_REPORT.md` | Phase 4 closeout: roadmap tasks, evidence, carried-forward items |

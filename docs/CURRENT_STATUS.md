@@ -1,14 +1,14 @@
 # FARMVERSE CURRENT STATUS
 
 ## Version
-1.15
+1.16
 
 ## Last Updated
 2026-10-12
 
 ## Project Status
 
-Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: ALL STEPS DONE (2.1–2.6), closeout awaiting Game Director approval; Android check deferred. Phase 3 — Building: Steps 3.1–3.4 done (shared grid rules; server place / move / rotate / remove API, database schema v3; client Edit farm mode; decoration coin shop, P3-4 / P3-5 decided 2026-10-11). End-to-end check through the Codespaces URL passed (24/24, 2026-10-11, `837bab9`). ALL STEPS DONE; closeout awaiting Game Director approval (`docs/reports/phase3/PHASE3_CLOSEOUT_REPORT.md`); Android check deferred. Phase 4 — Character: design approved 2026-10-12 (P4-1…P4-4); Steps 4.1–4.3 done (shared data; server rules, schema v4, equip / buy-cosmetic API; client Character screen and header avatar).
+Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: ALL STEPS DONE (2.1–2.6), closeout awaiting Game Director approval; Android check deferred. Phase 3 — Building: Steps 3.1–3.4 done (shared grid rules; server place / move / rotate / remove API, database schema v3; client Edit farm mode; decoration coin shop, P3-4 / P3-5 decided 2026-10-11). End-to-end check through the Codespaces URL passed (24/24, 2026-10-11, `837bab9`). ALL STEPS DONE; closeout awaiting Game Director approval (`docs/reports/phase3/PHASE3_CLOSEOUT_REPORT.md`); Android check deferred. Phase 4 — Character: design approved 2026-10-12 (P4-1…P4-4); ALL STEPS DONE (4.1–4.4): shared data; server rules, schema v4, equip / buy-cosmetic API; client Character screen and header avatar; end-to-end through the Codespaces URL 24/24 (2026-10-12). Closeout awaiting Game Director approval (`docs/reports/phase4/PHASE4_CLOSEOUT_REPORT.md`); Android check deferred.
 
 ---
 
@@ -167,7 +167,7 @@ Tests after Step 3.1: shared 343, server 414, client 121 — 878 passing; `npm r
 
 ---
 
-## Phase 4 — Character (in progress)
+## Phase 4 — Character (all steps done, closeout awaiting approval)
 
 Design approved by the Game Director on 2026-10-12: P4-1 R-A (character drawn with Phaser shapes), P4-2 C-A (hair / shirt / pants × 4 items + 4 skin tones), P4-3 K-A (2 free items per slot, others bought with coins and level), P4-4 D-A (Character screen and small avatar on the farm; no walking). Values provisional. Plan: `docs/reports/phase4/PHASE4_CHARACTER_PLAN_REPORT.md`.
 
@@ -176,7 +176,10 @@ Design approved by the Game Director on 2026-10-12: P4-1 R-A (character drawn wi
 | 4.1 Shared character data (`shared/src/character.ts`: catalog, skin tones, default appearance, `checkAppearance`; error code `ALREADY_OWNED`) | Done | `docs/reports/phase4/PHASE4_STEP4_1_REPORT.md` |
 | 4.2 Server: rules (`server/src/character/rules.ts`), schema v4 (`character_appearance`, `cosmetic_inventory`), `character` in `FarmState`, `POST /api/character/equip`, `POST /api/shop/buy-cosmetic` | Done | `docs/reports/phase4/PHASE4_STEP4_2_REPORT.md` |
 | 4.3 Client: character drawn with Phaser shapes, Character screen (Hair / Shirt / Pants / Skin, Buy / Wear / Done), header avatar opens it | Done | `docs/reports/phase4/PHASE4_STEP4_3_REPORT.md` |
-| 4.4 E2E and closeout | Next | — |
+| 4.4 End-to-end through the Codespaces URL (dev server and database, schema v4; one new guest farm, real play to level 2): create look, wear, reload, buy, wear bought items, reload, landscape | Done — 24/24, no defects, no code change | `docs/reports/phase4/PHASE4_STEP4_4_E2E_REPORT.md` |
+| Closeout | Awaiting Game Director approval | `docs/reports/phase4/PHASE4_CLOSEOUT_REPORT.md` |
+
+Tests run in Step 4.4: shared character + api 209; server character + storage 86; client 231; `npm run typecheck` clean; client build OK.
 
 Tests run in Step 4.3: client 231 (whole client package); `npm run typecheck` clean; client build OK; headless Chromium smoke test 13/13 (isolated server and database).
 
@@ -200,7 +203,7 @@ Tests run in Step 4.1: `character.test.ts` + `errors.test.ts` (36 passing); `npm
 
 # CURRENT PHASE
 
-Phase 4 — Character: Steps 4.1–4.3 done, Step 4.4 (end-to-end and closeout) next.
+Phase 4 — Character: ALL STEPS DONE — closeout report awaiting Game Director approval (`docs/reports/phase4/PHASE4_CLOSEOUT_REPORT.md`); Android device check deferred. Players have a character (skin tone, hair, shirt, pants) drawn in the farm header; the Character screen tries on, buys (coins, level) and wears cosmetics; everything is saved on the server (schema v4).
 
 Phase 3 — Building
 
@@ -220,7 +223,7 @@ Phase 0 — Foundation: COMPLETED.
 
 - `vite preview` and HMR through the Codespaces URL — not verified. (The dev game itself was verified through the Codespaces URL on 2026-10-11 with token access; see `PHASE2_STEP2_6_REPORT.md` §6.)
 - Android device testing — deferred by the Game Director.
-- The dev database `server/data/farmverse.db` is at schema v3 (moves to v4, additive, when the dev server loads the Step 4.2 code) (the running dev server reloaded the Step 3.2 code and applied the additive migration).
+- The dev database `server/data/farmverse.db` is at schema v3 — now at v4 (upgraded by the running dev server, verified 2026-10-12) (the running dev server reloaded the Step 3.2 code and applied the additive migration).
 - A farming request logged before the schema v3 server upgrade and retried after it replays the old response without `decorations` / `objects`; the client reports an invalid response and the next farm load is correct (`PHASE3_STEP3_2_REPORT.md` §2).
 - Uncommitted Codespaces WebSocket-origin changes (10 files, `server/src/config.ts` etc.; see `docs/reports/phase1/PHASE1_CODESPACES_WS_ORIGIN_FIX_REPORT.md`) are still in the working tree, reviewed but not committed; Game Director 2026-10-12: do not commit yet.
 - Real Chrome page zoom was emulated (CSS viewport + devicePixelRatio) in headless Chromium, not tested with the zoom menu in a real browser window.
@@ -231,7 +234,7 @@ Phase 0 — Foundation: COMPLETED.
 
 # NEXT OBJECTIVE
 
-Game Director: approve the Phase 3 and Phase 2 closeouts; decide on the uncommitted WebSocket-origin changes. Phase 4: Step 4.4 — end-to-end check through the Codespaces URL and Phase 4 closeout. Android check of Phases 2–3 when convenient.
+Game Director: approve the Phase 4, Phase 3 and Phase 2 closeouts; decide on the uncommitted WebSocket-origin changes (before Phase 5). Then: Phase 5 — Multiplayer design plan. Android check of Phases 2–4 when convenient.
 
 ---
 
