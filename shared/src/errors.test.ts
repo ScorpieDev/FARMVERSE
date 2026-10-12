@@ -8,7 +8,7 @@ describe("isErrorCode", () => {
     }
   });
 
-  it("defines the Phase 0–3 codes", () => {
+  it("defines the Phase 0–4 codes", () => {
     expect(Object.values(ErrorCode).sort()).toEqual(
       [
         "INVALID_MESSAGE",
@@ -28,6 +28,7 @@ describe("isErrorCode", () => {
         "PLACEMENT_INVALID",
         "OBJECT_NOT_FOUND",
         "INSUFFICIENT_CURRENCY",
+        "ALREADY_OWNED",
       ].sort(),
     );
   });

@@ -1,5 +1,13 @@
 # FARMVERSE CHANGELOG
 
+## Phase 4 — Character (in progress)
+
+Design approved by the Game Director on 2026-10-12 (P4-1…P4-4: R-A shape drawing, C-A catalog, K-A coin shop, D-A Character screen; `docs/reports/phase4/PHASE4_CHARACTER_PLAN_REPORT.md`).
+
+### Added
+
+- Shared character data (Step 4.1, provisional): hair / shirt / pants slots with 4 cosmetics each (2 free starters, 2 bought with coins at level 2–5), 4 skin tones, default appearance, shape checks and `checkAppearance` (ownership); error code `ALREADY_OWNED`
+
 ## Phase 3 — Building (all steps done, closeout awaiting approval)
 
 ### Added

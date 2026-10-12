@@ -4,7 +4,7 @@
  * Phase 0 defines what the foundation needs (connection, health check,
  * message validation); Phase 1 adds the farming API errors and Phase 2 the
  * progression errors; Phase 3 adds building placement and decoration shop
- * errors. Errors of later features are added in the phase that implements
+ * errors; Phase 4 adds the cosmetic shop error. Errors of later features are added in the phase that implements
  * them.
  */
 export const ErrorCode = {
@@ -58,6 +58,11 @@ export const ErrorCode = {
   OBJECT_NOT_FOUND: "OBJECT_NOT_FOUND",
   /** Not enough coins for a purchase (TECHNICAL_ARCHITECTURE.md §18). */
   INSUFFICIENT_CURRENCY: "INSUFFICIENT_CURRENCY",
+
+  // ---------- Phase 4: character ----------
+
+  /** Buying a cosmetic the player already owns (cosmetics are kept forever). */
+  ALREADY_OWNED: "ALREADY_OWNED",
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

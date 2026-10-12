@@ -1,14 +1,14 @@
 # FARMVERSE CURRENT STATUS
 
 ## Version
-1.12
+1.13
 
 ## Last Updated
 2026-10-12
 
 ## Project Status
 
-Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: ALL STEPS DONE (2.1–2.6), closeout awaiting Game Director approval; Android check deferred. Phase 3 — Building: Steps 3.1–3.4 done (shared grid rules; server place / move / rotate / remove API, database schema v3; client Edit farm mode; decoration coin shop, P3-4 / P3-5 decided 2026-10-11). End-to-end check through the Codespaces URL passed (24/24, 2026-10-11, `837bab9`). ALL STEPS DONE; closeout awaiting Game Director approval (`docs/reports/phase3/PHASE3_CLOSEOUT_REPORT.md`); Android check deferred.
+Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: ALL STEPS DONE (2.1–2.6), closeout awaiting Game Director approval; Android check deferred. Phase 3 — Building: Steps 3.1–3.4 done (shared grid rules; server place / move / rotate / remove API, database schema v3; client Edit farm mode; decoration coin shop, P3-4 / P3-5 decided 2026-10-11). End-to-end check through the Codespaces URL passed (24/24, 2026-10-11, `837bab9`). ALL STEPS DONE; closeout awaiting Game Director approval (`docs/reports/phase3/PHASE3_CLOSEOUT_REPORT.md`); Android check deferred. Phase 4 — Character: design approved 2026-10-12 (P4-1…P4-4); Step 4.1 done.
 
 ---
 
@@ -167,6 +167,21 @@ Tests after Step 3.1: shared 343, server 414, client 121 — 878 passing; `npm r
 
 ---
 
+## Phase 4 — Character (in progress)
+
+Design approved by the Game Director on 2026-10-12: P4-1 R-A (character drawn with Phaser shapes), P4-2 C-A (hair / shirt / pants × 4 items + 4 skin tones), P4-3 K-A (2 free items per slot, others bought with coins and level), P4-4 D-A (Character screen and small avatar on the farm; no walking). Values provisional. Plan: `docs/reports/phase4/PHASE4_CHARACTER_PLAN_REPORT.md`.
+
+| Step | Status | Report |
+|---|---|---|
+| 4.1 Shared character data (`shared/src/character.ts`: catalog, skin tones, default appearance, `checkAppearance`; error code `ALREADY_OWNED`) | Done | `docs/reports/phase4/PHASE4_STEP4_1_REPORT.md` |
+| 4.2 Server: rules, schema v4, `character` in `FarmState`, equip / buy-cosmetic API | Next | — |
+| 4.3 Client: character drawing, Character screen, farm avatar | Not started | — |
+| 4.4 E2E and closeout | Not started | — |
+
+Tests run in Step 4.1: `character.test.ts` + `errors.test.ts` (36 passing); `npm run typecheck` clean.
+
+---
+
 # NOT STARTED
 
 ## Development
@@ -180,6 +195,8 @@ Tests after Step 3.1: shared 343, server 414, client 121 — 878 passing; `npm r
 ---
 
 # CURRENT PHASE
+
+Phase 4 — Character: Step 4.1 done, Step 4.2 (server) next.
 
 Phase 3 — Building
 
@@ -210,7 +227,7 @@ Phase 0 — Foundation: COMPLETED.
 
 # NEXT OBJECTIVE
 
-Game Director: approve the Phase 3 and Phase 2 closeouts; decide on the uncommitted WebSocket-origin changes. Then: Phase 4 — Character design plan. Android check of Phases 2–3 when convenient.
+Game Director: approve the Phase 3 and Phase 2 closeouts; decide on the uncommitted WebSocket-origin changes. Phase 4: Step 4.2 — server character rules, schema v4 and API. Android check of Phases 2–3 when convenient.
 
 ---
 

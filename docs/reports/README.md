@@ -53,3 +53,10 @@ Steps 1–3 predate the report convention; see their commit messages (`5faeaff`,
 | `PHASE3_STEP3_4_REPORT.md` | Step 3.4: decoration coin shop (P3-4 / P3-5 decisions, buy API, Buy button) and browser check |
 | `PHASE3_STEP3_5_E2E_REPORT.md` | Step 3.5: end-to-end check through the Codespaces URL (buy, place, move, rotate, remove, reload) — 24/24 |
 | `PHASE3_CLOSEOUT_REPORT.md` | Phase 3 closeout: roadmap tasks, evidence, carried-forward items |
+
+## Phase 4 — Character (`phase4/`)
+
+| File | Content |
+|---|---|
+| `PHASE4_CHARACTER_PLAN_REPORT.md` | Phase 4 design (shape-drawn character, 12 cosmetics, coin shop, Character screen); P4-1…P4-4 approved 2026-10-12 |
+| `PHASE4_STEP4_1_REPORT.md` | Step 4.1: shared cosmetic catalog, skin tones, appearance checks, `ALREADY_OWNED` |
