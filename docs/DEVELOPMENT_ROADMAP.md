@@ -1,7 +1,7 @@
 # FARMVERSE DEVELOPMENT ROADMAP
 
 ## Version
-1.2
+1.3
 
 ---
 
@@ -50,7 +50,7 @@ Kết quả:
 
 Status:
 
-IN PROGRESS — Bước 1.1 (`7afe6d9`), 1.2 (`e02e344`), 1.3 (lưu trữ SQLite), phần thưởng coin/XP, 1.4–1.5 (guest session, farm HTTP API), 1.6–1.7 (client farm scene, `fc3ff87`), 1.8 (kiểm tra end-to-end) đã xong; chờ Game Director duyệt đóng Phase 1.
+COMPLETED (2026-10-10, đóng theo quyết định P2-1 khi Game Director duyệt kế hoạch Phase 2) — Bước 1.1 (`7afe6d9`), 1.2 (`e02e344`), 1.3 (lưu trữ SQLite), phần thưởng coin/XP, 1.4–1.5 (guest session, farm HTTP API), 1.6–1.7 (client farm scene, `fc3ff87`), 1.8 (kiểm tra end-to-end).
 
 Thiết kế: `docs/reports/phase1/PHASE1_FARMING_PLAN_REPORT.md` (mục 0).
 
@@ -81,6 +81,10 @@ Plant
 
 # PHASE 2 — PROGRESSION
 
+Status:
+
+ALL STEPS DONE — chờ Game Director duyệt đóng (`docs/reports/phase2/PHASE2_CLOSEOUT_REPORT.md`). Bước 2.1–2.6: `f639918`, `aaf92e6`, `9deea48`, `356d3c7`, `7a97540`, `5329631`, `c06d936` (đều có trên `origin/main`). Kiểm tra: headless Chromium 38/38, chơi thật qua URL Codespaces. Chưa xác minh: thiết bị Android.
+
 Tasks:
 
 - XP
@@ -92,6 +96,10 @@ Tasks:
 ---
 
 # PHASE 3 — BUILDING
+
+Status:
+
+ALL STEPS DONE — chờ Game Director duyệt đóng (`docs/reports/phase3/PHASE3_CLOSEOUT_REPORT.md`). Bước 3.1–3.5: `fbc1c46`, `86030dd`, `fa7d119`, `6bc909f`, `837bab9`, `0e393dd` (đều có trên `origin/main`). Kiểm tra: end-to-end qua URL Codespaces 24/24. "Buildings" được làm dưới dạng trang trí (Small House, không chức năng — quyết định C-A). Chưa xác minh: thiết bị Android.
 
 Tasks:
 
@@ -105,6 +113,10 @@ Tasks:
 ---
 
 # PHASE 4 — CHARACTER
+
+Status:
+
+CONDITIONALLY APPROVED (Game Director, 2026-10-12) — dựa trên end-to-end qua URL Codespaces 24/24 và các test đã chạy. Bước 4.1–4.4: `3648a98`, `cd9bed8`, `a5640bd`, `a6fc0e9` (đều có trên `origin/main`). Điều kiện còn mở (chưa xác minh): thiết bị Android/iOS; trình duyệt thật đã đăng nhập GitHub qua URL Codespaces (bài test dùng token + relay `/ws`); bản build production / `vite preview`; code đã commit chạy qua Codespaces khi không có 10 file WebSocket chưa commit. Xem `docs/reports/phase4/PHASE4_STATUS_REVIEW_REPORT.md`.
 
 Tasks:
 
@@ -246,13 +258,17 @@ Sau khi phase ổn định mới chuyển phase tiếp theo.
 
 # CURRENT PHASE
 
-Phase 1 — Farming
+Phase 4 — Character: CONDITIONALLY APPROVED (2026-10-12); điều kiện còn mở như trên.
 
-Status:
+Phase 3 — Building: ALL STEPS DONE, chờ duyệt đóng.
 
-IN PROGRESS (Bước 1.1–1.8 xong; chờ Game Director duyệt đóng Phase 1)
+Phase 2 — Progression: ALL STEPS DONE, chờ duyệt đóng.
+
+Phase 1 — Farming: COMPLETED (2026-10-10).
 
 Phase 0 — Foundation: COMPLETED (2026-10-10).
+
+Phase 5 — Multiplayer: CHƯA BẮT ĐẦU. Trước đó Game Director cần quyết định 10 file WebSocket/Codespaces chưa commit.
 
 ---
 

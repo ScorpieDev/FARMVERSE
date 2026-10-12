@@ -1,6 +1,6 @@
 # FARMVERSE CHANGELOG
 
-## Phase 4 — Character (all steps done, closeout awaiting approval)
+## Phase 4 — Character (conditionally approved 2026-10-12)
 
 Design approved by the Game Director on 2026-10-12 (P4-1…P4-4: R-A shape drawing, C-A catalog, K-A coin shop, D-A Character screen; `docs/reports/phase4/PHASE4_CHARACTER_PLAN_REPORT.md`).
 
@@ -14,7 +14,7 @@ Design approved by the Game Director on 2026-10-12 (P4-1…P4-4: R-A shape drawi
 
 - Local headless Chromium, isolated server and database: 13/13 (`docs/reports/phase4/PHASE4_STEP4_3_REPORT.md`).
 - Through the Codespaces URL against the dev server and database (schema v4), 2026-10-12: new guest farm, starter character, try on and wear a look, reload; real play to level 2 (112 coins); buy Spiky Blond and Green Shorts, wear them, reload keeps coins, items and look; landscape — 24/24, no defects (`docs/reports/phase4/PHASE4_STEP4_4_E2E_REPORT.md`). Not verified: Android / iOS device.
-- Closeout report: `docs/reports/phase4/PHASE4_CLOSEOUT_REPORT.md` (awaiting approval).
+- Closeout report: `docs/reports/phase4/PHASE4_CLOSEOUT_REPORT.md`. Conditionally approved by the Game Director (2026-10-12); open conditions and a review of Phases 2–3 and of the uncommitted WebSocket changes: `docs/reports/phase4/PHASE4_STATUS_REVIEW_REPORT.md`.
 
 ## Phase 3 — Building (all steps done, closeout awaiting approval)
 

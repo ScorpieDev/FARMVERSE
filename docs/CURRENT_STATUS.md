@@ -1,14 +1,14 @@
 # FARMVERSE CURRENT STATUS
 
 ## Version
-1.16
+1.17
 
 ## Last Updated
 2026-10-12
 
 ## Project Status
 
-Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: ALL STEPS DONE (2.1–2.6), closeout awaiting Game Director approval; Android check deferred. Phase 3 — Building: Steps 3.1–3.4 done (shared grid rules; server place / move / rotate / remove API, database schema v3; client Edit farm mode; decoration coin shop, P3-4 / P3-5 decided 2026-10-11). End-to-end check through the Codespaces URL passed (24/24, 2026-10-11, `837bab9`). ALL STEPS DONE; closeout awaiting Game Director approval (`docs/reports/phase3/PHASE3_CLOSEOUT_REPORT.md`); Android check deferred. Phase 4 — Character: design approved 2026-10-12 (P4-1…P4-4); ALL STEPS DONE (4.1–4.4): shared data; server rules, schema v4, equip / buy-cosmetic API; client Character screen and header avatar; end-to-end through the Codespaces URL 24/24 (2026-10-12). Closeout awaiting Game Director approval (`docs/reports/phase4/PHASE4_CLOSEOUT_REPORT.md`); Android check deferred.
+Phase 0 — Foundation: COMPLETED. Phase 1 — Farming: COMPLETED (closed 2026-10-10, decision P2-1). Phase 2 — Progression: ALL STEPS DONE (2.1–2.6), closeout awaiting Game Director approval; Android check deferred. Phase 3 — Building: Steps 3.1–3.4 done (shared grid rules; server place / move / rotate / remove API, database schema v3; client Edit farm mode; decoration coin shop, P3-4 / P3-5 decided 2026-10-11). End-to-end check through the Codespaces URL passed (24/24, 2026-10-11, `837bab9`). ALL STEPS DONE; closeout awaiting Game Director approval (`docs/reports/phase3/PHASE3_CLOSEOUT_REPORT.md`); Android check deferred. Phase 4 — Character: design approved 2026-10-12 (P4-1…P4-4); ALL STEPS DONE (4.1–4.4): shared data; server rules, schema v4, equip / buy-cosmetic API; client Character screen and header avatar; end-to-end through the Codespaces URL 24/24 (2026-10-12). CONDITIONALLY APPROVED by the Game Director (2026-10-12); open conditions: Android / iOS device, logged-in real browser on the Codespaces URL, production build in a browser, committed code through Codespaces without the 10 uncommitted WebSocket files (`docs/reports/phase4/PHASE4_STATUS_REVIEW_REPORT.md`). Phase 5 not started.
 
 ---
 
@@ -167,7 +167,7 @@ Tests after Step 3.1: shared 343, server 414, client 121 — 878 passing; `npm r
 
 ---
 
-## Phase 4 — Character (all steps done, closeout awaiting approval)
+## Phase 4 — Character (conditionally approved 2026-10-12)
 
 Design approved by the Game Director on 2026-10-12: P4-1 R-A (character drawn with Phaser shapes), P4-2 C-A (hair / shirt / pants × 4 items + 4 skin tones), P4-3 K-A (2 free items per slot, others bought with coins and level), P4-4 D-A (Character screen and small avatar on the farm; no walking). Values provisional. Plan: `docs/reports/phase4/PHASE4_CHARACTER_PLAN_REPORT.md`.
 
@@ -177,7 +177,9 @@ Design approved by the Game Director on 2026-10-12: P4-1 R-A (character drawn wi
 | 4.2 Server: rules (`server/src/character/rules.ts`), schema v4 (`character_appearance`, `cosmetic_inventory`), `character` in `FarmState`, `POST /api/character/equip`, `POST /api/shop/buy-cosmetic` | Done | `docs/reports/phase4/PHASE4_STEP4_2_REPORT.md` |
 | 4.3 Client: character drawn with Phaser shapes, Character screen (Hair / Shirt / Pants / Skin, Buy / Wear / Done), header avatar opens it | Done | `docs/reports/phase4/PHASE4_STEP4_3_REPORT.md` |
 | 4.4 End-to-end through the Codespaces URL (dev server and database, schema v4; one new guest farm, real play to level 2): create look, wear, reload, buy, wear bought items, reload, landscape | Done — 24/24, no defects, no code change | `docs/reports/phase4/PHASE4_STEP4_4_E2E_REPORT.md` |
-| Closeout | Awaiting Game Director approval | `docs/reports/phase4/PHASE4_CLOSEOUT_REPORT.md` |
+| Closeout | Conditionally approved by the Game Director (2026-10-12); conditions listed in the status review | `docs/reports/phase4/PHASE4_CLOSEOUT_REPORT.md`, `docs/reports/phase4/PHASE4_STATUS_REVIEW_REPORT.md` |
+
+Status review (2026-10-12): every commit cited in the Phase 2–4 reports is on `origin/main`. Full `npm test` on the working tree: shared 413, server 568, client 231 — 1212 passing; typecheck clean; client build OK. Committed code alone (`origin/main` `e732b14`, temporary git worktree): typecheck clean; shared 413, server 562, client 231 passing.
 
 Tests run in Step 4.4: shared character + api 209; server character + storage 86; client 231; `npm run typecheck` clean; client build OK.
 
@@ -203,7 +205,7 @@ Tests run in Step 4.1: `character.test.ts` + `errors.test.ts` (36 passing); `npm
 
 # CURRENT PHASE
 
-Phase 4 — Character: ALL STEPS DONE — closeout report awaiting Game Director approval (`docs/reports/phase4/PHASE4_CLOSEOUT_REPORT.md`); Android device check deferred. Players have a character (skin tone, hair, shirt, pants) drawn in the farm header; the Character screen tries on, buys (coins, level) and wears cosmetics; everything is saved on the server (schema v4).
+Phase 4 — Character: CONDITIONALLY APPROVED (2026-10-12) — see `docs/reports/phase4/PHASE4_STATUS_REVIEW_REPORT.md` §2 for the open conditions. Players have a character (skin tone, hair, shirt, pants) drawn in the farm header; the Character screen tries on, buys (coins, level) and wears cosmetics; everything is saved on the server (schema v4).
 
 Phase 3 — Building
 
@@ -225,7 +227,7 @@ Phase 0 — Foundation: COMPLETED.
 - Android device testing — deferred by the Game Director.
 - The dev database `server/data/farmverse.db` is at schema v4 (the running dev server applied the additive v3 and v4 migrations; v4 verified 2026-10-12).
 - A farming request logged before the schema v3 server upgrade and retried after it replays the old response without `decorations` / `objects`; the client reports an invalid response and the next farm load is correct (`PHASE3_STEP3_2_REPORT.md` §2).
-- Uncommitted Codespaces WebSocket-origin changes (10 files, `server/src/config.ts` etc.; see `docs/reports/phase1/PHASE1_CODESPACES_WS_ORIGIN_FIX_REPORT.md`) are still in the working tree, reviewed but not committed; Game Director 2026-10-12: do not commit yet.
+- Uncommitted Codespaces WebSocket-origin changes (10 files, `server/src/config.ts` etc., plus the untracked `docs/reports/phase1/PHASE1_CODESPACES_WS_ORIGIN_FIX_REPORT.md`) are still in the working tree, not committed. Reviewed again 2026-10-12 (`docs/reports/phase4/PHASE4_STATUS_REVIEW_REPORT.md` §3: low risk, options A / B / C); awaiting a Game Director decision before Phase 5.
 - Real Chrome page zoom was emulated (CSS viewport + devicePixelRatio) in headless Chromium, not tested with the zoom menu in a real browser window.
 - On Codespaces the server runs with `CLIENT_ORIGIN=https://localhost:5173` (observed Origin through port forwarding; not verified for every Codespaces configuration).
 - Security work scheduled before multiplayer or public deployment: authentication, connection and rate limits, server-side WebSocket heartbeat, request IDs and action log (see `docs/reports/phase0/PHASE0_CLOSEOUT_AUDIT.md` §6).
@@ -234,7 +236,7 @@ Phase 0 — Foundation: COMPLETED.
 
 # NEXT OBJECTIVE
 
-Game Director: approve the Phase 4, Phase 3 and Phase 2 closeouts; decide on the uncommitted WebSocket-origin changes (before Phase 5). Then: Phase 5 — Multiplayer design plan. Android check of Phases 2–4 when convenient.
+Game Director: approve (or not) the Phase 2 and Phase 3 closeouts; decide on the uncommitted WebSocket-origin changes (options A / B / C in `docs/reports/phase4/PHASE4_STATUS_REVIEW_REPORT.md` §3). Phase 5 — Multiplayer is not started and waits for these decisions. Android check of Phases 2–4 when convenient.
 
 ---
 
