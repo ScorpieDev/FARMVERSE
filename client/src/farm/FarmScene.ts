@@ -9,6 +9,11 @@
  * Done. Each change is sent to the server, which decides it (price, level,
  * coins, placement); the grid is redrawn from the server's answer.
  *
+ * Character (Phase 4): the player's character is drawn small in the header;
+ * tapping it opens the Character screen with a large preview, Hair / Shirt /
+ * Pants / Skin tabs, Buy / Wear / Done. Items are tried on locally; Buy and
+ * Wear go to the server and the preview follows the server's answer.
+ *
  * The scene only shows server state and sends intentions (plant / harvest /
  * refill with a request ID). It never decides outcomes: after any rejected
  * action it reloads the farm from the server. Actions are locked while
@@ -17,7 +22,8 @@
  * shown from the server state; the server enforces them again on every action.
  */
 import { GameObjects, Input, Scale, Scene, type Time } from "phaser";
-import type { BuyDecorationResponse, FarmState, ObjectActionResponse } from "@farmverse/shared/api";
+import type { BuyCosmeticResponse, BuyDecorationResponse, FarmState, ObjectActionResponse } from "@farmverse/shared/api";
+import { isSkinTone, type CharacterAppearance } from "@farmverse/shared/character";
 import { FARM_GRID_HEIGHT, FARM_GRID_WIDTH, footprint, plotTile, type DecorationId } from "@farmverse/shared/building";
 import type { ErrorCode } from "@farmverse/shared/errors";
 import { CROP_IDS, FARM_PLOT_COUNT, getCrop, getItem, type CropId } from "@farmverse/shared/farming";
@@ -75,6 +81,29 @@ import {
   type EditIntent,
   type EditSelection,
 } from "./buildView.js";
+import { characterShapes, fitCharacter } from "../character/characterDrawing.js";
+import {
+  CHARACTER_TABS,
+  WEAR_SUCCESS_TEXT,
+  buyCosmeticText,
+  canBuy,
+  canWear,
+  characterErrorText,
+  draftOption,
+  draftText,
+  isCosmeticLocked,
+  optionLabel,
+  startDraft,
+  tabName,
+  tabOptions,
+  tapBuy as tapBuyCosmetic,
+  tapOption,
+  tapTab,
+  tapWear,
+  type CharacterDraft,
+  type CharacterIntent,
+  type CharacterTab,
+} from "../character/characterView.js";
 import type { DisplaySize } from "../core/display.js";
 import { computeFarmLayout, designToScreen, textResolution, type FarmLayout, type Rect } from "./farmLayout.js";
 
@@ -105,6 +134,8 @@ const COLORS = {
   object: 0x92400e,
   building: 0x7f1d1d,
   objectSelected: 0xfde047,
+  characterBackground: 0x14532d,
+  preview: 0x3f6212,
 };
 const TONE_COLORS: Record<StatusTone, string> = { ok: "#bbf7d0", pending: "#fde68a", error: "#fecaca" };
 
@@ -124,7 +155,7 @@ interface ObjectWidget {
   label: GameObjects.Text;
 }
 
-type Mode = "farm" | "edit";
+type Mode = "farm" | "edit" | "character";
 
 function safeLocalStorage(): TokenStorage {
   try {
@@ -182,6 +213,22 @@ export class FarmScene extends Scene {
   /** Objects and grid geometry the object widgets were last built for. */
   private objectWidgetsKey = "";
 
+  // Character (Phase 4)
+  private avatarBox!: GameObjects.Rectangle;
+  private avatarGraphics!: GameObjects.Graphics;
+  private characterBackground!: GameObjects.Rectangle;
+  private previewBox!: GameObjects.Rectangle;
+  private previewGraphics!: GameObjects.Graphics;
+  private tabButtons = new Map<CharacterTab, Button>();
+  private optionButtons: Button[] = [];
+  private characterBuyButton!: Button;
+  private wearButton!: Button;
+  private characterDoneButton!: Button;
+  private draft: CharacterDraft | null = null;
+  private characterMessage = "";
+  /** What each character drawing was last drawn for. */
+  private drawnKeys = new Map<GameObjects.Graphics, string>();
+
   constructor() {
     super("FarmScene");
   }
@@ -210,7 +257,13 @@ export class FarmScene extends Scene {
     }
     this.refillButton = this.addButton("", () => void this.onRefillTap());
     this.editButton = this.addButton("Edit farm", () => this.setMode("edit"));
+    // The header avatar is the Character button; created before the edit and
+    // character screens so their backgrounds cover it.
+    this.avatarBox = this.add.rectangle(0, 0, 10, 10, COLORS.button).setStrokeStyle(2, COLORS.border, 0.5);
+    this.avatarBox.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.setMode("character"));
+    this.avatarGraphics = this.add.graphics();
     this.createEditWidgets();
+    this.createCharacterWidgets();
 
     const shade = this.add.rectangle(0, 0, 10, 10, COLORS.overlay, 0.94).setInteractive();
     const text = this.addText("Your farm could not be found on this device.", { align: "center" }).setOrigin(0.5);
@@ -260,6 +313,7 @@ export class FarmScene extends Scene {
 
   private applyState(state: FarmState): void {
     this.state = state;
+    if (this.mode === "character" && this.draft === null) this.draft = startDraft(state);
     this.clock = clockFromState(state, Date.now());
     this.selection = reconcileSelection(state, this.selection);
     this.render();
@@ -416,6 +470,9 @@ export class FarmScene extends Scene {
     if (this.mode === "edit") {
       this.editMessage = text;
       this.render();
+    } else if (this.mode === "character") {
+      this.characterMessage = text;
+      this.render();
     } else {
       this.message.setText(text);
     }
@@ -426,7 +483,17 @@ export class FarmScene extends Scene {
     const now = serverNow(this.clock, Date.now());
     const locked = !this.connected || this.busy || this.newRequestId === null;
     this.renderEdit(state, now, locked);
-    if (this.mode === "edit") return;
+    this.renderCharacter(state, locked);
+    if (this.mode !== "farm") return;
+
+    this.avatarBox.setFillStyle(state === null ? COLORS.buttonDisabled : COLORS.button);
+    if (state === null) {
+      this.avatarGraphics.clear();
+      this.drawnKeys.delete(this.avatarGraphics);
+    } else if (this.currentLayout !== null) {
+      const { avatar } = this.currentLayout;
+      this.drawCharacter(this.avatarGraphics, state.character.appearance, { x: avatar.x + 2, y: avatar.y + 2, width: avatar.width - 4, height: avatar.height - 4 });
+    }
 
     this.stats.setText(state === null ? "" : `Coins ${state.coins} · ${levelLine(state.progression)}`);
     this.xpTrack.setVisible(state !== null);
@@ -549,7 +616,9 @@ export class FarmScene extends Scene {
     });
     this.placeButton(this.refillButton, layout.refillButton, fontSize.text);
     this.placeButton(this.editButton, layout.editButton, fontSize.text);
+    this.placeRect(this.avatarBox, layout.avatar);
     this.layoutEdit(layout);
+    this.layoutCharacter(layout);
 
     this.produce.setFontSize(fontSize.text).setWordWrapWidth(layout.wrapWidth).setPosition(layout.produce.x, layout.produce.y);
     this.message.setFontSize(fontSize.text).setWordWrapWidth(layout.wrapWidth).setPosition(layout.message.x, layout.message.y);
@@ -594,13 +663,16 @@ export class FarmScene extends Scene {
   }
 
   private setMode(mode: Mode): void {
-    if (mode === "edit" && (this.state === null || this.sessionInvalid)) return;
+    if (mode !== "farm" && (this.state === null || this.sessionInvalid)) return;
     if (mode === this.mode) return;
-    if (mode === "edit") this.farmMessage = this.message.text;
-    else this.message.setText(this.farmMessage);
+    if (this.mode === "farm") this.farmMessage = this.message.text;
+    if (mode === "farm") this.message.setText(this.farmMessage);
     this.mode = mode;
     this.selection = NO_SELECTION;
     this.editMessage = "";
+    this.characterMessage = "";
+    // A look tried on but not worn is dropped when the screen closes.
+    this.draft = mode === "character" && this.state !== null ? startDraft(this.state) : null;
     if (this.currentLayout !== null) this.positionStatus(this.currentLayout);
     this.render();
   }
@@ -781,14 +853,147 @@ export class FarmScene extends Scene {
     this.positionStatus(layout);
   }
 
-  /** The status line and the message move into the edit panel in edit mode. */
+  /** The status line and the message move into the edit or character panel in those modes. */
   private positionStatus(layout: FarmLayout): void {
-    if (this.mode === "edit") {
+    if (this.mode === "character") {
+      const { character } = layout;
+      this.status.setPosition(character.status.x, character.status.y);
+      this.message.setWordWrapWidth(character.wrapWidth).setPosition(character.message.x, character.message.y);
+    } else if (this.mode === "edit") {
       this.status.setPosition(layout.edit.status.x, layout.edit.status.y);
       this.message.setWordWrapWidth(layout.edit.wrapWidth).setPosition(layout.edit.message.x, layout.edit.message.y);
     } else {
       this.status.setPosition(layout.status.x, layout.status.y);
       this.message.setWordWrapWidth(layout.wrapWidth).setPosition(layout.message.x, layout.message.y);
+    }
+  }
+
+  // ---------- character (Phase 4) ----------
+
+  private createCharacterWidgets(): void {
+    // Covers the farm and edit widgets; the status line, message and overlay are drawn above.
+    this.characterBackground = this.add.rectangle(0, 0, 10, 10, COLORS.characterBackground).setInteractive();
+    this.previewBox = this.add.rectangle(0, 0, 10, 10, COLORS.preview).setStrokeStyle(2, COLORS.border, 0.4);
+    this.previewGraphics = this.add.graphics();
+    for (const tab of CHARACTER_TABS) {
+      this.tabButtons.set(tab, this.addButton(tabName(tab), () => void this.runCharacterIntent(this.draft && tapTab(this.draft, tab))));
+    }
+    for (let index = 0; index < 4; index++) {
+      this.optionButtons.push(this.addButton("", () => this.onOptionTap(index)));
+    }
+    this.characterBuyButton = this.addButton("Buy", () =>
+      void this.runCharacterIntent(this.state && this.draft && tapBuyCosmetic(this.state, this.draft)),
+    );
+    this.wearButton = this.addButton("Wear", () => void this.runCharacterIntent(this.state && this.draft && tapWear(this.state, this.draft)));
+    this.characterDoneButton = this.addButton("Done", () => this.setMode("farm"));
+  }
+
+  private onOptionTap(index: number): void {
+    if (this.state === null || this.draft === null) return;
+    const option = tabOptions(this.draft.tab)[index];
+    if (option !== undefined) void this.runCharacterIntent(tapOption(this.state, this.draft, option));
+  }
+
+  /** Applies a local draft change or sends a purchase / equip to the server. */
+  private async runCharacterIntent(intent: CharacterIntent | null): Promise<void> {
+    if (intent === null || this.mode !== "character") return;
+    if (intent.kind === "select") {
+      this.draft = intent.draft;
+      this.characterMessage = "";
+      this.render();
+      return;
+    }
+    if (intent.kind === "message") {
+      this.showMessage(intent.text);
+      return;
+    }
+    const requestId = this.actionRequestId();
+    if (requestId === null) return;
+    const describeError = (code: ErrorCode) => characterErrorText(code) ?? errorText(code);
+    if (intent.kind === "buy") {
+      await this.send(
+        this.api.buyCosmetic({ requestId, cosmeticId: intent.cosmeticId }),
+        (state: BuyCosmeticResponse) => buyCosmeticText(state.bought),
+        describeError,
+      );
+    } else {
+      await this.send(this.api.equipCharacter({ requestId, appearance: intent.appearance }), () => WEAR_SUCCESS_TEXT, describeError);
+    }
+  }
+
+  private characterWidgets(): GameObjects.GameObject[] {
+    const buttons = [...this.tabButtons.values(), ...this.optionButtons, this.characterBuyButton, this.wearButton, this.characterDoneButton];
+    return [this.characterBackground, this.previewBox, this.previewGraphics, ...buttons.flatMap((button) => [button.box, button.label])];
+  }
+
+  /** Shows the Character screen in character mode and draws the draft look. */
+  private renderCharacter(state: FarmState | null, locked: boolean): void {
+    const open = this.mode === "character";
+    for (const object of this.characterWidgets()) (object as GameObjects.Rectangle).setVisible(open);
+    const draft = this.draft;
+    if (!open || state === null || draft === null || this.currentLayout === null) return;
+
+    this.drawCharacter(this.previewGraphics, draft.appearance, this.currentLayout.character.preview);
+    for (const [tab, button] of this.tabButtons) {
+      button.box.setFillStyle(tab === draft.tab ? COLORS.buttonSelected : COLORS.button);
+    }
+    const options = tabOptions(draft.tab);
+    const chosen = draftOption(draft);
+    this.optionButtons.forEach((button, index) => {
+      const option = options[index];
+      const shown = option !== undefined;
+      button.box.setVisible(shown);
+      button.label.setVisible(shown);
+      if (!shown) return;
+      button.label.setText(optionLabel(state, option));
+      const color =
+        option === chosen
+          ? COLORS.buttonSelected
+          : !isSkinTone(option) && isCosmeticLocked(state, option)
+            ? COLORS.buttonDisabled
+            : COLORS.button;
+      button.box.setFillStyle(color);
+    });
+    this.characterBuyButton.box.setFillStyle(!locked && canBuy(state, draft) ? COLORS.buttonSelected : COLORS.buttonDisabled);
+    this.wearButton.box.setFillStyle(!locked && canWear(state, draft) ? COLORS.buttonSelected : COLORS.buttonDisabled);
+    const hint = draftText(state, draft);
+    this.message.setVisible(true).setText(this.characterMessage === "" ? hint : `${this.characterMessage}\n${hint}`);
+  }
+
+  private layoutCharacter(layout: FarmLayout): void {
+    const { character } = layout;
+    this.placeRect(this.characterBackground, layout.view);
+    this.placeRect(this.previewBox, character.preview);
+    CHARACTER_TABS.forEach((tab, index) => {
+      const button = this.tabButtons.get(tab);
+      if (button !== undefined) this.placeButton(button, character.tabButtons[index]!, character.fontSize.action);
+    });
+    this.optionButtons.forEach((button, index) => this.placeButton(button, character.optionButtons[index]!, character.fontSize.option));
+    this.placeButton(this.characterBuyButton, character.buyButton, character.fontSize.action);
+    this.placeButton(this.wearButton, character.wearButton, character.fontSize.action);
+    this.placeButton(this.characterDoneButton, character.doneButton, character.fontSize.action);
+    // Drawings depend on the layout: redraw on the next render.
+    this.drawnKeys.clear();
+    this.positionStatus(layout);
+  }
+
+  /** Draws a character (characterDrawing.ts) into `rect`; skipped when nothing changed. */
+  private drawCharacter(graphics: GameObjects.Graphics, appearance: CharacterAppearance, rect: Rect): void {
+    const key = JSON.stringify([appearance, rect]);
+    if (this.drawnKeys.get(graphics) === key) return;
+    this.drawnKeys.set(graphics, key);
+    const { scale, x, y } = fitCharacter(rect);
+    graphics.clear();
+    for (const shape of characterShapes(appearance)) {
+      graphics.fillStyle(shape.color, 1);
+      if (shape.kind === "rect") {
+        graphics.fillRect(x + shape.x * scale, y + shape.y * scale, shape.width * scale, shape.height * scale);
+      } else if (shape.kind === "circle") {
+        graphics.fillCircle(x + shape.x * scale, y + shape.y * scale, shape.radius * scale);
+      } else {
+        const [x1, y1, x2, y2, x3, y3] = shape.points;
+        graphics.fillTriangle(x + x1 * scale, y + y1 * scale, x + x2 * scale, y + y2 * scale, x + x3 * scale, y + y3 * scale);
+      }
     }
   }
 
@@ -867,6 +1072,15 @@ export class FarmScene extends Scene {
       removeButton: () => center(this.removeButton.box),
       buyButton: () => center(this.buyButton.box),
       doneButton: () => center(this.doneButton.box),
+      // Character (Phase 4)
+      draft: () => this.draft,
+      characterMessage: () => this.characterMessage,
+      avatar: () => center(this.avatarBox),
+      tabButton: (tab: CharacterTab) => center(this.tabButtons.get(tab)!.box),
+      optionButton: (index: number) => center(this.optionButtons[index]!.box),
+      characterBuyButton: () => center(this.characterBuyButton.box),
+      wearButton: () => center(this.wearButton.box),
+      characterDoneButton: () => center(this.characterDoneButton.box),
     };
   }
 

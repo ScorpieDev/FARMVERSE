@@ -11,6 +11,7 @@
  *   computes gameplay results itself.
  */
 import {
+  CHARACTER_EQUIP_PATH,
   FARM_HARVEST_PATH,
   FARM_PATH,
   FARM_PLANT_PATH,
@@ -21,15 +22,20 @@ import {
   OBJECT_ROTATE_PATH,
   QUEST_CLAIM_PATH,
   SESSION_PATH,
+  SHOP_BUY_COSMETIC_PATH,
   SHOP_BUY_PATH,
+  isBuyCosmeticResponse,
   isBuyDecorationResponse,
   isFarmState,
   isHarvestResponse,
   isObjectActionResponse,
   isQuestClaimResponse,
   isSessionResponse,
+  type BuyCosmeticRequest,
+  type BuyCosmeticResponse,
   type BuyDecorationRequest,
   type BuyDecorationResponse,
+  type EquipCharacterRequest,
   type FarmState,
   type HarvestRequest,
   type HarvestResponse,
@@ -167,6 +173,16 @@ export class FarmApi {
   /** Buys one decoration; the server decides the price and checks level and coins. */
   buyDecoration(body: BuyDecorationRequest): Promise<ActionResult<BuyDecorationResponse>> {
     return this.action(SHOP_BUY_PATH, body, isBuyDecorationResponse);
+  }
+
+  /** Saves the whole appearance; the server checks that every item is owned (Phase 4). */
+  equipCharacter(body: EquipCharacterRequest): Promise<ActionResult<FarmState>> {
+    return this.action(CHARACTER_EQUIP_PATH, body, isFarmState);
+  }
+
+  /** Buys one cosmetic; the server decides the price and checks ownership, level and coins (Phase 4). */
+  buyCosmetic(body: BuyCosmeticRequest): Promise<ActionResult<BuyCosmeticResponse>> {
+    return this.action(SHOP_BUY_COSMETIC_PATH, body, isBuyCosmeticResponse);
   }
 
   private token(): string | null {

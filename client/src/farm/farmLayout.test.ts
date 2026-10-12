@@ -304,3 +304,48 @@ describe("edit mode layout (Phase 3)", () => {
     expect(layout.edit.tileSize * layout.zoom).toBeGreaterThanOrEqual(38);
   });
 });
+
+describe("header avatar (Phase 4)", () => {
+  it.each(VIEWPORTS)("sits left of the header without covering it at %i×%i", (width, height) => {
+    const layout = computeFarmLayout(width, height);
+    expect(inside(layout.avatar, layout.view)).toBe(true);
+    expect(overlaps(layout.avatar, layout.xpBar)).toBe(false);
+    for (const rect of [...layout.plots, layout.claimButton, layout.questText, ...layout.seedButtons]) {
+      expect(overlaps(layout.avatar, rect)).toBe(false);
+    }
+    expect(layout.avatar.x + layout.avatar.width).toBeLessThan(layout.xpBar.x);
+    expect(layout.avatar.width * layout.zoom).toBeGreaterThanOrEqual(44);
+    expect(layout.avatar.height * layout.zoom).toBeGreaterThanOrEqual(44);
+  });
+});
+
+describe("character screen layout (Phase 4)", () => {
+  it.each(VIEWPORTS)("keeps the preview and every control visible and apart at %i×%i", (width, height) => {
+    const layout = computeFarmLayout(width, height);
+    const { character } = layout;
+    const controls = [...character.tabButtons, ...character.optionButtons, character.buyButton, character.wearButton, character.doneButton];
+    expect(character.tabButtons).toHaveLength(4);
+    expect(character.optionButtons).toHaveLength(4);
+    for (const rect of [character.preview, ...controls]) expect(inside(rect, layout.view)).toBe(true);
+    controls.forEach((rect, index) => {
+      expect(overlaps(rect, character.preview)).toBe(false);
+      for (const other of controls.slice(index + 1)) expect(overlaps(rect, other)).toBe(false);
+      expect(rect.height * layout.zoom).toBeGreaterThanOrEqual(44);
+      expect(rect.width * layout.zoom).toBeGreaterThanOrEqual(44);
+    });
+    expect(character.message.y).toBeGreaterThanOrEqual(character.doneButton.y + character.doneButton.height);
+    expect(character.message.y).toBeLessThan(layout.view.y + layout.view.height);
+    // Readable labels: "Green Shorts" (about 8 font units in bold) fits on an option button.
+    expect(character.fontSize.option).toBeGreaterThanOrEqual(13);
+    expect(character.fontSize.option * 8).toBeLessThanOrEqual(character.optionButtons[0]!.width - 8);
+    // The preview is large: at least 120 design units tall.
+    expect(character.preview.height).toBeGreaterThanOrEqual(120);
+  });
+
+  it("puts the controls below the preview in portrait and beside it in landscape", () => {
+    const portrait = computeFarmLayout(390, 844).character;
+    expect(portrait.tabButtons[0]!.y).toBeGreaterThan(portrait.preview.y + portrait.preview.height);
+    const landscape = computeFarmLayout(844, 390).character;
+    expect(landscape.tabButtons[0]!.x).toBeGreaterThan(landscape.preview.x + landscape.preview.width);
+  });
+});

@@ -315,3 +315,36 @@ describe("buyDecoration (Step 3.4)", () => {
     });
   });
 });
+
+describe("character (Phase 4)", () => {
+  it("equipCharacter posts the appearance and returns the server's state", async () => {
+    const appearance = { ...DEFAULT_APPEARANCE, skin: "dark" as const };
+    const response = { ...FARM, character: { ...FARM.character, appearance } };
+    const { fetch, calls } = fakeFetch(json(200, response));
+    const body = { requestId: REQUEST_ID, appearance };
+    expect(await api(fetch).client.equipCharacter(body)).toEqual({ ok: true, state: response });
+    expect(calls[0]).toMatchObject({ url: "/api/character/equip", method: "POST", body });
+  });
+
+  it("buyCosmetic posts only the cosmetic and returns what was bought", async () => {
+    const response = {
+      ...FARM,
+      coins: 5,
+      character: { ...FARM.character, owned: [...STARTER_COSMETIC_IDS, "hair_spiky_blond"] },
+      bought: { cosmeticId: "hair_spiky_blond", price: 40 },
+    };
+    const { fetch, calls } = fakeFetch(json(200, response));
+    const body = { requestId: REQUEST_ID, cosmeticId: "hair_spiky_blond" as const };
+    expect(await api(fetch).client.buyCosmetic(body)).toEqual({ ok: true, state: response });
+    expect(calls[0]).toMatchObject({ url: "/api/shop/buy-cosmetic", method: "POST", body });
+  });
+
+  it("returns ALREADY_OWNED from the server", async () => {
+    const { fetch } = fakeFetch(json(409, { code: "ALREADY_OWNED", message: "You already own this" }));
+    expect(await api(fetch).client.buyCosmetic({ requestId: REQUEST_ID, cosmeticId: "pants_work" })).toEqual({
+      ok: false,
+      code: "ALREADY_OWNED",
+      message: "You already own this",
+    });
+  });
+});

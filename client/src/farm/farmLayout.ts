@@ -67,6 +67,29 @@ export interface FarmLayout {
   editButton: Rect;
   /** Edit mode: the farm grid fills the screen, controls beside or below it. */
   edit: EditLayout;
+  /** Small character in the header (Phase 4); tapping it opens the Character screen. */
+  avatar: Rect;
+  /** Character screen (Phase 4): large preview, tabs, items and actions. */
+  character: CharacterLayout;
+}
+
+/** Character screen layout (Phase 4, decision D-A). */
+export interface CharacterLayout {
+  /** Box the character preview is drawn in (centred, aspect kept). */
+  preview: Rect;
+  /** Connection status line. */
+  status: TextSpot;
+  /** Hair / Shirt / Pants / Skin. */
+  tabButtons: Rect[];
+  /** One button per option of the current tab (4 in every tab). */
+  optionButtons: Rect[];
+  buyButton: Rect;
+  wearButton: Rect;
+  doneButton: Rect;
+  /** Selection and result text, wrapped to `wrapWidth`. */
+  message: TextSpot;
+  wrapWidth: number;
+  fontSize: { option: number; action: number };
 }
 
 /** Edit mode layout (Phase 3): FARM_GRID_WIDTH × FARM_GRID_HEIGHT square tiles. */
@@ -116,6 +139,13 @@ const DECORATION_BUTTONS = 7;
 /** Space around the grid in edit mode: small, so tiles stay ≥ 44 units on the minimum frame. */
 const EDIT_MARGIN = 4;
 const SEED_BUTTONS_PER_ROW = 3;
+/** Character screen: tabs (hair, shirt, pants, skin) and options per tab (shared character.ts). */
+const CHARACTER_TABS = 4;
+const CHARACTER_OPTIONS = 4;
+/** Options in a 2×2 block, so two-word names ("Green Shorts") fit on one line. */
+const CHARACTER_OPTIONS_PER_ROW = 2;
+/** Header avatar width; tall enough to fill the header beside the title. */
+const AVATAR_WIDTH = 44;
 const XP_BAR_HEIGHT = 6;
 const MAX_XP_BAR_WIDTH = 240;
 
@@ -283,6 +313,58 @@ function layoutEdit(design: Size, orientation: Orientation, m: Metrics): EditLay
 }
 
 /**
+ * Character screen: the preview as large as fits (portrait: top; landscape:
+ * left), then the status line, a row of tabs, the options in two rows of two,
+ * Buy / Wear / Done and the message.
+ */
+function layoutCharacter(design: Size, orientation: Orientation, m: Metrics): CharacterLayout {
+  const gap = Math.min(m.gap, 8);
+  const optionRows = CHARACTER_OPTIONS / CHARACTER_OPTIONS_PER_ROW;
+  const panelHeight = m.lineHeight + gap + (2 + optionRows) * (m.buttonHeight + gap) + 2 * m.lineHeight;
+
+  let preview: Rect;
+  let panel: Rect;
+  if (orientation === "portrait") {
+    preview = {
+      x: m.margin,
+      y: EDIT_MARGIN,
+      width: design.width - 2 * m.margin,
+      height: design.height - 2 * EDIT_MARGIN - gap - panelHeight,
+    };
+    panel = { x: m.margin, y: preview.y + preview.height + gap, width: design.width - 2 * m.margin, height: panelHeight };
+  } else {
+    const width = Math.min(design.height - 2 * EDIT_MARGIN, design.width * 0.4);
+    preview = { x: EDIT_MARGIN, y: EDIT_MARGIN, width, height: design.height - 2 * EDIT_MARGIN };
+    const left = preview.x + width + gap;
+    panel = { x: left, y: EDIT_MARGIN, width: design.width - left - m.margin, height: panelHeight };
+  }
+
+  const status = { x: panel.x + panel.width / 2, y: panel.y };
+  const row = (index: number, count: number, perRow = count) =>
+    buttonRows(count, perRow, { x: panel.x, y: panel.y + m.lineHeight + gap + index * (m.buttonHeight + gap), width: panel.width, height: 0 }, gap, m.buttonHeight);
+  const tabButtons = row(0, CHARACTER_TABS);
+  const optionButtons = row(1, CHARACTER_OPTIONS, CHARACTER_OPTIONS_PER_ROW);
+  const [buyButton, wearButton, doneButton] = row(1 + optionRows, 3) as [Rect, Rect, Rect];
+  const optionWidth = optionButtons[0]!.width;
+  return {
+    preview,
+    status,
+    tabButtons,
+    optionButtons,
+    buyButton,
+    wearButton,
+    doneButton,
+    message: { x: status.x, y: doneButton.y + m.buttonHeight + gap },
+    wrapWidth: panel.width,
+    fontSize: {
+      // "Green Shorts" (about 8 font units wide in bold) must fit on one line of an option button.
+      option: Math.min(m.textSize - 1, Math.floor((optionWidth - 8) / 8)),
+      action: m.textSize - 1,
+    },
+  };
+}
+
+/**
  * Lays out the farm for a canvas of `width`×`height` CSS pixels.
  *
  * Portrait: header, plots, then the controls in one column. Landscape: header
@@ -367,6 +449,9 @@ export function computeFarmLayout(width: number, height: number): FarmLayout {
     overlayText,
     overlayButton,
     edit: layoutEdit(design, orientation, m),
+    // Left of the header, beside the centred title / stats / XP bar.
+    avatar: { x: m.margin, y: m.margin, width: AVATAR_WIDTH, height: headerBottom - m.gap - m.margin },
+    character: layoutCharacter(design, orientation, m),
   };
 }
 
