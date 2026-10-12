@@ -149,13 +149,14 @@ The server owns all game state; the client only sends intentions. Every farm req
   `https://localhost:5173`), that the client is opened from this workspace's
   forwarded port 5173, and restart the server after changing `.env`.
 - **Vite shows `Blocked request. This host (…) is not allowed`** — the host is not
-  the exact forwarded hostname for this Codespace's port 5173.
+  the exact forwarded hostname for this Codespace's port 5173 (`npm run dev:client`)
+  or 4173 (`npm run preview -w client`). Other hosts are rejected on purpose.
 - **The first load in dev mode is slow** — the dev server serves Phaser
   unminified (about 20 MB). For a faster load, run
   `npm run build && npm run preview -w client`. The preview server uses the
   same `/api` and `/ws` proxy but runs on port **4173**, so the page origin
   changes: open port 4173 and set `CLIENT_ORIGIN` to the origin the server
-  logs.
+  logs (in Codespaces expect `https://localhost:4173`, as for port 5173; check the log).
 
 ## Project documents
 
