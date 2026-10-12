@@ -72,3 +72,10 @@ Steps 1–3 predate the report convention; see their commit messages (`5faeaff`,
 | File | Content |
 |---|---|
 | `PROJECT_STATUS_SUMMARY.md` | Status of every phase, open issues and the conditions to start Phase 5 |
+
+## Phase 5 — Multiplayer (`phase5/`)
+
+| File | Content |
+|---|---|
+| `PHASE5_MULTIPLAYER_PLAN_REPORT.md` | Phase 5 design (farm rooms, online list + farm code, tap-to-move, generated names, protocol 2, security); P5-1…P5-4 approved 2026-10-12 |
+| `PHASE5_STEP5_1_REPORT.md` | Step 5.1: protocol 2, WebSocket authentication, schema v5 profiles; Codespaces check 9/9 |

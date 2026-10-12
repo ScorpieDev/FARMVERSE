@@ -1,7 +1,7 @@
 # FARMVERSE DEVELOPMENT ROADMAP
 
 ## Version
-1.3
+1.4
 
 ---
 
@@ -130,6 +130,10 @@ Tasks:
 ---
 
 # PHASE 5 — MULTIPLAYER
+
+Status:
+
+IN PROGRESS — thiết kế duyệt 2026-10-12 (P5-1 R-A, P5-2 F-A, P5-3 M-A, P5-4 N-A; `docs/reports/phase5/PHASE5_MULTIPLAYER_PLAN_REPORT.md`). Bước 5.1 (protocol 2, xác thực WebSocket, schema v5) xong.
 
 Tasks:
 
@@ -268,7 +272,7 @@ Phase 1 — Farming: COMPLETED (2026-10-10).
 
 Phase 0 — Foundation: COMPLETED (2026-10-10).
 
-Phase 5 — Multiplayer: CHƯA BẮT ĐẦU — chờ thống nhất báo cáo đóng Phase 2, Phase 3 và đánh giá Phase 4. (Origin Codespaces đã commit: `37c3994`.)
+Phase 5 — Multiplayer: IN PROGRESS (Bước 5.1 xong). Game Director 2026-10-12: ưu tiên phát triển; kiểm thử thiết bị thật (Android/iOS) và trình duyệt đã đăng nhập hoãn tới khi Game Director bắt đầu giai đoạn đó — không chặn tiến độ, các hạng mục này vẫn ghi là CHƯA KIỂM THỬ.
 
 ---
 

@@ -1,5 +1,13 @@
 # FARMVERSE CHANGELOG
 
+## Phase 5 — Multiplayer (in progress)
+
+Design approved by the Game Director on 2026-10-12 (P5-1 every farm is a room, P5-2 online list + farm code, P5-3 tap-to-move, P5-4 generated names; `docs/reports/phase5/PHASE5_MULTIPLAYER_PLAN_REPORT.md`).
+
+### Added
+
+- WebSocket protocol 2 and authentication (Step 5.1): `hello` carries the session token (unknown token → `UNAUTHORIZED`, close 4001); `welcome` returns the player's public farm code and name; room messages defined (`join`, `leave`, `move`, `emote` → `room`, `player_joined`, `player_left`, `player_moved`, `player_emote`, `player_updated`) but not handled yet; shared presence rules (farm codes, names, emotes, walkable tiles, entry tile); error codes `ROOM_NOT_FOUND`, `ROOM_FULL`, `NOT_IN_ROOM`, `TILE_BLOCKED`, `RATE_LIMITED`; database schema v5 (`player_profile`, additive, profiles generated for existing players); client sends the token, connects after the session exists and reconnects after "Start a new farm"
+
 ## Development environment
 
 ### Fixed

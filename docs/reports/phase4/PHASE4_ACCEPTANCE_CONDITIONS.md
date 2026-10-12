@@ -4,6 +4,8 @@ Date: 2026-10-12 · Phase 4 status: **conditionally approved** by the Game Direc
 
 This list separates what was tested in Codespaces from what was not tested on devices or in a real production environment.
 
+**Game Director, 2026-10-12:** development continues. C1 and C2 are **deferred**: they stay "not tested" until the Game Director starts device testing. They do not block Phase 5.
+
 ## 1. What was tested, and where
 
 | Check | Environment | Result | Evidence |
